@@ -1,0 +1,40 @@
+export const DEFAULT_SPEC_YAML = `version: "1.0"
+title: Task board
+screens:
+  - id: dashboard
+    title: Dashboard
+    description: A quick overview of work in progress.
+    components:
+      - type: text
+        id: welcome
+        content: Welcome back, Alex
+      - type: button
+        id: new-task
+        label: New task
+        action: open-create-task
+      - type: list
+        id: task-list
+        label: Recent tasks
+  - id: create-task
+    title: Create task
+    components:
+      - type: input
+        id: task-title
+        label: Task title
+        placeholder: What needs to be done?
+        required: true
+      - type: toggle
+        id: priority
+        label: High priority
+      - type: button
+        id: save-task
+        label: Save task
+        action: save-task
+transitions:
+  - from: dashboard
+    to: create-task
+    trigger: new-task.click
+  - from: create-task
+    to: dashboard
+    trigger: save-task.submit
+`;
