@@ -20,7 +20,7 @@ const operation = z.object({
 });
 
 export default defineAction({
-  description: "Edit one screen, component, or transition in the shared UI specification. Use spec.update for complete YAML replacement.",
+  description: "Edit one screen, component, or transition in the shared UI specification. Use spec-update for complete YAML replacement.",
   schema: operation,
   run: async (input) => {
     const db = getDb();

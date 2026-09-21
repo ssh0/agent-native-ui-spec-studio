@@ -78,10 +78,10 @@ name, normally `<component-id>.<event>`.
 
 ## Validation and rendering
 
-`spec.validate` parses YAML, checks the Zod schema, and checks relationships
-(screen IDs, component IDs, and transition endpoints). `spec.renderWireframe`
+`spec-validate` parses YAML, checks the Zod schema, and checks relationships
+(screen IDs, component IDs, and transition endpoints). `spec-render-wireframe`
 returns a self-contained HTML fragment suitable for the preview pane.
-`spec.renderFlow` returns Mermaid `flowchart TD` text for a transition diagram.
+`spec-render-flow` returns Mermaid `flowchart TD` text for a transition diagram.
 
 The checked-in reference document is [`specs/example.yaml`](../specs/example.yaml).
 The executable schema and relationship checks live in

@@ -21,12 +21,12 @@ export function meta() { return [{ title: "UI Spec Studio" }]; }
 
 export default function SpecPage() {
   useSetPageTitle("UI Spec Studio");
-  const loaded = useActionQuery("spec.load", {});
-  const save = useActionMutation("spec.update");
-  const validate = useActionMutation("spec.validate");
-  const wireframe = useActionMutation("spec.renderWireframe");
-  const flow = useActionMutation("spec.renderFlow");
-  const review = useActionMutation("spec.review");
+  const loaded = useActionQuery("spec-load", {});
+  const save = useActionMutation("spec-update");
+  const validate = useActionMutation("spec-validate");
+  const wireframe = useActionMutation("spec-render-wireframe");
+  const flow = useActionMutation("spec-render-flow");
+  const review = useActionMutation("spec-review");
   const [yaml, setYaml] = useState("");
   const [spec, setSpec] = useState<UiSpec>(emptySpec);
   const [selectedId, setSelectedId] = useState("");

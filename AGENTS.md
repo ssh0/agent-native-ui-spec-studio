@@ -47,7 +47,7 @@ brand. Its `app.name` is used in transactional emails, and its optional
 
 ## UI Spec Studio
 
-The `/spec` route provides Builder and YAML editing for the shared UI specification. Use `spec.load`, `spec.update`, `spec.validate`, `spec.renderWireframe`, `spec.renderFlow`, and `spec.review` for the complete workflow. `spec.edit` provides agent-native screen, component, and transition CRUD when a focused edit is preferable to replacing the full YAML document.
+The `/spec` route provides Builder and YAML editing for the shared UI specification. Use `spec-load`, `spec-update`, `spec-validate`, `spec-render-wireframe`, `spec-render-flow`, and `spec-review` for the complete workflow. `spec-edit` provides agent-native screen, component, and transition CRUD when a focused edit is preferable to replacing the full YAML document.
 
 ## Application State
 

@@ -13,11 +13,11 @@ AUTH_DISABLED=true pnpm dev
 
 ## Shared actions
 
-- `spec.load` — 共有YAMLとレビュー状態を読み込む
-- `spec.update` — YAMLを保存する
-- `spec.validate` — Zodスキーマ、ID重複、遷移先を検証する
-- `spec.renderWireframe` — ワイヤーフレームHTMLを生成する
-- `spec.renderFlow` — Mermaidの画面遷移図を生成する
-- `spec.review` — 承認または変更依頼とコメントを保存する
+- `spec-load` — 共有YAMLとレビュー状態を読み込む
+- `spec-update` — YAMLを保存する
+- `spec-validate` — Zodスキーマ、ID重複、遷移先を検証する
+- `spec-render-wireframe` — ワイヤーフレームHTMLを生成する
+- `spec-render-flow` — Mermaidの画面遷移図を生成する
+- `spec-review` — 承認または変更依頼とコメントを保存する
 
 アクションの実装は `actions/`、YAML形式とサンプルは `docs/spec-format.md`、`specs/example.yaml` を参照してください。ローカル開発ではPGliteが `data/pglite` に共有データを保存します。
