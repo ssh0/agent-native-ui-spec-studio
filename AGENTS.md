@@ -45,6 +45,10 @@ For a custom app, keep `server/plugins/config.ts` aligned with the product
 brand. Its `app.name` is used in transactional emails, and its optional
 `app.logoUrl` can point to an absolute HTTPS logo URL.
 
+## UI Spec Studio
+
+The `/spec` route provides Builder and YAML editing for the shared UI specification. Use `spec.load`, `spec.update`, `spec.validate`, `spec.renderWireframe`, `spec.renderFlow`, and `spec.review` for the complete workflow. `spec.edit` provides agent-native screen, component, and transition CRUD when a focused edit is preferable to replacing the full YAML document.
+
 ## Application State
 
 - `navigation` describes the current view and selected entity ids. The default
