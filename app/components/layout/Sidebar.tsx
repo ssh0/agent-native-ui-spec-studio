@@ -16,16 +16,21 @@ import {
 import {
   IconApps,
   IconClock,
+  IconCode,
+  IconDatabase,
   IconEdit,
   IconLayoutSidebarLeftCollapse,
   IconLayoutSidebarLeftExpand,
   IconLoader2,
   IconMessages,
   IconPin,
+  IconPuzzle,
   IconSearch,
+  IconSettings,
+  IconUsers,
 } from "@tabler/icons-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, NavLink, useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 
 import {
@@ -49,6 +54,61 @@ interface SidebarProps {
   collapsed?: boolean;
   collapsible?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
+}
+
+const primaryNavigation = [
+  { href: "/spec", labelKey: "navigation.spec", Icon: IconCode },
+  { href: "/database", labelKey: "navigation.database", Icon: IconDatabase },
+  { href: "/extensions", labelKey: "navigation.extensions", Icon: IconPuzzle },
+  { href: "/team", labelKey: "navigation.team", Icon: IconUsers },
+  { href: "/settings", labelKey: "navigation.settings", Icon: IconSettings },
+] as const;
+
+function PrimaryNavigation({ collapsed }: { collapsed: boolean }) {
+  const t = useT();
+  const links = primaryNavigation.map(({ href, labelKey, Icon }) => {
+    const label = t(labelKey);
+    const link = (
+      <NavLink
+        key={href}
+        to={href}
+        end={href === "/settings"}
+        className={({ isActive }) =>
+          cn(
+            "flex items-center text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+            collapsed
+              ? "size-10 justify-center rounded-md"
+              : "h-10 w-full gap-3 rounded-lg px-3 text-sm",
+            isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+          )
+        }
+        aria-label={collapsed ? label : undefined}
+      >
+        <Icon className="size-4 shrink-0" strokeWidth={1.8} />
+        <span className={collapsed ? "sr-only" : "truncate"}>{label}</span>
+      </NavLink>
+    );
+
+    return collapsed ? (
+      <Tooltip key={href}>
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
+        <TooltipContent side="right">{label}</TooltipContent>
+      </Tooltip>
+    ) : (
+      link
+    );
+  });
+
+  return (
+    <div
+      className={cn(
+        "shrink-0",
+        collapsed ? "space-y-1" : "space-y-0.5 px-2",
+      )}
+    >
+      {links}
+    </div>
+  );
 }
 
 function threadTitle(thread: ChatThreadSummary, untitledLabel: string) {
@@ -528,6 +588,7 @@ export function Sidebar({
           collapsed ? "items-center gap-1 px-1 py-2" : "pt-1",
         )}
       >
+        <PrimaryNavigation collapsed={collapsed} />
         <ChatThreadsSection collapsed={collapsed} />
         {collapsed ? searchButton : null}
       </nav>

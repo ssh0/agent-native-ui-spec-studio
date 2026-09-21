@@ -53,6 +53,7 @@ const messages = {
     observability: "Observability",
     openNavigation: "Open navigation",
     settings: "Settings",
+    spec: "UI Spec Studio",
     team: "Team",
   },
   pages: {
