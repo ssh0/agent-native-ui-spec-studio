@@ -132,8 +132,8 @@ export function renderFlow(
     const screen = selectedId
       ? spec.screens.find((s) => s.id === selectedId)
       : spec.screens[0];
-    if (screen?.stateFlow) {
-      const flow = screen.stateFlow;
+    const flow = screen?.stateFlow;
+    if (flow && flow.states.length && flow.initial !== null) {
       const ids = new Map(flow.states.map((s, i) => [s.id, `s${i}`]));
       lines.push(`  start(("${label("開始")}")) --> ${ids.get(flow.initial)}`);
       flow.states.forEach((s) =>
@@ -147,9 +147,9 @@ export function renderFlow(
     }
   } else {
     const useCases = selectedId
-      ? spec.useCases?.filter((u) => u.id === selectedId)
+      ? spec.useCases.filter((u) => u.id === selectedId)
       : spec.useCases;
-    useCases?.forEach((u, i) => {
+    useCases.forEach((u, i) => {
       if (!u.steps.length) return;
       lines.push(`  subgraph uc${i}["${label(u.title)}"]`);
       const ids = new Map(u.steps.map((s, j) => [s.id, `u${i}s${j}`]));

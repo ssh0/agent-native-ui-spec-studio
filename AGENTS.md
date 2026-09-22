@@ -11,9 +11,9 @@ The default app skill surface is intentionally small. Promotion, learning,
 translation, changelog, provider, and release workflows are optional; enable
 the matching skill only when this app actually uses that workflow. The
 `docs-search` action reads the version-matched framework docs bundled with
-  `@agent-native/core`; `source-search` reads core and first-party template
-  implementations. Prefer both over memory when package APIs, actions, or agent
-  surfaces are involved.
+`@agent-native/core`; `source-search` reads core and first-party template
+implementations. Prefer both over memory when package APIs, actions, or agent
+surfaces are involved.
 
 ## Core Rules
 
@@ -47,7 +47,7 @@ brand. Its `app.name` is used in transactional emails, and its optional
 
 ## UI Spec Studio
 
-The `/spec` workspace follows data → flows → use cases (including branches and exceptions) → screens/state flows → component actions. See `docs/spec-format.md` for the authoritative YAML contract, reference rules and review-history semantics. Keep decisions in stage `notes`.
+The `/spec` workspace follows data → flows → use cases (including branches and exceptions) → screens/state flows → component actions. Use the required version 2.0 structure in `docs/spec-format.md`; empty arrays represent unfinished stages, including screens. That document owns the reference rules and review-history semantics. Keep decisions in stage `notes`.
 
 Use `spec-load`, `spec-update`, `spec-validate`, `spec-render-wireframe`, `spec-render-flow`, and `spec-review` for the shared workflow. `spec-edit` supports focused CRUD and `set_section` for domain/flows/useCases; `spec-render-flow` accepts screens/useCases/states. Navigation exposes stage, selected ID and editing mode. Preserve notes and existing stages during edits; review only saved, valid content.
 

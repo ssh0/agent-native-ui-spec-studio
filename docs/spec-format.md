@@ -17,56 +17,58 @@ UIとエージェントは同じSQL上のYAMLを共有アクションで読み�
 各段階の `notes` は決定理由・代替案・未決事項を残す自由記述。機能説明は `description`、
 検討理由は `notes` と使い分ける。トップレベル `notes` は全体方針。
 
-## バージョンと互換性
+## 必須構造（version 2.0）
 
 ```yaml
-version: "1.1"
-title: タスク管理
-notes: 任意の全体方針
-domain: { entities: [], terms: [] }
+version: "2.0"
+title: 検討中の仕様
+notes: データの整理から着手する
+domain:
+  entities: []
+  terms: []
 flows: []
 useCases: []
-screens:
-  - { id: home, title: ホーム, components: [] }
+screens: []
 transitions: []
 ```
 
-- `title` と1件以上の `screens` が必要。`version` 省略時は `"1.0"`。
-- 対応形式は `"1.0"` / `"1.1"`。新規例は1.1、既存1.0も同じ追加項目を段階導入できる。
-- 新しい `domain` / `flows` / `useCases` / `stateFlow` はすべて任意。
-- `transitions` と `components` は省略時 `[]`。既存の画面／部品／遷移はそのまま読める。
-- コンポーネントの未知フィールドのみ既存どおり保持。その他の拡張はこの文書とスキーマに追加する。
+- `version: "2.0"`, `title`, `domain`, `flows`, `useCases`, `screens`, `transitions` はすべて必須。
+- 文書構造はこの1形式に固定し、省略時の旧version補完や旧形式の自動変換は行わない。
+- 各段階の未検討内容は空配列で明示する。画面を1件も作らずデータやユースケースの検討を開始できる。
+- 以下で配列として定義する構造（エンティティの `fields`、フローの `steps`、ユースケースの条件・系列・分岐、画面の参照・部品・状態遷移）は省略せず、未定義なら `[]` を書く。
+- `notes`、単一の参照、説明など「任意」と示す値は省略できる。
+- 未定義フィールドは検証エラー。部品の追加表示メタデータは `props` に置く。誤記した項目を黙って削除しない。
 - IDは空でない安定した文字列。英小文字とハイフンを推奨するが日本語も使用可。
 
 ## データ・用語 `domain`
 
-| フィールド | 形式・意味 |
-| --- | --- |
-| `notes` | 任意の検討メモ |
-| `entities[]` | `id`, `title`, 任意 `description`, `notes`, `fields[]` |
+| フィールド            | 形式・意味                                                                                          |
+| --------------------- | --------------------------------------------------------------------------------------------------- |
+| `notes`               | 任意の検討メモ                                                                                      |
+| `entities[]`          | `id`, `title`, 必須 `fields[]`、任意 `description`, `notes`                                         |
 | `entities[].fields[]` | `id`, `title`, `type`（文字列）, 任意 `required`（真偽値）, `entity`（関連エンティティID）, `notes` |
-| `terms[]` | `id`, `title`, `definition`, 任意 `entity`（エンティティID）, `notes` |
+| `terms[]`             | `id`, `title`, `definition`, 任意 `entity`（エンティティID）, `notes`                               |
 
-`entities`, `terms`, `fields` は省略時 `[]`。`type` は業務上の型の記述であり、実行可能なSQL型ではない。
+`entities`, `terms`, `fields` は必須の配列。`type` は業務上の型の記述であり、実行可能なSQL型ではない。
 
 ## 業務フロー `flows[]`
 
-`id`, `title`, 任意 `actor`, `goal`, `notes`, `steps[]`。
+`id`, `title`, `steps[]` が必須。`actor`, `goal`, `notes` は任意。
 各手順は `id`, `title`, 任意 `useCase`（ユースケースID）, `notes`。
 配列順が業務の順序。ユースケース化前の手順は `useCase` を省略できる。
 
 ## ユースケース `useCases[]`
 
-| フィールド | 形式・意味 |
-| --- | --- |
-| `id`, `title` | 必須の識別子と名称 |
-| `actor`, `notes` | 任意の利用者・検討メモ |
-| `entities`, `screens` | 任意のエンティティID配列・画面ID配列 |
-| `preconditions`, `postconditions` | 任意の文字列配列 |
-| `steps[]` | `id`, `title`, 任意 `screen`, `action: { screen, component }`, `notes` |
-| `branches[]` | `id`, `kind: alternate \| exception`, `from`, `condition`, `outcome`, 任意 `resumeAt`, `screen`, `notes` |
+| フィールド                        | 形式・意味                                                                                               |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `id`, `title`                     | 必須の識別子と名称                                                                                       |
+| `actor`, `notes`                  | 任意の利用者・検討メモ                                                                                   |
+| `entities`, `screens`             | 必須のエンティティID配列・画面ID配列（未定義は `[]`）                                                    |
+| `preconditions`, `postconditions` | 必須の文字列配列（未検討は `[]`）                                                                        |
+| `steps[]`                         | `id`, `title`, 任意 `screen`, `action: { screen, component }`, `notes`                                   |
+| `branches[]`                      | `id`, `kind: alternate \| exception`, `from`, `condition`, `outcome`, 任意 `resumeAt`, `screen`, `notes` |
 
-`steps` と `branches` は省略時 `[]`。基本系列は `steps` の配列順。
+`steps` と `branches` は必須の配列。基本系列は `steps` の配列順。
 `from` と `resumeAt` は同一ユースケース内の手順ID。`resumeAt` 省略時はその分岐で終了。
 `alternate` は条件別の代替系列、`exception` は失敗・異常系。
 `screen` は画面ID、`action` はその画面内で空でない `action` を持つ部品への参照。
@@ -74,7 +76,7 @@ transitions: []
 
 ## 画面 `screens[]`
 
-`id`, `title`, 任意 `description`, `notes`, `entities`（エンティティID配列）, `useCases`（ユースケースID配列）, `components[]`, `stateFlow`。
+`id`, `title`, `entities`（エンティティID配列）, `useCases`（ユースケースID配列）, `components[]`, `stateFlow` が必須。`description`, `notes` は任意。
 画面全体の機能は `description`、画面間の移動はトップレベル `transitions`、画面内状態は `stateFlow` で表す。
 
 ```yaml
@@ -88,29 +90,30 @@ stateFlow:
     - { from: editing, to: saving, trigger: 保存, component: save-button }
 ```
 
-`stateFlow` がある場合 `initial` と1件以上の `states` が必要。
+`stateFlow` は `initial`, `states`, `transitions` を必ず持つ。未検討時は `{ initial: null, states: [], transitions: [] }`。
+状態を1件以上定義した場合、`initial` にはその中の状態IDを指定する。
 状態は `id`, `title`, 任意 `notes`。遷移は `from`, `to`, `trigger`, 任意 `component`, `notes`。
-状態IDは画面内スコープ、`component` はその画面内の部品ID。遷移配列は省略時 `[]`。
+状態IDは画面内スコープ、`component` はその画面内の部品ID。状態・遷移配列の省略は不可。
 
 ## 部品・アクション `screens[].components[]`
 
 `id`, `type` が必須。種類は `button`, `text`, `input`, `image`, `toggle`, `select`, `link`, `card`, `list`, `divider`, `navigation`。
 
-| フィールド | 形式・意味 |
-| --- | --- |
-| `label`, `content` | 任意の表示ラベル・本文 |
-| `action` | 任意の安定した操作名／イベント名（例 `save-task`） |
-| `useCases` | 任意の関連ユースケースID配列 |
-| `precondition`, `outcome`, `notes` | 任意の実行条件・結果・検討メモ |
-| `placeholder`, `src` | 任意の入力ヒント・画像URLや参照 |
-| `options`, `required`, `props` | 任意の選択肢配列・必須真偽値・表示メタデータマップ |
+| フィールド                         | 形式・意味                                         |
+| ---------------------------------- | -------------------------------------------------- |
+| `label`, `content`                 | 任意の表示ラベル・本文                             |
+| `action`                           | 任意の安定した操作名／イベント名（例 `save-task`） |
+| `useCases`                         | 任意の関連ユースケースID配列                       |
+| `precondition`, `outcome`, `notes` | 任意の実行条件・結果・検討メモ                     |
+| `placeholder`, `src`               | 任意の入力ヒント・画像URLや参照                    |
+| `options`, `required`, `props`     | 任意の選択肢配列・必須真偽値・表示メタデータマップ |
 
 画面内アクションの正は部品の `action`。別のアクション一覧を複製保存しない。
 
 ## 画面間遷移 `transitions[]`
 
 `from`, `to` は画面ID、`trigger` は空でないイベント名、`notes` は任意。
-既存互換のため `trigger` は自由記述（部品参照の強制はしない）。
+`trigger` はユーザー操作・外部イベントを表す自由記述。部品との対応はユースケースの `action` や画面内状態遷移の `component` で結び付ける。
 
 ## 検証・共有アクション
 
@@ -125,7 +128,7 @@ stateFlow:
 - `spec-render-flow`: 既定 `kind: screens`、追加 `useCases` / `states`。任意 `selectedId` でユースケース／画面を選ぶ。
   Mermaid文字列の `format` / `mermaid` 戻り値は維持。対象が空なら空文字。
 - `spec-review`: `approved` / `changes_requested` と任意コメント、`stage`（既定 `screens`）、任意 `expectedUpdatedAt`。
-  承認は保存済み文書全体に対する決定。`stage` は検討の焦点。無効な仕様は承認不可。
+  承認は保存済み文書全体に対する決定。`stage` は検討の焦点。形式・参照が無効な仕様はレビュー不可。
 
 ID重複はエンティティ・用語・フロー・ユースケース・画面、およびそれぞれのフィールド／手順／分岐／部品／状態スコープで検出する。
 参照の存在を検証し、網羅性（例: 全例外の検討済み）を推定したり承認したりはしない。
@@ -134,7 +137,7 @@ ID重複はエンティティ・用語・フロー・ユースケース・画面
 
 `notes` はYAMLとともに編集・保持する。レビュー履歴は同じSQLレコードの `review_history` に追記し、
 `id`, `stage`, `status`, `comment`, `createdAt`, `documentHash`（保存YAMLのSHA-256）を保持する。
-保存し直しても履歴は消さない。従来の `reviewStatus` / `reviewComment` も維持。
+保存し直しても履歴は消さない。`reviewStatus` / `reviewComment` は最新の判断を表す。
 レビューは追記専用だが、仕様の全版復元・差分監査・レビュー者の証明までは提供しない。
 
 スタジオのMermaidソース編集は一時的な描画確認。YAMLへの逆変換・保存は行わない。

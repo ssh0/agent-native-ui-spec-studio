@@ -107,8 +107,8 @@ export default function SpecPage() {
             ? spec.useCases
             : spec.screens;
     const id =
-      items?.find((item) => item.id === selectedId)?.id ?? items?.[0]?.id;
-    if (id && id !== selectedId) navigate({ selected: id });
+      items?.find((item) => item.id === selectedId)?.id ?? items?.[0]?.id ?? "";
+    if (id !== selectedId) navigate({ selected: id || null });
   }, [spec, stage, selectedId, sectionDraft]);
 
   const update = (next: UiSpec) => {
@@ -444,7 +444,13 @@ export default function SpecPage() {
               <Button
                 variant="outline"
                 size="sm"
-                disabled={pending || dirty || hasUnapplied || !base.updatedAt}
+                disabled={
+                  pending ||
+                  dirty ||
+                  hasUnapplied ||
+                  !base.updatedAt ||
+                  !!parsed.issues.length
+                }
                 onClick={() => void decide("changes_requested")}
               >
                 修正を依頼

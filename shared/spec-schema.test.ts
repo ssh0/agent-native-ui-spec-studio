@@ -9,18 +9,90 @@ import { SpecSchema, validateSpecRelations, type UiSpec } from "./spec-schema";
 import { parseSpecYaml, renderFlow, renderWireframe } from "./spec-utils";
 const example = () => parseSpecYaml(DEFAULT_SPEC_YAML).spec!;
 
-describe("specification compatibility and relations", () => {
-  it("loads legacy documents without inserting new sections", () => {
-    const result = parseSpecYaml(
-      "title: Legacy\nscreens:\n  - id: home\n    title: Home\n",
-    );
-    expect(result.issues).toEqual([]);
-    expect(result.spec).toEqual({
-      version: "1.0",
-      title: "Legacy",
-      screens: [{ id: "home", title: "Home", components: [] }],
+describe("canonical specification structure and relations", () => {
+  it("starts with every stage explicit and no invented screens", () => {
+    const minimal = {
+      version: "2.0",
+      title: "検討開始",
+      domain: { entities: [], terms: [] },
+      flows: [],
+      useCases: [],
+      screens: [],
+      transitions: [],
+    };
+    expect(parseSpecYaml(stringify(minimal))).toEqual({
+      spec: minimal,
+      issues: [],
+    });
+    const added = editSpec(minimal as UiSpec, {
+      kind: "add_screen",
+      screenId: "home",
+      title: "ホーム",
+    });
+    expect(added.screens[0].stateFlow).toEqual({
+      initial: null,
+      states: [],
       transitions: [],
     });
+    expect(
+      editSpec(added, { kind: "delete_screen", screenId: "home" }).screens,
+    ).toEqual([]);
+  });
+  it.each(["version", "domain", "flows", "useCases", "screens", "transitions"])(
+    "requires the %s structure without implicit defaults",
+    (key) => {
+      const value = { ...example() } as Record<string, unknown>;
+      delete value[key];
+      expect(SpecSchema.safeParse(value).success).toBe(false);
+    },
+  );
+  it.each(["1.0", "1.1", "3.0"])(
+    "rejects unsupported version %s",
+    (version) => {
+      expect(SpecSchema.safeParse({ ...example(), version }).success).toBe(
+        false,
+      );
+    },
+  );
+  it("rejects unknown fields instead of silently losing them", () => {
+    expect(SpecSchema.safeParse({ ...example(), usecases: [] }).success).toBe(
+      false,
+    );
+    const spec = example();
+    (spec.screens[0].components[0] as Record<string, unknown>).unknownProperty =
+      "data";
+    expect(SpecSchema.safeParse(spec).success).toBe(false);
+  });
+  it("requires explicit nested stage structures", () => {
+    for (const path of [
+      ["domain", "entities"],
+      ["domain", "terms"],
+      ["domain", "entities", 0, "fields"],
+      ["flows", 0, "steps"],
+      ["useCases", 0, "steps"],
+      ["useCases", 0, "branches"],
+      ["useCases", 0, "preconditions"],
+      ["useCases", 0, "postconditions"],
+      ["screens", 0, "components"],
+      ["screens", 0, "stateFlow"],
+      ["screens", 0, "stateFlow", "states"],
+      ["screens", 0, "stateFlow", "transitions"],
+    ]) {
+      const spec = example();
+      let parent: any = spec;
+      for (const part of path.slice(0, -1)) parent = parent[part];
+      delete parent[path[path.length - 1]];
+      expect(SpecSchema.safeParse(spec).success, path.join(".")).toBe(false);
+    }
+  });
+  it("requires an initial state once screen states are defined", () => {
+    const spec = example();
+    spec.screens[0].stateFlow.initial = null;
+    expect(validateSpecRelations(spec)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: "screens[0].stateFlow.initial" }),
+      ]),
+    );
   });
   it("keeps the documented example and starter identical, valid and lossless", () => {
     expect(DEFAULT_SPEC_YAML).toBe(
@@ -29,67 +101,64 @@ describe("specification compatibility and relations", () => {
     expect(parseSpecYaml(DEFAULT_SPEC_YAML).issues).toEqual([]);
     expect(parseSpecYaml(stringify(example())).spec).toEqual(example());
   });
-  it("rejects unsupported versions and malformed branches", () => {
-    expect(SpecSchema.safeParse({ ...example(), version: "2.0" }).success).toBe(
-      false,
-    );
+  it("rejects malformed branches", () => {
     const spec = example();
-    (spec.useCases![0].branches[0] as any).kind = "happy";
+    (spec.useCases[0].branches[0] as any).kind = "happy";
     expect(SpecSchema.safeParse(spec).success).toBe(false);
   });
   it.each([
     [
       "entity relationship",
       (s: UiSpec) => {
-        s.domain!.entities[0].fields[0].entity = "missing";
+        s.domain.entities[0].fields[0].entity = "missing";
       },
     ],
     [
       "term",
       (s: UiSpec) => {
-        s.domain!.terms[0].entity = "missing";
+        s.domain.terms[0].entity = "missing";
       },
     ],
     [
       "flow use case",
       (s: UiSpec) => {
-        s.flows![0].steps[0].useCase = "missing";
+        s.flows[0].steps[0].useCase = "missing";
       },
     ],
     [
       "use case entity",
       (s: UiSpec) => {
-        s.useCases![0].entities = ["missing"];
+        s.useCases[0].entities = ["missing"];
       },
     ],
     [
       "use case screen",
       (s: UiSpec) => {
-        s.useCases![0].screens = ["missing"];
+        s.useCases[0].screens = ["missing"];
       },
     ],
     [
       "step screen",
       (s: UiSpec) => {
-        s.useCases![0].steps[0].screen = "missing";
+        s.useCases[0].steps[0].screen = "missing";
       },
     ],
     [
       "component action",
       (s: UiSpec) => {
-        s.useCases![0].steps[0].action!.component = "heading";
+        s.useCases[0].steps[0].action!.component = "heading";
       },
     ],
     [
       "branch origin",
       (s: UiSpec) => {
-        s.useCases![0].branches[0].from = "missing";
+        s.useCases[0].branches[0].from = "missing";
       },
     ],
     [
       "branch rejoin",
       (s: UiSpec) => {
-        s.useCases![0].branches[0].resumeAt = "missing";
+        s.useCases[0].branches[0].resumeAt = "missing";
       },
     ],
     [
@@ -107,37 +176,37 @@ describe("specification compatibility and relations", () => {
     [
       "initial state",
       (s: UiSpec) => {
-        s.screens[1].stateFlow!.initial = "missing";
+        s.screens[1].stateFlow.initial = "missing";
       },
     ],
     [
       "state endpoint",
       (s: UiSpec) => {
-        s.screens[1].stateFlow!.transitions[0].to = "missing";
+        s.screens[1].stateFlow.transitions[0].to = "missing";
       },
     ],
     [
       "state control",
       (s: UiSpec) => {
-        s.screens[1].stateFlow!.transitions[0].component = "missing";
+        s.screens[1].stateFlow.transitions[0].component = "missing";
       },
     ],
     [
       "duplicate entity",
       (s: UiSpec) => {
-        s.domain!.entities.push(s.domain!.entities[0]);
+        s.domain.entities.push(s.domain.entities[0]);
       },
     ],
     [
       "duplicate step",
       (s: UiSpec) => {
-        s.useCases![0].steps.push(s.useCases![0].steps[0]);
+        s.useCases[0].steps.push(s.useCases[0].steps[0]);
       },
     ],
     [
       "duplicate state",
       (s: UiSpec) => {
-        s.screens[1].stateFlow!.states.push(s.screens[1].stateFlow!.states[0]);
+        s.screens[1].stateFlow.states.push(s.screens[1].stateFlow.states[0]);
       },
     ],
   ])("reports a broken %s", (_label, mutate) => {
@@ -152,7 +221,7 @@ describe("specification compatibility and relations", () => {
       nextScreenId: "list",
     });
     expect(validateSpecRelations(spec)).toEqual([]);
-    expect(spec.useCases![0].steps[0].action?.screen).toBe("list");
+    expect(spec.useCases[0].steps[0].action?.screen).toBe("list");
     expect(spec.domain).toEqual(example().domain);
     expect(() =>
       editSpec(spec, {
@@ -174,7 +243,7 @@ describe("specification compatibility and relations", () => {
       editSpec(example(), {
         kind: "set_section",
         section: "domain",
-        value: { entities: [] },
+        value: { entities: [], terms: [] },
       }),
     ).toThrow();
     expect(
@@ -200,7 +269,16 @@ describe("specification compatibility and relations", () => {
     expect(renderFlow(spec, "states", "missing")).toBe("");
     expect(renderFlow(spec, "useCases", "missing")).toBe("");
     spec.useCases = [
-      { id: "planned", title: "検討中", steps: [], branches: [] },
+      {
+        id: "planned",
+        title: "検討中",
+        entities: [],
+        screens: [],
+        preconditions: [],
+        postconditions: [],
+        steps: [],
+        branches: [],
+      },
     ];
     expect(renderFlow(spec, "useCases", "planned")).toBe("");
   });

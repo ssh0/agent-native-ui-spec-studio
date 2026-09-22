@@ -51,9 +51,9 @@ export function renameScreen(spec: UiSpec, from: string, to: string): UiSpec {
       from: t.from === from ? to : t.from,
       to: t.to === from ? to : t.to,
     })),
-    useCases: spec.useCases?.map((u) => ({
+    useCases: spec.useCases.map((u) => ({
       ...u,
-      screens: u.screens?.map((s) => (s === from ? to : s)),
+      screens: u.screens.map((s) => (s === from ? to : s)),
       steps: u.steps.map((s) => ({
         ...s,
         screen: s.screen === from ? to : s.screen,
@@ -88,6 +88,9 @@ export function editSpec(
       id: input.screenId,
       title: input.title,
       description: input.description,
+      entities: [],
+      useCases: [],
+      stateFlow: { initial: null, states: [], transitions: [] },
       components: [],
     });
   } else if (input.kind.includes("transition")) {
@@ -112,8 +115,6 @@ export function editSpec(
         screen.description = input.description;
       spec = renameScreen(spec, screen.id, nextId);
     } else if (input.kind === "delete_screen") {
-      if (spec.screens.length < 2)
-        throw new Error("少なくとも1つの画面が必要です。");
       spec.screens = spec.screens.filter((s) => s.id !== screen.id);
       spec.transitions = spec.transitions.filter(
         (t) => t.from !== screen.id && t.to !== screen.id,

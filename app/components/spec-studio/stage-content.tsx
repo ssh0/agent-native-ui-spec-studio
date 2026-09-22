@@ -160,24 +160,6 @@ export function StageContent({
                       </tbody>
                     </table>
                     <Note value={entity.notes} />
-                    {!!spec.domain?.terms.length && (
-                      <>
-                        <h3>用語</h3>
-                        <dl className="spec-terms">
-                          {spec.domain.terms.map((t) => (
-                            <div key={t.id}>
-                              <dt>{t.title}</dt>
-                              <dd>
-                                {t.definition}
-                                {t.entity && <code>{t.entity}</code>}
-                                <Note value={t.notes} />
-                              </dd>
-                            </div>
-                          ))}
-                        </dl>
-                      </>
-                    )}
-                    <Note value={spec.domain?.notes} />
                   </>
                 );
               })()}
@@ -317,6 +299,28 @@ export function StageContent({
               })()}
           </>
         )}
+        {stage === "domain" && (
+          <>
+            {!!spec.domain.terms.length && (
+              <>
+                <h3>用語</h3>
+                <dl className="spec-terms">
+                  {spec.domain.terms.map((term) => (
+                    <div key={term.id}>
+                      <dt>{term.title}</dt>
+                      <dd>
+                        {term.definition}
+                        {term.entity && <code>{term.entity}</code>}
+                        <Note value={term.notes} />
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </>
+            )}
+            <Note value={spec.domain.notes} />
+          </>
+        )}
       </div>
     </div>
   );
@@ -379,6 +383,28 @@ function ScreenBuilder({
   const [tab, setTab] = useState<
     "definition" | "wireframe" | "flow" | "states"
   >("definition");
+  const addScreen = () => {
+    const screen: UiSpec["screens"][number] = {
+      id: newId("screen"),
+      title: "新しい画面",
+      entities: [],
+      useCases: [],
+      stateFlow: { initial: null, states: [], transitions: [] },
+      components: [],
+    };
+    update({ ...spec, screens: [...spec.screens, screen] });
+    select(screen.id);
+  };
+  if (!selected) {
+    return (
+      <Empty>
+        画面はまだ定義されていません。
+        <Button variant="outline" size="sm" onClick={addScreen}>
+          画面を追加
+        </Button>
+      </Empty>
+    );
+  }
   const updateScreen = (patch: Partial<UiSpec["screens"][number]>) => {
     const next = {
       ...spec,
@@ -397,11 +423,6 @@ function ScreenBuilder({
         i === index ? { ...c, ...patch } : c,
       ),
     });
-  const addScreen = () => {
-    const screen = { id: newId("screen"), title: "新しい画面", components: [] };
-    update({ ...spec, screens: [...spec.screens, screen] });
-    select(screen.id);
-  };
   return (
     <div className="spec-stage-layout">
       <aside className="spec-item-list" aria-label="画面一覧">
@@ -427,7 +448,6 @@ function ScreenBuilder({
             <Button
               variant="ghost"
               size="sm"
-              disabled={spec.screens.length < 2}
               onClick={() => {
                 update({
                   ...spec,
@@ -436,7 +456,9 @@ function ScreenBuilder({
                     (t) => t.from !== selected.id && t.to !== selected.id,
                   ),
                 });
-                select(spec.screens.find((s) => s.id !== selected.id)!.id);
+                select(
+                  spec.screens.find((s) => s.id !== selected.id)?.id ?? "",
+                );
               }}
             >
               画面を削除
@@ -750,10 +772,5 @@ function ScreenBuilder({
   );
 }
 export function sectionValue(spec: UiSpec, stage: SpecStage) {
-  return stringify(
-    stage === "actions"
-      ? spec.screens
-      : (spec[stage] ??
-          (stage === "domain" ? { entities: [], terms: [] } : [])),
-  );
+  return stringify(stage === "actions" ? spec.screens : spec[stage]);
 }

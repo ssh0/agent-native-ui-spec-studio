@@ -27,10 +27,9 @@ export default defineAction({
     }
     const parsed = parseSpecYaml(source ?? DEFAULT_SPEC_YAML);
     if (!parsed.spec || parsed.issues.length > 0) {
-      fail("Cannot render an invalid UI specification.", {
+      fail("仕様の形式・参照エラーを修正してから描画してください。", {
         details: { issues: parsed.issues },
       });
-      throw new Error("Invalid UI specification");
     }
     return { format: "html", html: renderWireframe(parsed.spec) };
   },

@@ -30,132 +30,122 @@ export const componentTypes = [
 ] as const;
 const id = z.string().min(1);
 const notes = z.string().optional();
-const refs = z.array(id).optional();
-const Named = z.object({ id, title: id, notes });
-export const DomainSchema = z.object({
+const refs = z.array(id);
+const Named = z.strictObject({ id, title: id, notes });
+export const DomainSchema = z.strictObject({
   notes,
-  entities: z
-    .array(
-      Named.extend({
-        description: z.string().optional(),
-        fields: z
-          .array(
-            z.object({
-              id,
-              title: id,
-              type: id,
-              required: z.boolean().optional(),
-              entity: id.optional(),
-              notes,
-            }),
-          )
-          .default([]),
-      }),
-    )
-    .default([]),
-  terms: z
-    .array(
-      z.object({ id, title: id, definition: id, entity: id.optional(), notes }),
-    )
-    .default([]),
+  entities: z.array(
+    Named.extend({
+      description: z.string().optional(),
+      fields: z.array(
+        z.strictObject({
+          id,
+          title: id,
+          type: id,
+          required: z.boolean().optional(),
+          entity: id.optional(),
+          notes,
+        }),
+      ),
+    }),
+  ),
+  terms: z.array(
+    z.strictObject({
+      id,
+      title: id,
+      definition: id,
+      entity: id.optional(),
+      notes,
+    }),
+  ),
 });
 export const FlowSchema = Named.extend({
   actor: z.string().optional(),
   goal: z.string().optional(),
-  steps: z
-    .array(z.object({ id, title: id, useCase: id.optional(), notes }))
-    .default([]),
+  steps: z.array(
+    z.strictObject({ id, title: id, useCase: id.optional(), notes }),
+  ),
 });
-const ActionRef = z.object({ screen: id, component: id });
+const ActionRef = z.strictObject({ screen: id, component: id });
 export const UseCaseSchema = Named.extend({
   actor: z.string().optional(),
   entities: refs,
   screens: refs,
-  preconditions: z.array(z.string()).optional(),
-  postconditions: z.array(z.string()).optional(),
-  steps: z
-    .array(
-      z.object({
-        id,
-        title: id,
-        screen: id.optional(),
-        action: ActionRef.optional(),
-        notes,
-      }),
-    )
-    .default([]),
-  branches: z
-    .array(
-      z.object({
-        id,
-        kind: z.enum(["alternate", "exception"]),
-        from: id,
-        condition: id,
-        outcome: id,
-        resumeAt: id.optional(),
-        screen: id.optional(),
-        notes,
-      }),
-    )
-    .default([]),
+  preconditions: z.array(z.string()),
+  postconditions: z.array(z.string()),
+  steps: z.array(
+    z.strictObject({
+      id,
+      title: id,
+      screen: id.optional(),
+      action: ActionRef.optional(),
+      notes,
+    }),
+  ),
+  branches: z.array(
+    z.strictObject({
+      id,
+      kind: z.enum(["alternate", "exception"]),
+      from: id,
+      condition: id,
+      outcome: id,
+      resumeAt: id.optional(),
+      screen: id.optional(),
+      notes,
+    }),
+  ),
 });
-export const ComponentSchema = z
-  .object({
-    type: z.enum(componentTypes),
-    id,
-    label: z.string().optional(),
-    content: z.string().optional(),
-    action: z.string().optional(),
-    placeholder: z.string().optional(),
-    src: z.string().optional(),
-    options: z.array(z.string()).optional(),
-    required: z.boolean().optional(),
-    props: z.record(z.string(), z.unknown()).optional(),
-    useCases: refs,
-    precondition: z.string().optional(),
-    outcome: z.string().optional(),
-    notes,
-  })
-  .passthrough();
+export const ComponentSchema = z.strictObject({
+  type: z.enum(componentTypes),
+  id,
+  label: z.string().optional(),
+  content: z.string().optional(),
+  action: z.string().optional(),
+  placeholder: z.string().optional(),
+  src: z.string().optional(),
+  options: z.array(z.string()).optional(),
+  required: z.boolean().optional(),
+  props: z.record(z.string(), z.unknown()).optional(),
+  useCases: refs.optional(),
+  precondition: z.string().optional(),
+  outcome: z.string().optional(),
+  notes,
+});
 export const ScreenSchema = Named.extend({
   description: z.string().optional(),
   entities: refs,
   useCases: refs,
-  components: z.array(ComponentSchema).default([]),
-  stateFlow: z
-    .object({
-      notes,
-      initial: id,
-      states: z.array(Named).min(1),
-      transitions: z
-        .array(
-          z.object({
-            from: id,
-            to: id,
-            trigger: id,
-            component: id.optional(),
-            notes,
-          }),
-        )
-        .default([]),
-    })
-    .optional(),
+  components: z.array(ComponentSchema),
+  stateFlow: z.strictObject({
+    notes,
+    initial: id.nullable(),
+    states: z.array(Named),
+    transitions: z.array(
+      z.strictObject({
+        from: id,
+        to: id,
+        trigger: id,
+        component: id.optional(),
+        notes,
+      }),
+    ),
+  }),
 });
-export const TransitionSchema = z.object({
+export const TransitionSchema = z.strictObject({
   from: id,
   to: id,
   trigger: id,
   notes,
 });
-export const SpecSchema = z.object({
-  version: z.enum(["1.0", "1.1"]).default("1.0"),
+export const SpecSchema = z.strictObject({
+  version: z.literal("2.0"),
   title: id,
   notes,
-  domain: DomainSchema.optional(),
-  flows: z.array(FlowSchema).optional(),
-  useCases: z.array(UseCaseSchema).optional(),
-  screens: z.array(ScreenSchema).min(1),
-  transitions: z.array(TransitionSchema).default([]),
+  domain: DomainSchema,
+  flows: z.array(FlowSchema),
+  useCases: z.array(UseCaseSchema),
+  screens: z.array(ScreenSchema),
+  transitions: z.array(TransitionSchema),
 });
 export type UiSpec = z.infer<typeof SpecSchema>;
 export type UiComponent = z.infer<typeof ComponentSchema>;
@@ -190,26 +180,26 @@ export function validateSpecRelations(spec: UiSpec): ValidationIssue[] {
   const many = (values: string[] | undefined, ids: Set<string>, path: string) =>
     values?.forEach((v, i) => ref(v, ids, `${path}[${i}]`));
   const screenIds = unique(spec.screens, "screens");
-  const entities = unique(spec.domain?.entities ?? [], "domain.entities");
-  const cases = unique(spec.useCases ?? [], "useCases");
-  unique(spec.domain?.terms ?? [], "domain.terms");
-  unique(spec.flows ?? [], "flows");
-  spec.domain?.entities.forEach((entity, i) => {
+  const entities = unique(spec.domain.entities, "domain.entities");
+  const cases = unique(spec.useCases, "useCases");
+  unique(spec.domain.terms, "domain.terms");
+  unique(spec.flows, "flows");
+  spec.domain.entities.forEach((entity, i) => {
     unique(entity.fields, `domain.entities[${i}].fields`);
     entity.fields.forEach((field, j) =>
       ref(field.entity, entities, `domain.entities[${i}].fields[${j}].entity`),
     );
   });
-  spec.domain?.terms.forEach((term, i) =>
+  spec.domain.terms.forEach((term, i) =>
     ref(term.entity, entities, `domain.terms[${i}].entity`),
   );
-  spec.flows?.forEach((flow, i) => {
+  spec.flows.forEach((flow, i) => {
     unique(flow.steps, `flows[${i}].steps`);
     flow.steps.forEach((step, j) =>
       ref(step.useCase, cases, `flows[${i}].steps[${j}].useCase`),
     );
   });
-  spec.useCases?.forEach((useCase, i) => {
+  spec.useCases.forEach((useCase, i) => {
     const path = `useCases[${i}]`;
     many(useCase.entities, entities, `${path}.entities`);
     many(useCase.screens, screenIds, `${path}.screens`);
@@ -248,7 +238,18 @@ export function validateSpecRelations(spec: UiSpec): ValidationIssue[] {
         screen.stateFlow.states,
         `${path}.stateFlow.states`,
       );
-      ref(screen.stateFlow.initial, states, `${path}.stateFlow.initial`);
+      if (screen.stateFlow.initial === null && states.size) {
+        issues.push({
+          path: `${path}.stateFlow.initial`,
+          message: "状態を定義した場合は初期状態を指定してください。",
+        });
+      } else {
+        ref(
+          screen.stateFlow.initial ?? undefined,
+          states,
+          `${path}.stateFlow.initial`,
+        );
+      }
       screen.stateFlow.transitions.forEach((t, j) => {
         ref(t.from, states, `${path}.stateFlow.transitions[${j}].from`);
         ref(t.to, states, `${path}.stateFlow.transitions[${j}].to`);
@@ -280,6 +281,8 @@ export function formatZodIssues(error: z.ZodError): ValidationIssue[] {
       message = `${types[issue.expected] ?? issue.expected}を指定してください。`;
     } else if (issue.code === "invalid_value") {
       message = `${issue.values.join("、")}のいずれかを指定してください。`;
+    } else if (issue.code === "unrecognized_keys") {
+      message = `未定義の項目です: ${issue.keys.join("、")}`;
     } else if (issue.code === "too_small") {
       message = `${issue.minimum}${issue.origin === "array" ? "件" : "文字"}以上を指定してください。`;
     }

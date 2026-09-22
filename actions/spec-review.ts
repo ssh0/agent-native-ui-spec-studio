@@ -11,7 +11,7 @@ import { uiSpecs } from "../server/db/schema.js";
 
 export default defineAction({
   description:
-    "Approve or return the saved specification; retain a review history linked to stage and document hash. Approval requires valid YAML.",
+    "Approve or return the saved specification; retain a review history linked to stage and document hash. Review requires valid YAML.",
   schema: z.object({
     status: z.enum(["approved", "changes_requested"]),
     comment: z.string().max(2000).optional().describe("Review note"),
@@ -37,8 +37,8 @@ export default defineAction({
       fail("仕様が更新されています。読み直してからレビューしてください。", {
         statusCode: 409,
       });
-    if (status === "approved" && parseSpecYaml(row.yaml).issues.length)
-      fail("検証エラーのある仕様は承認できません。");
+    if (parseSpecYaml(row.yaml).issues.length)
+      fail("検証エラーのある仕様はレビューできません。");
     const entry: ReviewEntry = {
       id: randomUUID(),
       status,
