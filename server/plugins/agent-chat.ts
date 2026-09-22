@@ -5,6 +5,7 @@ import {
 } from "@agent-native/core/server";
 
 import actionsRegistry from "../../.generated/actions-registry.js";
+import { installProviderSafeEngines } from "../agent/provider-safe-engine.js";
 
 const INITIAL_TOOL_NAMES = [
   "view-screen",
@@ -19,7 +20,7 @@ const INITIAL_TOOL_NAMES = [
   "spec-review",
 ];
 
-export default createAgentChatPlugin({
+const agentChatPlugin = createAgentChatPlugin({
   appId: "ui-spec-studio",
   actions: loadActionsFromStaticRegistry(actionsRegistry),
   initialToolNames: INITIAL_TOOL_NAMES,
@@ -30,3 +31,8 @@ This is a chat-first UI specification workspace. The chat and UI share the same 
 
 Use actions as the source of truth. Start by inspecting the current screen when context matters. When the user asks to extend this app, keep the change small and agent-native: add or update actions, expose useful UI, and keep application state/navigation visible to the agent.`,
 });
+
+export default (nitroApp: Parameters<typeof agentChatPlugin>[0]) => {
+  installProviderSafeEngines();
+  agentChatPlugin(nitroApp);
+};

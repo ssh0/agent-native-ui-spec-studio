@@ -67,6 +67,8 @@ Before building common workspace or agent UI, read `agent-native-toolkit`; read
 `customizing-agent-native` before adapting shared UI.
 
 - Guarded verification: run `pnpm agent-native:doctor`; fix findings before done.
+- `server/agent/provider-safe-engine.ts` keeps OpenAI-compatible tool names valid
+  when replaying older thread history; retain it when action names change.
 
 ## Maintaining this file
 
