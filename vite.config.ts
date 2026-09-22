@@ -15,6 +15,9 @@ const coreRequire = createRequire(
 
 export default defineConfig({
   optimizeDeps: {
+    // Mermaid v12's core entry relies on Vite's dependency pre-bundling for
+    // browser-safe interop with its externalized dependencies.
+    include: ["mermaid"],
     // React Router discovers route modules outside Vite's default HTML crawl.
     // Scan the shell and Chat route before accepting requests so a cold
     // standalone consumer does not leave the browser waiting on the full
