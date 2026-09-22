@@ -10,12 +10,14 @@ import * as schema from "../server/db/schema.js";
 export default defineAction({
   description:
     "Render UI specification YAML as a wireframe HTML fragment for human review.",
+  mcpTool: true,
   schema: z.object({
     yaml: z
       .string()
       .optional()
       .describe("YAML to render; loads the shared document when omitted"),
   }),
+  publicAgent: { expose: true, readOnly: false, requiresAuth: true },
   run: async ({ yaml }) => {
     let source = yaml;
     if (source === undefined) {

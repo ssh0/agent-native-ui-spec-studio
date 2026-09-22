@@ -10,6 +10,7 @@ import * as schema from "../server/db/schema.js";
 export default defineAction({
   description:
     "Render screens (default), useCases with branches/exceptions, or states as Mermaid.",
+  mcpTool: true,
   schema: z.object({
     kind: z
       .enum(["screens", "useCases", "states"])
@@ -24,6 +25,7 @@ export default defineAction({
       .optional()
       .describe("YAML to render; loads the shared document when omitted"),
   }),
+  publicAgent: { expose: true, readOnly: false, requiresAuth: true },
   run: async ({ yaml, kind, selectedId }) => {
     let source = yaml;
     if (source === undefined) {

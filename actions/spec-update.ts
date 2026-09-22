@@ -10,6 +10,7 @@ const SPEC_ID = "default";
 export default defineAction({
   description:
     "Save the shared UI specification YAML. Saving resets the review status to draft.",
+  mcpTool: true,
   schema: z.object({
     expectedUpdatedAt: z
       .string()
@@ -17,6 +18,7 @@ export default defineAction({
       .describe("Last loaded timestamp; reject concurrent edits when provided"),
     yaml: z.string().min(1).describe("Complete UI specification YAML document"),
   }),
+  publicAgent: { expose: true, readOnly: false, requiresAuth: true },
   run: async ({ yaml, expectedUpdatedAt }) => {
     const db = getDb();
     const values = {

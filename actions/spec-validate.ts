@@ -12,12 +12,14 @@ const SPEC_ID = "default";
 export default defineAction({
   description:
     "Validate UI specification YAML, scoped IDs and references across domain, flows, use cases, screens, states and component actions.",
+  mcpTool: true,
   schema: z.object({
     yaml: z
       .string()
       .optional()
       .describe("YAML to validate; loads the shared document when omitted"),
   }),
+  publicAgent: { expose: true, readOnly: false, requiresAuth: true },
   run: async ({ yaml }) => {
     let source = yaml;
     if (source === undefined) {

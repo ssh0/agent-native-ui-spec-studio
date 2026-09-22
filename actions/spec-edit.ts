@@ -10,7 +10,9 @@ import { uiSpecs } from "../server/db/schema.js";
 export default defineAction({
   description:
     "Edit screens/components/transitions or replace domain/flows/useCases with set_section. Validates all references; use spec-update for full YAML drafts.",
+  mcpTool: true,
   schema: EditOperationSchema,
+  publicAgent: { expose: true, readOnly: false, requiresAuth: true },
   run: async (input) => {
     const db = getDb();
     const [row] = await db

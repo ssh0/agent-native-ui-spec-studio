@@ -24,6 +24,7 @@ const agentChatPlugin = createAgentChatPlugin({
   appId: "ui-spec-studio",
   actions: loadActionsFromStaticRegistry(actionsRegistry),
   initialToolNames: INITIAL_TOOL_NAMES,
+  mcp: { externalAgents: { writes: "allowlisted" } },
   resolveOrgId: async (event) => (await getOrgContext(event)).orgId,
   systemPrompt: `You are the Chat app agent.
 

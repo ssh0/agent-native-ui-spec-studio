@@ -12,6 +12,7 @@ import { uiSpecs } from "../server/db/schema.js";
 export default defineAction({
   description:
     "Approve or return the saved specification; retain a review history linked to stage and document hash. Review requires valid YAML.",
+  mcpTool: true,
   schema: z.object({
     status: z.enum(["approved", "changes_requested"]),
     comment: z.string().max(2000).optional().describe("Review note"),
@@ -26,6 +27,7 @@ export default defineAction({
       .optional()
       .describe("Last loaded timestamp to reject a stale review"),
   }),
+  publicAgent: { expose: true, readOnly: false, requiresAuth: true },
   run: async ({ status, comment, stage, expectedUpdatedAt }) => {
     const db = getDb();
     const [row] = await db

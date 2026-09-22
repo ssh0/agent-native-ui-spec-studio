@@ -10,9 +10,11 @@ const SPEC_ID = "default";
 
 export default defineAction({
   description: "Load the shared UI specification YAML and review metadata.",
+  mcpTool: true,
   schema: z.object({}),
   http: { method: "GET" },
   readOnly: true,
+  publicAgent: { expose: true, readOnly: true, requiresAuth: true },
   run: async () => {
     const db = getDb();
     let [row] = await db
