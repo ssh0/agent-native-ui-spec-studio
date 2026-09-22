@@ -23,7 +23,9 @@ export function parseSpecYaml(yaml: string): ParsedSpec {
         {
           path: "yaml",
           message:
-            error instanceof Error ? error.message : "Invalid YAML syntax.",
+            error instanceof Error
+              ? `YAMLの構文を確認してください。\n${error.message}`
+              : "YAMLの構文を確認してください。",
         },
       ],
     };
@@ -127,8 +129,9 @@ export function renderFlow(
       ),
     );
   } else if (kind === "states") {
-    const screen =
-      spec.screens.find((s) => s.id === selectedId) ?? spec.screens[0];
+    const screen = selectedId
+      ? spec.screens.find((s) => s.id === selectedId)
+      : spec.screens[0];
     if (screen?.stateFlow) {
       const flow = screen.stateFlow;
       const ids = new Map(flow.states.map((s, i) => [s.id, `s${i}`]));
@@ -147,6 +150,7 @@ export function renderFlow(
       ? spec.useCases?.filter((u) => u.id === selectedId)
       : spec.useCases;
     useCases?.forEach((u, i) => {
+      if (!u.steps.length) return;
       lines.push(`  subgraph uc${i}["${label(u.title)}"]`);
       const ids = new Map(u.steps.map((s, j) => [s.id, `u${i}s${j}`]));
       u.steps.forEach((s, j) => {

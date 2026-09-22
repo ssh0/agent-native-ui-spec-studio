@@ -45,6 +45,7 @@ function routeOwnsToolbar(pathname: string): boolean {
     pathname === "/home" ||
     pathname.startsWith("/chat/") ||
     pathname === "/database" ||
+    pathname === "/spec" ||
     pathname.startsWith("/extensions")
   );
 }
@@ -54,6 +55,7 @@ export function Layout({ children }: LayoutProps) {
   const t = useT();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const isSpecRoute = location.pathname === "/spec";
   const isChatRoute =
     location.pathname === "/home" || location.pathname.startsWith("/chat/");
   const chatHomeHandoffActive = useAgentChatHomeHandoff({
@@ -104,7 +106,7 @@ export function Layout({ children }: LayoutProps) {
   const ownsToolbar = routeOwnsToolbar(location.pathname);
   const contentFrame = (
     <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
-      {isChatRoute ? (
+      {isSpecRoute ? null : isChatRoute ? (
         <div className="flex h-12 shrink-0 items-center gap-3 border-b border-border bg-card px-3 md:hidden">
           <Button
             type="button"
@@ -142,15 +144,17 @@ export function Layout({ children }: LayoutProps) {
   return (
     <HeaderActionsProvider>
       <div className="agent-layout-shell chat-layout-shell flex h-screen w-full overflow-hidden bg-background text-foreground">
-        <div
-          data-collapsed={sidebarCollapsed ? "true" : "false"}
-          className="agent-layout-left-drawer hidden md:block"
-        >
-          <Sidebar
-            collapsed={sidebarCollapsed}
-            onCollapsedChange={setSidebarCollapsed}
-          />
-        </div>
+        {!isSpecRoute && (
+          <div
+            data-collapsed={sidebarCollapsed ? "true" : "false"}
+            className="agent-layout-left-drawer hidden md:block"
+          >
+            <Sidebar
+              collapsed={sidebarCollapsed}
+              onCollapsedChange={setSidebarCollapsed}
+            />
+          </div>
+        )}
         <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
           <SheetContent
             side="left"

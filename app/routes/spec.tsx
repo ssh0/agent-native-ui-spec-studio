@@ -3,211 +3,516 @@ import {
   useActionQuery,
 } from "@agent-native/core/client/hooks";
 import { useSetPageTitle } from "@agent-native/toolkit/app-shell";
+import {
+  stages,
+  stageLabels,
+  SpecSchema,
+  formatZodIssues,
+  type UiSpec,
+  type SpecStage,
+} from "@shared/spec-schema";
+import { parseSpecYaml } from "@shared/spec-utils";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router";
 import { parse, stringify } from "yaml";
-import { IconEdit, IconEye } from "@tabler/icons-react";
-import { useEffect, useMemo, useRef, useState } from "react";
 
-import { componentTypes, type UiComponent, type UiSpec } from "@shared/spec-schema";
+import {
+  Field,
+  SourceEditor,
+  StageContent,
+  sectionValue,
+} from "@/components/spec-studio/stage-content";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
 import "../spec-studio.css";
 
-type Issue = { path: string; message: string };
-type ValidationResult = { valid: boolean; issues: Issue[] };
-type WireframeResult = { format: "html"; html: string };
-type FlowResult = { format: "mermaid"; mermaid: string };
-
-const emptySpec: UiSpec = { version: "1.0", title: "", screens: [], transitions: [] };
-const newId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 7)}`;
-
-export function meta() { return [{ title: "UI Spec Studio" }]; }
+export function meta() {
+  return [{ title: "UI仕様スタジオ" }];
+}
+const statusLabels: Record<string, string> = {
+  draft: "下書き",
+  approved: "承認済み",
+  changes_requested: "修正依頼",
+};
+const formatDate = (date: string) =>
+  new Intl.DateTimeFormat("ja-JP", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(date));
 
 export default function SpecPage() {
-  useSetPageTitle("UI Spec Studio");
+  useSetPageTitle("UI仕様スタジオ");
   const loaded = useActionQuery("spec-load", {});
   const save = useActionMutation("spec-update");
-  const validate = useActionMutation("spec-validate");
-  const wireframe = useActionMutation("spec-render-wireframe");
-  const flow = useActionMutation("spec-render-flow");
   const review = useActionMutation("spec-review");
+  const validate = useActionMutation("spec-validate");
+  const [params, setParams] = useSearchParams();
+  const stage = stages.includes(params.get("stage") as SpecStage)
+    ? (params.get("stage") as SpecStage)
+    : "domain";
+  const selectedId = params.get("selected") ?? "";
+  const mode = params.get("mode") === "yaml" ? "yaml" : "builder";
   const [yaml, setYaml] = useState("");
-  const [spec, setSpec] = useState<UiSpec>(emptySpec);
-  const [selectedId, setSelectedId] = useState("");
-  const [mode, setMode] = useState<"builder" | "yaml">("builder");
-  const [dirty, setDirty] = useState(false);
-  const [issues, setIssues] = useState<Issue[]>([]);
-  const [wireframeHtml, setWireframeHtml] = useState("");
-  const [flowSource, setFlowSource] = useState("");
-  const [flowMode, setFlowMode] = useState<"view" | "edit">("view");
+  // Retain the structured draft while a required field is temporarily empty.
+  // The YAML still owns validation, saving and the review gate.
+  const [builderDraft, setBuilderDraft] = useState<{
+    yaml: string;
+    spec: UiSpec;
+  } | null>(null);
+  const [base, setBase] = useState({ yaml: "", updatedAt: "" });
+  const [sectionDraft, setSectionDraft] = useState<{
+    stage: SpecStage;
+    yaml: string;
+  } | null>(null);
+  const [sectionError, setSectionError] = useState("");
   const [comment, setComment] = useState("");
   const [message, setMessage] = useState("");
+  const dirty = yaml !== base.yaml;
+  const parsed = useMemo(() => parseSpecYaml(yaml), [yaml]);
+  const spec =
+    parsed.spec ??
+    (builderDraft?.yaml === yaml ? builderDraft.spec : undefined);
+  const pending = save.isPending || review.isPending;
 
   useEffect(() => {
-    if (loaded.data?.yaml && !dirty) {
+    if (loaded.data && !dirty && sectionDraft === null) {
       setYaml(loaded.data.yaml);
-      try {
-        const parsed = parse(loaded.data.yaml) as UiSpec;
-        setSpec({ ...emptySpec, ...parsed, transitions: parsed.transitions ?? [] });
-        setSelectedId((current) => current || parsed.screens?.[0]?.id || "");
-      } catch { /* validation action owns malformed YAML feedback */ }
+      setBase({ yaml: loaded.data.yaml, updatedAt: loaded.data.updatedAt });
     }
-  }, [dirty, loaded.data?.yaml]);
+    // A dirty draft keeps the timestamp it was based on for conflict detection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded.data?.updatedAt]);
 
-  const selected = useMemo(() => spec.screens.find((screen) => screen.id === selectedId) ?? spec.screens[0], [spec, selectedId]);
-  const reviewStatus = loaded.data?.reviewStatus ?? "draft";
-  const updateSpec = (next: UiSpec) => { setSpec(next); setYaml(stringify(next)); setDirty(true); setMessage(""); };
-  const updateScreen = (patch: Partial<UiSpec["screens"][number]>) => {
-    if (!selected) return;
-    const nextId = patch.id ?? selected.id;
-    updateSpec({
-      ...spec,
-      screens: spec.screens.map((screen) => screen.id === selected.id ? { ...screen, ...patch } : screen),
-      transitions: spec.transitions.map((transition) => ({
-        ...transition,
-        from: transition.from === selected.id ? nextId : transition.from,
-        to: transition.to === selected.id ? nextId : transition.to,
-      })),
-    });
-    if (patch.id) setSelectedId(patch.id);
+  const navigate = (patch: Record<string, string | null>) => {
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        Object.entries(patch).forEach(([k, v]) =>
+          v === null ? next.delete(k) : next.set(k, v),
+        );
+        return next;
+      },
+      { replace: true },
+    );
   };
-  const updateComponent = (id: string, patch: Partial<UiComponent>) => {
-    if (!selected) return;
-    updateScreen({ components: selected.components.map((component) => component.id === id ? { ...component, ...patch } : component) });
-  };
-
-  async function refreshPreviews(source: string) {
-    const validation = (await validate.mutateAsync({ yaml: source })) as ValidationResult;
-    setIssues(validation.issues ?? []);
-    if (!validation.valid) { setWireframeHtml(""); setFlowSource(""); return validation; }
-    const [wireframeResult, flowResult] = await Promise.all([
-      wireframe.mutateAsync({ yaml: source }) as Promise<WireframeResult>,
-      flow.mutateAsync({ yaml: source }) as Promise<FlowResult>,
-    ]);
-    setWireframeHtml(wireframeResult.html); setFlowSource(flowResult.mermaid); return validation;
-  }
-  async function saveSpec() {
-    setMessage("");
-    try {
-      const source = mode === "yaml" ? yaml : stringify(spec);
-      await save.mutateAsync({ yaml: source });
-      const validation = await refreshPreviews(source);
-      setDirty(false); setYaml(source);
-      setMessage(validation.valid ? "Saved and rendered." : "Saved, but validation found issues.");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not save specification."); }
-  }
-  async function approve(status: "approved" | "changes_requested") {
-    try { await review.mutateAsync({ status, comment: comment || undefined }); setMessage(status === "approved" ? "Specification approved." : "Changes requested."); await loaded.refetch(); }
-    catch (error) { setMessage(error instanceof Error ? error.message : "Could not update review."); }
-  }
-  const isBusy = save.isPending || validate.isPending || wireframe.isPending || flow.isPending;
-
-  return <main className="spec-studio">
-    <header className="spec-studio__header">
-      <div><p className="spec-studio__eyebrow">REQUIREMENTS WORKSPACE</p><h1>UI Spec Studio</h1><p>Shape screens, transitions, and components together.</p></div>
-      <a className="spec-studio__chat-link" href="/home">Open agent chat →</a>
-    </header>
-    <div className="spec-toolbar"><div className="spec-tabs"><button className={mode === "builder" ? "is-active" : ""} onClick={() => setMode("builder")}>Builder</button><button className={mode === "yaml" ? "is-active" : ""} onClick={() => setMode("yaml")}>YAML</button></div><button className="spec-button spec-button--primary" onClick={() => void saveSpec()} disabled={isBusy || !yaml.trim()}>{isBusy ? "Working…" : "Save changes"}</button>{message && <span className="spec-message">{message}</span>}</div>
-    {mode === "yaml" ? <section className="spec-panel spec-yaml-panel"><div className="spec-panel__heading"><div><span className="spec-panel__kicker">SOURCE</span><h2>YAML specification</h2></div><span className={`spec-status spec-status--${reviewStatus}`}>{reviewStatus.replace("_", " ")}</span></div><textarea className="spec-editor spec-editor--short" value={yaml} onChange={(event) => { setYaml(event.target.value); setDirty(true); }} spellCheck={false} aria-label="UI specification YAML" />{issues.length > 0 && <ValidationIssues issues={issues} />}</section> : <Builder spec={spec} selected={selected} selectedId={selectedId} setSelectedId={setSelectedId} updateSpec={updateSpec} updateScreen={updateScreen} updateComponent={updateComponent} />}
-    <div className="spec-preview-grid">
-      <section className="spec-panel"><div className="spec-panel__heading"><div><span className="spec-panel__kicker">RENDER</span><h2>Wireframe preview</h2></div><span className="spec-live-dot">● live after save</span></div><div className="spec-wireframe-preview">{wireframeHtml ? <div dangerouslySetInnerHTML={{ __html: wireframeHtml }} /> : <p className="spec-empty">Save a valid specification to render screens.</p>}</div></section>
-      <section className="spec-panel spec-flow-panel">
-        <div className="spec-panel__heading">
-          <div><span className="spec-panel__kicker">フロー</span><h2>画面遷移図</h2></div>
-          <button className="spec-flow-edit-button" type="button" onClick={() => setFlowMode((current) => current === "view" ? "edit" : "view")} aria-pressed={flowMode === "edit"}>
-            {flowMode === "edit" ? <IconEye aria-hidden="true" size={15} stroke={1.8} /> : <IconEdit aria-hidden="true" size={15} stroke={1.8} />}
-            {flowMode === "edit" ? "閲覧に戻る" : "編集"}
-          </button>
-        </div>
-        {flowMode === "edit" ? <div className="spec-flow-editor-layout">
-          <div className="spec-flow-source">
-            <div className="spec-flow-subheading"><span>Mermaidソース</span><span className="spec-flow-subheading__hint">この図だけを編集します</span></div>
-            <textarea className="spec-flow-editor" value={flowSource} onChange={(event) => setFlowSource(event.target.value)} spellCheck={false} aria-label="Mermaidソース" />
-          </div>
-          <div className="spec-flow-preview">
-            <div className="spec-flow-subheading"><span>プレビュー</span><span className="spec-flow-subheading__hint">入力に合わせて更新</span></div>
-            <MermaidFlowPreview source={flowSource} />
-          </div>
-        </div> : <MermaidFlowPreview source={flowSource} />}
-      </section>
-    </div>
-    <section className="spec-panel spec-review-panel"><div className="spec-panel__heading"><div><span className="spec-panel__kicker">HUMAN REVIEW</span><h2>Review decision</h2></div><span className={`spec-status spec-status--${reviewStatus}`}>{reviewStatus.replace("_", " ")}</span></div><textarea className="spec-comment" value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Leave a note for the author or agent…" aria-label="Review comment" /><div className="spec-review-actions"><button className="spec-button spec-button--quiet" onClick={() => void approve("changes_requested")} disabled={review.isPending}>Request changes</button><button className="spec-button spec-button--approve" onClick={() => void approve("approved")} disabled={review.isPending}>Approve spec</button></div>{loaded.data?.reviewComment && <p className="spec-last-comment">Last note: {loaded.data.reviewComment}</p>}</section>
-  </main>;
-}
-
-function MermaidFlowPreview({ source }: { source: string }) {
-  const [svg, setSvg] = useState("");
-  const [hasError, setHasError] = useState(false);
-  const [isRendering, setIsRendering] = useState(false);
-  const renderNumber = useRef(0);
-
   useEffect(() => {
-    const trimmedSource = source.trim();
-    renderNumber.current += 1;
-    const currentRender = renderNumber.current;
+    if (!spec || sectionDraft !== null) return;
+    const items =
+      stage === "domain"
+        ? spec.domain?.entities
+        : stage === "flows"
+          ? spec.flows
+          : stage === "useCases"
+            ? spec.useCases
+            : spec.screens;
+    const id =
+      items?.find((item) => item.id === selectedId)?.id ?? items?.[0]?.id;
+    if (id && id !== selectedId) navigate({ selected: id });
+  }, [spec, stage, selectedId, sectionDraft]);
 
-    if (!trimmedSource) {
-      setSvg("");
-      setHasError(false);
-      setIsRendering(false);
-      return;
+  const update = (next: UiSpec) => {
+    const nextYaml = stringify(next);
+    setBuilderDraft({ yaml: nextYaml, spec: next });
+    setYaml(nextYaml);
+    setMessage("");
+  };
+  const discard = () => {
+    if (!loaded.data) return;
+    setYaml(loaded.data.yaml);
+    setBase({ yaml: loaded.data.yaml, updatedAt: loaded.data.updatedAt });
+    setBuilderDraft(null);
+    setSectionDraft(null);
+    setMessage("保存済みの仕様を読み込みました。");
+  };
+  async function saveSpec() {
+    setMessage("保存中…");
+    try {
+      const result = await save.mutateAsync({
+        yaml,
+        expectedUpdatedAt: base.updatedAt || undefined,
+      });
+      setBase({ yaml: result.yaml, updatedAt: result.updatedAt });
+      setMessage(
+        parsed.issues.length
+          ? "下書きを保存しました。検証エラーがあります。"
+          : "保存しました。",
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "保存できませんでした。",
+      );
     }
+  }
+  async function decide(status: "approved" | "changes_requested") {
+    setMessage("レビューを記録中…");
+    try {
+      await review.mutateAsync({
+        status,
+        comment: comment || undefined,
+        stage,
+        expectedUpdatedAt: base.updatedAt,
+      });
+      setComment("");
+      setMessage(
+        status === "approved"
+          ? "仕様を承認しました。"
+          : "修正依頼を記録しました。",
+      );
+      await loaded.refetch();
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "レビューを記録できませんでした。",
+      );
+    }
+  }
+  function applySection() {
+    if (!spec || sectionDraft === null) return;
+    try {
+      const next = SpecSchema.safeParse({
+        ...spec,
+        [sectionDraft.stage === "actions" ? "screens" : sectionDraft.stage]:
+          parse(sectionDraft.yaml),
+      });
+      if (!next.success) {
+        setSectionError(
+          formatZodIssues(next.error)
+            .map((i) => `${i.path}: ${i.message}`)
+            .join("\n"),
+        );
+        return;
+      }
+      update(next.data);
+      setSectionDraft(null);
+      setSectionError("");
+    } catch {
+      setSectionError("YAMLの構文を確認してください。");
+    }
+  }
+  const hasUnapplied = sectionDraft !== null;
+  const reviewStatus = dirty ? "draft" : (loaded.data?.reviewStatus ?? "draft");
+  const remoteChanged =
+    (dirty || hasUnapplied) && loaded.data?.updatedAt !== base.updatedAt;
+  const counts: Record<SpecStage, number> = {
+    domain: spec?.domain?.entities.length ?? 0,
+    flows: spec?.flows?.length ?? 0,
+    useCases: spec?.useCases?.length ?? 0,
+    screens: spec?.screens.length ?? 0,
+    actions:
+      spec?.screens.reduce(
+        (n, s) => n + s.components.filter((c) => c.action).length,
+        0,
+      ) ?? 0,
+  };
 
-    let cancelled = false;
-    setIsRendering(true);
-    setHasError(false);
-    const debounce = window.setTimeout(() => {
-      void import("mermaid")
-        .then(({ default: mermaid }) => {
-          mermaid.initialize({
-            startOnLoad: false,
-            securityLevel: "strict",
-            theme: "base",
-            themeVariables: {
-              fontFamily: "Inter Variable, Inter, sans-serif",
-              primaryColor: "#e8f6f5",
-              primaryTextColor: "#172126",
-              primaryBorderColor: "#087f8c",
-              lineColor: "#617079",
-              secondaryColor: "#f4f7f7",
-              tertiaryColor: "#ffffff",
-            },
-          });
-          return mermaid.render(`spec-flow-${currentRender}`, trimmedSource);
-        })
-        .then(({ svg: renderedSvg }) => {
-          if (cancelled || currentRender !== renderNumber.current) return;
-          setSvg(renderedSvg);
-          setHasError(false);
-        })
-        .catch(() => {
-          if (cancelled || currentRender !== renderNumber.current) return;
-          setSvg("");
-          setHasError(true);
-        })
-        .finally(() => {
-          if (!cancelled && currentRender === renderNumber.current) setIsRendering(false);
-        });
-    }, 160);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(debounce);
-    };
-  }, [source]);
-
-  if (!source.trim()) return <div className="spec-flow-empty">有効な仕様を保存すると、ここに画面遷移図が表示されます。</div>;
-  if (hasError) return <div className="spec-flow-fallback" role="alert"><p>Mermaidの構文を確認してください。ソースを表示しています。</p><pre className="spec-flow-code">{source}</pre></div>;
-  return <div className={`spec-flow-render ${isRendering ? "is-rendering" : ""}`} aria-busy={isRendering}>{svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <div className="spec-flow-loading">{isRendering ? "描画中…" : "図を表示できません。"}</div>}</div>;
+  return (
+    <div className="spec-studio" lang="ja">
+      <header className="spec-studio-header">
+        <Link className="spec-brand" to="/spec">
+          UI仕様スタジオ
+        </Link>
+        <span className="spec-document-name">{spec?.title ?? "仕様書"}</span>
+        <div className="spec-header-actions">
+          <span className="spec-save-state">
+            {dirty || hasUnapplied
+              ? "未保存の変更"
+              : base.updatedAt
+                ? "保存済み"
+                : "読込中"}
+          </span>
+          <Link to="/home">エージェントチャット</Link>
+          <Button
+            size="sm"
+            onClick={() => void saveSpec()}
+            disabled={pending || !yaml.trim() || hasUnapplied}
+          >
+            {save.isPending ? "保存中…" : "仕様を保存"}
+          </Button>
+        </div>
+      </header>
+      <div className="spec-workspace">
+        <nav className="spec-stage-nav" aria-label="仕様の検討段階">
+          <div className="spec-nav-label">検討の順序</div>
+          {stages.map((value, i) => (
+            <Button
+              variant="ghost"
+              key={value}
+              className={`spec-stage-link ${stage === value ? "is-active" : ""}`}
+              aria-current={stage === value ? "step" : undefined}
+              disabled={hasUnapplied}
+              onClick={() => navigate({ stage: value, selected: null })}
+            >
+              <span className="spec-stage-index">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <span>
+                {stageLabels[value]}
+                <small>{counts[value] ? `${counts[value]}件` : "未定義"}</small>
+              </span>
+            </Button>
+          ))}
+          <div className="spec-nav-footer">
+            <span>仕様形式 {spec?.version ?? "—"}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={hasUnapplied}
+              onClick={() =>
+                navigate({ mode: mode === "yaml" ? "builder" : "yaml" })
+              }
+            >
+              {mode === "yaml" ? "構造ビューに戻る" : "YAMLを直接編集"}
+            </Button>
+          </div>
+        </nav>
+        <section className="spec-center" aria-label="仕様の編集領域">
+          <div className="spec-stage-toolbar">
+            <h1>{mode === "yaml" ? "仕様YAML" : stageLabels[stage]}</h1>
+            <div>
+              {mode === "builder" && spec && !hasUnapplied && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSectionDraft({ stage, yaml: sectionValue(spec, stage) });
+                    setSectionError("");
+                  }}
+                >
+                  この段階を編集
+                </Button>
+              )}
+              {(dirty || hasUnapplied) && (
+                <Button variant="ghost" size="sm" onClick={discard}>
+                  保存済みに戻す
+                </Button>
+              )}
+            </div>
+          </div>
+          {(message || remoteChanged) && (
+            <div className="spec-message" role="status">
+              {remoteChanged
+                ? "別の編集が保存されています。下書きをコピーしてから、保存済みの仕様を読み直してください。"
+                : message}
+            </div>
+          )}
+          {loaded.isError && (
+            <div className="spec-errors" role="alert">
+              仕様を読み込めませんでした。
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void loaded.refetch()}
+              >
+                再試行
+              </Button>
+            </div>
+          )}
+          {!base.updatedAt && !loaded.isError ? (
+            <div
+              className="spec-skeleton"
+              aria-label="仕様を読み込み中"
+              aria-busy="true"
+            >
+              <div />
+              <div />
+              <div />
+            </div>
+          ) : mode === "yaml" ? (
+            <SourceEditor
+              value={yaml}
+              onChange={(value) => {
+                setBuilderDraft(null);
+                setYaml(value);
+              }}
+            />
+          ) : hasUnapplied ? (
+            <div className="spec-section-editor">
+              <div className="spec-section-edit-actions">
+                <span>{stageLabels[sectionDraft.stage]}のYAML</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSectionDraft(null);
+                    setSectionError("");
+                  }}
+                >
+                  キャンセル
+                </Button>
+                <Button size="sm" onClick={applySection}>
+                  編集内容を反映
+                </Button>
+              </div>
+              <SourceEditor
+                value={sectionDraft.yaml}
+                onChange={(yaml) => setSectionDraft({ ...sectionDraft, yaml })}
+                label="段階のYAML"
+              />
+              {sectionError && (
+                <pre className="spec-errors" role="alert">
+                  {sectionError}
+                </pre>
+              )}
+            </div>
+          ) : spec ? (
+            <StageContent
+              {...{ stage, spec, update, selectedId }}
+              select={(id) => navigate({ selected: id })}
+              valid={!parsed.issues.length}
+            />
+          ) : (
+            <div className="spec-empty">
+              YAMLの形式を確認してください。
+              <Button
+                variant="outline"
+                onClick={() => navigate({ mode: "yaml" })}
+              >
+                YAMLを編集
+              </Button>
+            </div>
+          )}
+        </section>
+        <aside className="spec-inspector" aria-label="検証・レビュー・履歴">
+          <section className="spec-inspector-section">
+            <div className="spec-section-heading">
+              <h2>検証</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={validate.isPending || !yaml}
+                onClick={async () => {
+                  setMessage("検証中…");
+                  try {
+                    const r = await validate.mutateAsync({ yaml });
+                    setMessage(
+                      r.valid
+                        ? "参照と形式に問題はありません。"
+                        : `検証エラーが${r.issues.length}件あります。`,
+                    );
+                  } catch {
+                    setMessage("検証に失敗しました。");
+                  }
+                }}
+              >
+                再検証
+              </Button>
+            </div>
+            {!yaml ? (
+              <p className="spec-muted">読込中</p>
+            ) : parsed.issues.length ? (
+              <div className="spec-validation-issues" role="alert">
+                {parsed.issues.map((issue, i) => (
+                  <div key={i}>
+                    <code>{issue.path}</code>
+                    <p>{issue.message}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="spec-valid">参照・形式に問題なし</p>
+            )}
+            <details className="spec-disclosure">
+              <summary>検討段階の定義状況</summary>
+              {stages.map((s) => (
+                <div className="spec-coverage" key={s}>
+                  <span>{stageLabels[s]}</span>
+                  <span>{counts[s] ? "定義あり" : "未定義"}</span>
+                </div>
+              ))}
+            </details>
+          </section>
+          <section className="spec-inspector-section">
+            <div className="spec-section-heading">
+              <h2>レビュー</h2>
+              <span className={`spec-status spec-status--${reviewStatus}`}>
+                {statusLabels[reviewStatus] ?? reviewStatus}
+              </span>
+            </div>
+            <p className="spec-review-focus">検討対象：{stageLabels[stage]}</p>
+            <Field label="コメント">
+              <textarea
+                className="spec-comment"
+                maxLength={2000}
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="判断理由・未決事項を記録"
+              />
+            </Field>
+            <div className="spec-review-actions">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={pending || dirty || hasUnapplied || !base.updatedAt}
+                onClick={() => void decide("changes_requested")}
+              >
+                修正を依頼
+              </Button>
+              <Button
+                size="sm"
+                disabled={
+                  pending ||
+                  dirty ||
+                  hasUnapplied ||
+                  !base.updatedAt ||
+                  !!parsed.issues.length
+                }
+                onClick={() => void decide("approved")}
+              >
+                仕様を承認
+              </Button>
+            </div>
+            {(dirty || hasUnapplied) && (
+              <p className="spec-muted">変更を保存してからレビューできます。</p>
+            )}
+          </section>
+          <section className="spec-inspector-section spec-history">
+            <h2>レビュー履歴</h2>
+            {loaded.data?.reviewHistory?.length ? (
+              <ol>
+                {[...loaded.data.reviewHistory].reverse().map((entry) => (
+                  <li key={entry.id}>
+                    <div>
+                      <strong>{statusLabels[entry.status]}</strong>
+                      <time>{formatDate(entry.createdAt)}</time>
+                    </div>
+                    <span>{stageLabels[entry.stage]}</span>
+                    {entry.comment && <p>{entry.comment}</p>}
+                    <details>
+                      <summary>対象の仕様</summary>
+                      <code>{entry.documentHash}</code>
+                    </details>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="spec-muted">レビューはまだありません。</p>
+            )}
+            {!loaded.data?.reviewHistory?.length &&
+              loaded.data?.reviewComment && (
+                <p>以前のコメント：{loaded.data.reviewComment}</p>
+              )}
+          </section>
+          {spec && (
+            <details className="spec-inspector-section spec-disclosure">
+              <summary>仕様書の設定</summary>
+              <Field label="仕様名">
+                <Input
+                  value={spec.title}
+                  onChange={(e) => update({ ...spec, title: e.target.value })}
+                />
+              </Field>
+              <Field label="全体の検討メモ">
+                <textarea
+                  value={spec.notes ?? ""}
+                  onChange={(e) => update({ ...spec, notes: e.target.value })}
+                />
+              </Field>
+            </details>
+          )}
+        </aside>
+      </div>
+    </div>
+  );
 }
-
-function ValidationIssues({ issues }: { issues: Issue[] }) { return <div className="spec-errors" role="alert"><strong>Validation issues</strong>{issues.map((issue) => <div key={`${issue.path}-${issue.message}`}><code>{issue.path}</code> {issue.message}</div>)}</div>; }
-
-type BuilderProps = { spec: UiSpec; selected?: UiSpec["screens"][number]; selectedId: string; setSelectedId: (id: string) => void; updateSpec: (spec: UiSpec) => void; updateScreen: (patch: Partial<UiSpec["screens"][number]>) => void; updateComponent: (id: string, patch: Partial<UiComponent>) => void };
-function Builder({ spec, selected, selectedId, setSelectedId, updateSpec, updateScreen, updateComponent }: BuilderProps) {
-  const addScreen = () => { const screen = { id: newId("screen"), title: "New screen", components: [] }; updateSpec({ ...spec, screens: [...spec.screens, screen] }); setSelectedId(screen.id); };
-  const removeScreen = () => { if (!selected || spec.screens.length < 2) return; const screens = spec.screens.filter((screen) => screen.id !== selected.id); updateSpec({ ...spec, screens, transitions: spec.transitions.filter((t) => t.from !== selected.id && t.to !== selected.id) }); setSelectedId(screens[0].id); };
-  const addComponent = () => { if (!selected) return; updateScreen({ components: [...selected.components, { type: "text", id: newId("component"), content: "New content" }] }); };
-  const removeComponent = (id: string) => updateScreen({ components: selected?.components.filter((component) => component.id !== id) ?? [] });
-  const addTransition = () => { if (spec.screens.length < 2) return; updateSpec({ ...spec, transitions: [...spec.transitions, { from: selected?.id ?? spec.screens[0].id, to: spec.screens.find((screen) => screen.id !== (selected?.id ?? spec.screens[0].id))?.id ?? spec.screens[0].id, trigger: "action.click" }] }); };
-  return <div className="builder-grid"><aside className="spec-panel screen-list"><div className="spec-panel__heading"><div><span className="spec-panel__kicker">SCREENS</span><h2>Specification map</h2></div><button className="icon-button" onClick={addScreen} aria-label="Add screen">+</button></div>{spec.screens.map((screen) => <button key={screen.id} className={`screen-list__item ${screen.id === selectedId ? "is-selected" : ""}`} onClick={() => setSelectedId(screen.id)}><span>{screen.title}</span><code>{screen.id}</code></button>)}<button className="text-button" onClick={addTransition}>+ Add transition</button></aside><section className="spec-panel builder-detail">{selected ? <><div className="spec-panel__heading"><div><span className="spec-panel__kicker">SCREEN DETAIL</span><h2>{selected.title}</h2></div><button className="text-button text-button--danger" onClick={removeScreen} disabled={spec.screens.length < 2}>Delete screen</button></div><div className="form-grid"><label>Screen id<input value={selected.id} onChange={(e) => updateScreen({ id: e.target.value })} /></label><label>Title<input value={selected.title} onChange={(e) => updateScreen({ title: e.target.value })} /></label><label className="form-grid__wide">Description<textarea value={selected.description ?? ""} onChange={(e) => updateScreen({ description: e.target.value })} /></label></div><div className="component-heading"><h3>Components <span>{selected.components.length}</span></h3><button className="text-button" onClick={addComponent}>+ Add component</button></div>{selected.components.map((component) => <ComponentEditor key={component.id} component={component} onChange={(patch) => updateComponent(component.id, patch)} onDelete={() => removeComponent(component.id)} />)}</> : <p className="spec-empty">Add a screen to start building.</p>}<div className="transition-list"><h3>Transitions</h3>{spec.transitions.map((transition, index) => <div className="transition-row" key={`${transition.from}-${transition.to}-${index}`}><select value={transition.from} onChange={(e) => updateSpec({ ...spec, transitions: spec.transitions.map((t, i) => i === index ? { ...t, from: e.target.value } : t) })}>{spec.screens.map((s) => <option key={s.id}>{s.id}</option>)}</select><span>→</span><select value={transition.to} onChange={(e) => updateSpec({ ...spec, transitions: spec.transitions.map((t, i) => i === index ? { ...t, to: e.target.value } : t) })}>{spec.screens.map((s) => <option key={s.id}>{s.id}</option>)}</select><input value={transition.trigger} onChange={(e) => updateSpec({ ...spec, transitions: spec.transitions.map((t, i) => i === index ? { ...t, trigger: e.target.value } : t) })} /><button className="text-button text-button--danger" onClick={() => updateSpec({ ...spec, transitions: spec.transitions.filter((_, i) => i !== index) })}>Remove</button></div>)}</div></section></div>;
-}
-
-function ComponentEditor({ component, onChange, onDelete }: { component: UiComponent; onChange: (patch: Partial<UiComponent>) => void; onDelete: () => void }) { return <div className="component-row"><div className="component-row__top"><code>{component.id}</code><button className="text-button text-button--danger" onClick={onDelete}>Remove</button></div><div className="form-grid"><label>Type<select value={component.type} onChange={(e) => onChange({ type: e.target.value as typeof componentTypes[number] })}>{componentTypes.map((type) => <option key={type}>{type}</option>)}</select></label><label>Label<input value={component.label ?? ""} onChange={(e) => onChange({ label: e.target.value })} /></label><label className="form-grid__wide">Content / action<input value={component.content ?? component.action ?? ""} onChange={(e) => onChange({ content: e.target.value })} /></label></div></div>; }

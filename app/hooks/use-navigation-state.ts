@@ -7,17 +7,27 @@ export interface NavigationState {
   view: string;
   path?: string;
   threadId?: string;
+  stage?: string;
+  selectedId?: string;
+  mode?: string;
 }
 
 export function useNavigationState() {
   useAgentRouteState<NavigationState>({
     browserTabId: TAB_ID,
     requestSource: TAB_ID,
-    getNavigationState: ({ pathname }) => {
+    getNavigationState: ({ pathname, searchParams }) => {
       const threadId = threadIdFromPath(pathname);
       return {
         view: viewForPath(pathname),
         path: appPath(pathname),
+        ...(pathname === "/spec"
+          ? {
+              stage: searchParams.get("stage") ?? "domain",
+              selectedId: searchParams.get("selected") ?? "",
+              mode: searchParams.get("mode") ?? "builder",
+            }
+          : {}),
         ...(threadId ? { threadId } : {}),
       };
     },
@@ -38,6 +48,7 @@ function threadIdFromPath(pathname: string): string | null {
 }
 
 function viewForPath(pathname: string): string {
+  if (pathname === "/spec") return "spec";
   if (isChatPath(pathname)) return "chat";
   if (pathname.startsWith("/database")) return "database";
   if (pathname.startsWith("/extensions")) return "extensions";
@@ -56,6 +67,8 @@ function pathForView(view?: string): string {
     case "home":
     case "ask":
       return "/home";
+    case "spec":
+      return "/spec";
     case "database":
       return "/database";
     case "extensions":

@@ -1,4 +1,4 @@
-import { defineAction } from "@agent-native/core/action";
+import { defineAction, fail } from "@agent-native/core/action";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -42,7 +42,9 @@ export default defineAction({
           .onConflictDoUpdate({ target: schema.uiSpecs.id, set: values })
           .returning();
     if (!row)
-      throw new Error("別の編集が保存されました。仕様を読み直してください。");
+      fail("別の編集が保存されました。仕様を読み直してください。", {
+        statusCode: 409,
+      });
     return {
       id: row.id,
       yaml: row.yaml,

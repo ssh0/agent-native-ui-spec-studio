@@ -194,4 +194,25 @@ describe("specification compatibility and relations", () => {
     expect(renderFlow(example(), "states", "create-task")).toContain("start");
     expect(renderWireframe(spec)).not.toContain("<script>");
   });
+  it("leaves undefined or missing flow selections empty", () => {
+    const spec = example();
+    spec.screens[0].stateFlow = spec.screens[1].stateFlow;
+    expect(renderFlow(spec, "states", "missing")).toBe("");
+    expect(renderFlow(spec, "useCases", "missing")).toBe("");
+    spec.useCases = [
+      { id: "planned", title: "検討中", steps: [], branches: [] },
+    ];
+    expect(renderFlow(spec, "useCases", "planned")).toBe("");
+  });
+  it("reports schema issues in Japanese with the affected path", () => {
+    const result = parseSpecYaml(
+      stringify({ ...example(), title: "", flows: {} }),
+    );
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        { path: "title", message: "1文字以上を指定してください。" },
+        { path: "flows", message: "配列を指定してください。" },
+      ]),
+    );
+  });
 });

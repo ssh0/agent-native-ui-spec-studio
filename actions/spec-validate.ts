@@ -11,7 +11,7 @@ const SPEC_ID = "default";
 
 export default defineAction({
   description:
-    "Validate UI specification YAML, including duplicate IDs and transition endpoints.",
+    "Validate UI specification YAML, scoped IDs and references across domain, flows, use cases, screens, states and component actions.",
   schema: z.object({
     yaml: z
       .string()

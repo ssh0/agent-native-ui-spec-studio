@@ -267,8 +267,22 @@ export function validateSpecRelations(spec: UiSpec): ValidationIssue[] {
   return issues;
 }
 export function formatZodIssues(error: z.ZodError): ValidationIssue[] {
-  return error.issues.map((issue) => ({
-    path: issue.path.length ? issue.path.join(".") : "spec",
-    message: `形式を確認してください: ${issue.message}`,
-  }));
+  return error.issues.map((issue) => {
+    let message = "値の形式を確認してください。";
+    if (issue.code === "invalid_type") {
+      const types: Record<string, string> = {
+        string: "文字列",
+        array: "配列",
+        object: "オブジェクト",
+        boolean: "真偽値",
+        number: "数値",
+      };
+      message = `${types[issue.expected] ?? issue.expected}を指定してください。`;
+    } else if (issue.code === "invalid_value") {
+      message = `${issue.values.join("、")}のいずれかを指定してください。`;
+    } else if (issue.code === "too_small") {
+      message = `${issue.minimum}${issue.origin === "array" ? "件" : "文字"}以上を指定してください。`;
+    }
+    return { path: issue.path.length ? issue.path.join(".") : "spec", message };
+  });
 }

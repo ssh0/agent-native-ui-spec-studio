@@ -1,4 +1,4 @@
-import { defineAction } from "@agent-native/core/action";
+import { defineAction, fail } from "@agent-native/core/action";
 import { EditOperationSchema, editSpec } from "@shared/spec-edit";
 import { SpecSchema } from "@shared/spec-schema";
 import { and, eq } from "drizzle-orm";
@@ -17,7 +17,7 @@ export default defineAction({
       .select()
       .from(uiSpecs)
       .where(eq(uiSpecs.id, "default"));
-    if (!row) throw new Error("仕様が保存されていません。");
+    if (!row) fail("仕様が保存されていません。", { statusCode: 404 });
     const yaml = stringify(editSpec(SpecSchema.parse(parse(row.yaml)), input));
     const [updated] = await db
       .update(uiSpecs)
@@ -32,7 +32,9 @@ export default defineAction({
       )
       .returning();
     if (!updated)
-      throw new Error("別の編集が保存されました。仕様を読み直してください。");
+      fail("別の編集が保存されました。仕様を読み直してください。", {
+        statusCode: 409,
+      });
     return {
       yaml: updated.yaml,
       reviewStatus: updated.reviewStatus,

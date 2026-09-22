@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import { defineAction } from "@agent-native/core/action";
+import { defineAction, fail } from "@agent-native/core/action";
 import { stages, type ReviewEntry } from "@shared/spec-schema";
 import { parseSpecYaml } from "@shared/spec-utils";
 import { and, eq } from "drizzle-orm";
@@ -32,13 +32,13 @@ export default defineAction({
       .select()
       .from(uiSpecs)
       .where(eq(uiSpecs.id, "default"));
-    if (!row) throw new Error("仕様が保存されていません。");
+    if (!row) fail("仕様が保存されていません。", { statusCode: 404 });
     if (expectedUpdatedAt && row.updatedAt !== expectedUpdatedAt)
-      throw new Error(
-        "仕様が更新されています。読み直してからレビューしてください。",
-      );
+      fail("仕様が更新されています。読み直してからレビューしてください。", {
+        statusCode: 409,
+      });
     if (status === "approved" && parseSpecYaml(row.yaml).issues.length)
-      throw new Error("検証エラーのある仕様は承認できません。");
+      fail("検証エラーのある仕様は承認できません。");
     const entry: ReviewEntry = {
       id: randomUUID(),
       status,
@@ -60,9 +60,9 @@ export default defineAction({
       )
       .returning();
     if (!updated)
-      throw new Error(
-        "仕様が更新されています。読み直してからレビューしてください。",
-      );
+      fail("仕様が更新されています。読み直してからレビューしてください。", {
+        statusCode: 409,
+      });
     return {
       status: updated.reviewStatus,
       comment: updated.reviewComment,
