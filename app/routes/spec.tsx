@@ -4,7 +4,8 @@ import {
 } from "@agent-native/core/client/hooks";
 import { useSetPageTitle } from "@agent-native/toolkit/app-shell";
 import { parse, stringify } from "yaml";
-import { useEffect, useMemo, useState } from "react";
+import { IconEdit, IconEye } from "@tabler/icons-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { componentTypes, type UiComponent, type UiSpec } from "@shared/spec-schema";
 import "../spec-studio.css";
@@ -34,7 +35,8 @@ export default function SpecPage() {
   const [dirty, setDirty] = useState(false);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [wireframeHtml, setWireframeHtml] = useState("");
-  const [mermaid, setMermaid] = useState("");
+  const [flowSource, setFlowSource] = useState("");
+  const [flowMode, setFlowMode] = useState<"view" | "edit">("view");
   const [comment, setComment] = useState("");
   const [message, setMessage] = useState("");
 
@@ -74,12 +76,12 @@ export default function SpecPage() {
   async function refreshPreviews(source: string) {
     const validation = (await validate.mutateAsync({ yaml: source })) as ValidationResult;
     setIssues(validation.issues ?? []);
-    if (!validation.valid) { setWireframeHtml(""); setMermaid(""); return validation; }
+    if (!validation.valid) { setWireframeHtml(""); setFlowSource(""); return validation; }
     const [wireframeResult, flowResult] = await Promise.all([
       wireframe.mutateAsync({ yaml: source }) as Promise<WireframeResult>,
       flow.mutateAsync({ yaml: source }) as Promise<FlowResult>,
     ]);
-    setWireframeHtml(wireframeResult.html); setMermaid(flowResult.mermaid); return validation;
+    setWireframeHtml(wireframeResult.html); setFlowSource(flowResult.mermaid); return validation;
   }
   async function saveSpec() {
     setMessage("");
@@ -106,10 +108,94 @@ export default function SpecPage() {
     {mode === "yaml" ? <section className="spec-panel spec-yaml-panel"><div className="spec-panel__heading"><div><span className="spec-panel__kicker">SOURCE</span><h2>YAML specification</h2></div><span className={`spec-status spec-status--${reviewStatus}`}>{reviewStatus.replace("_", " ")}</span></div><textarea className="spec-editor spec-editor--short" value={yaml} onChange={(event) => { setYaml(event.target.value); setDirty(true); }} spellCheck={false} aria-label="UI specification YAML" />{issues.length > 0 && <ValidationIssues issues={issues} />}</section> : <Builder spec={spec} selected={selected} selectedId={selectedId} setSelectedId={setSelectedId} updateSpec={updateSpec} updateScreen={updateScreen} updateComponent={updateComponent} />}
     <div className="spec-preview-grid">
       <section className="spec-panel"><div className="spec-panel__heading"><div><span className="spec-panel__kicker">RENDER</span><h2>Wireframe preview</h2></div><span className="spec-live-dot">● live after save</span></div><div className="spec-wireframe-preview">{wireframeHtml ? <div dangerouslySetInnerHTML={{ __html: wireframeHtml }} /> : <p className="spec-empty">Save a valid specification to render screens.</p>}</div></section>
-      <section className="spec-panel"><div className="spec-panel__heading"><div><span className="spec-panel__kicker">FLOW</span><h2>Screen flow</h2></div></div><pre className="spec-flow-code">{mermaid || "flowchart TD\n  Save a valid specification to render the flow"}</pre></section>
+      <section className="spec-panel spec-flow-panel">
+        <div className="spec-panel__heading">
+          <div><span className="spec-panel__kicker">フロー</span><h2>画面遷移図</h2></div>
+          <button className="spec-flow-edit-button" type="button" onClick={() => setFlowMode((current) => current === "view" ? "edit" : "view")} aria-pressed={flowMode === "edit"}>
+            {flowMode === "edit" ? <IconEye aria-hidden="true" size={15} stroke={1.8} /> : <IconEdit aria-hidden="true" size={15} stroke={1.8} />}
+            {flowMode === "edit" ? "閲覧に戻る" : "編集"}
+          </button>
+        </div>
+        {flowMode === "edit" ? <div className="spec-flow-editor-layout">
+          <div className="spec-flow-source">
+            <div className="spec-flow-subheading"><span>Mermaidソース</span><span className="spec-flow-subheading__hint">この図だけを編集します</span></div>
+            <textarea className="spec-flow-editor" value={flowSource} onChange={(event) => setFlowSource(event.target.value)} spellCheck={false} aria-label="Mermaidソース" />
+          </div>
+          <div className="spec-flow-preview">
+            <div className="spec-flow-subheading"><span>プレビュー</span><span className="spec-flow-subheading__hint">入力に合わせて更新</span></div>
+            <MermaidFlowPreview source={flowSource} />
+          </div>
+        </div> : <MermaidFlowPreview source={flowSource} />}
+      </section>
     </div>
     <section className="spec-panel spec-review-panel"><div className="spec-panel__heading"><div><span className="spec-panel__kicker">HUMAN REVIEW</span><h2>Review decision</h2></div><span className={`spec-status spec-status--${reviewStatus}`}>{reviewStatus.replace("_", " ")}</span></div><textarea className="spec-comment" value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Leave a note for the author or agent…" aria-label="Review comment" /><div className="spec-review-actions"><button className="spec-button spec-button--quiet" onClick={() => void approve("changes_requested")} disabled={review.isPending}>Request changes</button><button className="spec-button spec-button--approve" onClick={() => void approve("approved")} disabled={review.isPending}>Approve spec</button></div>{loaded.data?.reviewComment && <p className="spec-last-comment">Last note: {loaded.data.reviewComment}</p>}</section>
   </main>;
+}
+
+function MermaidFlowPreview({ source }: { source: string }) {
+  const [svg, setSvg] = useState("");
+  const [hasError, setHasError] = useState(false);
+  const [isRendering, setIsRendering] = useState(false);
+  const renderNumber = useRef(0);
+
+  useEffect(() => {
+    const trimmedSource = source.trim();
+    renderNumber.current += 1;
+    const currentRender = renderNumber.current;
+
+    if (!trimmedSource) {
+      setSvg("");
+      setHasError(false);
+      setIsRendering(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsRendering(true);
+    setHasError(false);
+    const debounce = window.setTimeout(() => {
+      void import("mermaid")
+        .then(({ default: mermaid }) => {
+          mermaid.initialize({
+            startOnLoad: false,
+            securityLevel: "strict",
+            theme: "base",
+            themeVariables: {
+              fontFamily: "Inter Variable, Inter, sans-serif",
+              primaryColor: "#e8f6f5",
+              primaryTextColor: "#172126",
+              primaryBorderColor: "#087f8c",
+              lineColor: "#617079",
+              secondaryColor: "#f4f7f7",
+              tertiaryColor: "#ffffff",
+            },
+          });
+          return mermaid.render(`spec-flow-${currentRender}`, trimmedSource);
+        })
+        .then(({ svg: renderedSvg }) => {
+          if (cancelled || currentRender !== renderNumber.current) return;
+          setSvg(renderedSvg);
+          setHasError(false);
+        })
+        .catch(() => {
+          if (cancelled || currentRender !== renderNumber.current) return;
+          setSvg("");
+          setHasError(true);
+        })
+        .finally(() => {
+          if (!cancelled && currentRender === renderNumber.current) setIsRendering(false);
+        });
+    }, 160);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(debounce);
+    };
+  }, [source]);
+
+  if (!source.trim()) return <div className="spec-flow-empty">有効な仕様を保存すると、ここに画面遷移図が表示されます。</div>;
+  if (hasError) return <div className="spec-flow-fallback" role="alert"><p>Mermaidの構文を確認してください。ソースを表示しています。</p><pre className="spec-flow-code">{source}</pre></div>;
+  return <div className={`spec-flow-render ${isRendering ? "is-rendering" : ""}`} aria-busy={isRendering}>{svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <div className="spec-flow-loading">{isRendering ? "描画中…" : "図を表示できません。"}</div>}</div>;
 }
 
 function ValidationIssues({ issues }: { issues: Issue[] }) { return <div className="spec-errors" role="alert"><strong>Validation issues</strong>{issues.map((issue) => <div key={`${issue.path}-${issue.message}`}><code>{issue.path}</code> {issue.message}</div>)}</div>; }
