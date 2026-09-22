@@ -1,32 +1,73 @@
+import { createHash, randomUUID } from "node:crypto";
+
 import { defineAction } from "@agent-native/core/action";
-import { eq } from "drizzle-orm";
+import { stages, type ReviewEntry } from "@shared/spec-schema";
+import { parseSpecYaml } from "@shared/spec-utils";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { getDb } from "../server/db/index.js";
-import * as schema from "../server/db/schema.js";
+import { uiSpecs } from "../server/db/schema.js";
 
 export default defineAction({
   description:
-    "Approve or return the shared UI specification with a review comment.",
+    "Approve or return the saved specification; retain a review history linked to stage and document hash. Approval requires valid YAML.",
   schema: z.object({
     status: z.enum(["approved", "changes_requested"]),
     comment: z.string().max(2000).optional().describe("Review note"),
+    stage: z
+      .enum(stages)
+      .default("screens")
+      .describe(
+        "Review focus; defaults to screens. Approval applies to the whole saved document.",
+      ),
+    expectedUpdatedAt: z
+      .string()
+      .optional()
+      .describe("Last loaded timestamp to reject a stale review"),
   }),
-  run: async ({ status, comment }) => {
-    const [row] = await getDb()
-      .update(schema.uiSpecs)
+  run: async ({ status, comment, stage, expectedUpdatedAt }) => {
+    const db = getDb();
+    const [row] = await db
+      .select()
+      .from(uiSpecs)
+      .where(eq(uiSpecs.id, "default"));
+    if (!row) throw new Error("仕様が保存されていません。");
+    if (expectedUpdatedAt && row.updatedAt !== expectedUpdatedAt)
+      throw new Error(
+        "仕様が更新されています。読み直してからレビューしてください。",
+      );
+    if (status === "approved" && parseSpecYaml(row.yaml).issues.length)
+      throw new Error("検証エラーのある仕様は承認できません。");
+    const entry: ReviewEntry = {
+      id: randomUUID(),
+      status,
+      comment: comment ?? "",
+      stage,
+      createdAt: new Date().toISOString(),
+      documentHash: createHash("sha256").update(row.yaml).digest("hex"),
+    };
+    const [updated] = await db
+      .update(uiSpecs)
       .set({
         reviewStatus: status,
         reviewComment: comment ?? null,
-        updatedAt: new Date().toISOString(),
+        reviewHistory: [...row.reviewHistory, entry],
+        updatedAt: entry.createdAt,
       })
-      .where(eq(schema.uiSpecs.id, "default"))
+      .where(
+        and(eq(uiSpecs.id, "default"), eq(uiSpecs.updatedAt, row.updatedAt)),
+      )
       .returning();
-    if (!row) throw new Error("No UI specification has been saved yet.");
+    if (!updated)
+      throw new Error(
+        "仕様が更新されています。読み直してからレビューしてください。",
+      );
     return {
-      status: row.reviewStatus,
-      comment: row.reviewComment,
-      updatedAt: row.updatedAt,
+      status: updated.reviewStatus,
+      comment: updated.reviewComment,
+      updatedAt: updated.updatedAt,
+      reviewHistory: updated.reviewHistory,
     };
   },
 });

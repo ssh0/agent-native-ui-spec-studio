@@ -29,6 +29,7 @@ export default defineAction({
       id: row.id,
       yaml: row.yaml,
       reviewStatus: row.reviewStatus,
+      reviewHistory: row.reviewHistory,
       reviewComment: row.reviewComment,
       updatedAt: row.updatedAt,
     };

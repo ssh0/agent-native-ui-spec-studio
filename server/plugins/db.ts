@@ -13,6 +13,11 @@ export default runMigrations(
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       )`,
     },
+    {
+      version: 2,
+      name: "ui-spec-review-history",
+      sql: `ALTER TABLE ui_specs ADD COLUMN IF NOT EXISTS review_history JSONB NOT NULL DEFAULT '[]'::jsonb`,
+    },
   ],
   { table: "ui_spec_studio_migrations" },
 );

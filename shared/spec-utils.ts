@@ -81,7 +81,7 @@ export function renderWireframe(spec: UiSpec): string {
           case "link":
             return `<div class="wireframe-control wireframe-${component.type}" data-component-id="${id}">↳ ${text}</div>`;
           case "input":
-            return `<div class="wireframe-field" data-component-id="${id}"><label>${text}</label><div class="wireframe-input">${escapeHtml(component.placeholder ?? "Enter value")}</div></div>`;
+            return `<div class="wireframe-field" data-component-id="${id}"><label>${text}</label><div class="wireframe-input">${escapeHtml(component.placeholder ?? "値を入力")}</div></div>`;
           case "image":
             return `<div class="wireframe-image" data-component-id="${id}">▧ ${text}</div>`;
           case "toggle":
@@ -99,20 +99,71 @@ export function renderWireframe(spec: UiSpec): string {
     .join("\n");
 
   return `<div class="wireframe" data-spec-title="${escapeHtml(spec.title)}">
-  <div class="wireframe__title"><span>WIREFRAME</span><strong>${escapeHtml(spec.title)}</strong></div>
+  <div class="wireframe__title"><span>ワイヤーフレーム</span><strong>${escapeHtml(spec.title)}</strong></div>
   <div class="wireframe__screens">${screens}</div>
 </div>`;
 }
 
-export function renderFlow(spec: UiSpec): string {
+// Generate node identifiers separately from user IDs; encode every label as Mermaid entities.
+function mermaidLabel(value: string): string {
+  return Array.from(value, (char) => `#${char.codePointAt(0)};`).join("");
+}
+export type FlowKind = "screens" | "useCases" | "states";
+export function renderFlow(
+  spec: UiSpec,
+  kind: FlowKind = "screens",
+  selectedId?: string,
+): string {
   const lines = ["flowchart TD"];
-  for (const screen of spec.screens) {
-    lines.push(`  ${screen.id}["${screen.title.replace(/"/g, "'")}"]`);
-  }
-  for (const transition of spec.transitions) {
-    lines.push(
-      `  ${transition.from} -->|"${transition.trigger.replace(/"/g, "'")}"| ${transition.to}`,
+  const label = mermaidLabel;
+  if (kind === "screens") {
+    const ids = new Map(spec.screens.map((s, i) => [s.id, `s${i}`]));
+    spec.screens.forEach((s) =>
+      lines.push(`  ${ids.get(s.id)}["${label(s.title)}"]`),
     );
+    spec.transitions.forEach((t) =>
+      lines.push(
+        `  ${ids.get(t.from)} -->|"${label(t.trigger)}"| ${ids.get(t.to)}`,
+      ),
+    );
+  } else if (kind === "states") {
+    const screen =
+      spec.screens.find((s) => s.id === selectedId) ?? spec.screens[0];
+    if (screen?.stateFlow) {
+      const flow = screen.stateFlow;
+      const ids = new Map(flow.states.map((s, i) => [s.id, `s${i}`]));
+      lines.push(`  start(("${label("開始")}")) --> ${ids.get(flow.initial)}`);
+      flow.states.forEach((s) =>
+        lines.push(`  ${ids.get(s.id)}["${label(s.title)}"]`),
+      );
+      flow.transitions.forEach((t) =>
+        lines.push(
+          `  ${ids.get(t.from)} -->|"${label(t.trigger)}"| ${ids.get(t.to)}`,
+        ),
+      );
+    }
+  } else {
+    const useCases = selectedId
+      ? spec.useCases?.filter((u) => u.id === selectedId)
+      : spec.useCases;
+    useCases?.forEach((u, i) => {
+      lines.push(`  subgraph uc${i}["${label(u.title)}"]`);
+      const ids = new Map(u.steps.map((s, j) => [s.id, `u${i}s${j}`]));
+      u.steps.forEach((s, j) => {
+        lines.push(`  ${ids.get(s.id)}["${label(s.title)}"]`);
+        if (j) lines.push(`  u${i}s${j - 1} --> u${i}s${j}`);
+      });
+      u.branches.forEach((b, j) => {
+        lines.push(
+          `  u${i}b${j}{"${label((b.kind === "exception" ? "例外: " : "分岐: ") + b.condition)}"}`,
+        );
+        lines.push(
+          `  ${ids.get(b.from)} -.-> u${i}b${j} --> u${i}o${j}["${label(b.outcome)}"]`,
+        );
+        if (b.resumeAt) lines.push(`  u${i}o${j} --> ${ids.get(b.resumeAt)}`);
+      });
+      lines.push("  end");
+    });
   }
-  return lines.join("\n");
+  return lines.length === 1 ? "" : lines.join("\n");
 }

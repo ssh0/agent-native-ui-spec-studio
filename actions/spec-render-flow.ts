@@ -8,14 +8,23 @@ import { getDb } from "../server/db/index.js";
 import * as schema from "../server/db/schema.js";
 
 export default defineAction({
-  description: "Render UI specification transitions as Mermaid flowchart text.",
+  description:
+    "Render screens (default), useCases with branches/exceptions, or states as Mermaid.",
   schema: z.object({
+    kind: z
+      .enum(["screens", "useCases", "states"])
+      .default("screens")
+      .describe("Diagram kind; defaults to screens"),
+    selectedId: z
+      .string()
+      .optional()
+      .describe("Optional use case or screen ID to focus"),
     yaml: z
       .string()
       .optional()
       .describe("YAML to render; loads the shared document when omitted"),
   }),
-  run: async ({ yaml }) => {
+  run: async ({ yaml, kind, selectedId }) => {
     let source = yaml;
     if (source === undefined) {
       const [row] = await getDb()
@@ -31,6 +40,9 @@ export default defineAction({
       });
       throw new Error("Invalid UI specification");
     }
-    return { format: "mermaid", mermaid: renderFlow(parsed.spec) };
+    return {
+      format: "mermaid",
+      mermaid: renderFlow(parsed.spec, kind, selectedId),
+    };
   },
 });

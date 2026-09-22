@@ -1,39 +1,111 @@
-version: "1.0"
-title: Task board
+version: "1.1"
+title: タスク管理
+notes: チームの日々の作業を、登録から完了まで一元管理する。
+domain:
+  notes: 担当者は初期版では登録者本人。複数担当への拡張は次回検討する。
+  entities:
+    - id: task
+      title: タスク
+      description: チームで管理する作業の単位
+      fields:
+        - { id: title, title: 件名, type: string, required: true }
+        - { id: status, title: 状態, type: "enum: 未着手 / 進行中 / 完了", required: true }
+        - { id: priority, title: 優先度, type: boolean }
+  terms:
+    - id: high-priority
+      title: 優先タスク
+      definition: 通常の作業より先に着手するタスク
+      entity: task
+flows:
+  - id: task-intake
+    title: 作業の受付と登録
+    actor: チームメンバー
+    goal: 新しい作業を取りこぼさず一覧に追加する
+    notes: 登録後は一覧へ戻し、追加したタスクを確認できるようにする。
+    steps:
+      - { id: discover, title: 新しい作業を確認する }
+      - { id: register, title: タスクを登録する, useCase: create-task }
+      - { id: confirm, title: 一覧で登録結果を確認する }
+useCases:
+  - id: create-task
+    title: タスクを登録する
+    actor: チームメンバー
+    entities: [task]
+    screens: [dashboard, create-task]
+    preconditions: [チームに参加している]
+    postconditions: [新しいタスクが未着手で一覧に表示される]
+    notes: 通信失敗でも入力内容を保持し、再入力の負担を避ける。
+    steps:
+      - id: open
+        title: 一覧から新規登録を開く
+        screen: dashboard
+        action: { screen: dashboard, component: new-task }
+      - { id: input, title: 件名と優先度を入力する, screen: create-task }
+      - id: save
+        title: タスクを保存する
+        screen: create-task
+        action: { screen: create-task, component: save-task }
+      - { id: confirm, title: 一覧で登録を確認する, screen: dashboard }
+    branches:
+      - id: missing-title
+        kind: alternate
+        from: save
+        condition: 件名が未入力
+        outcome: 件名欄にエラーを表示する
+        resumeAt: input
+        screen: create-task
+      - id: network-error
+        kind: exception
+        from: save
+        condition: 通信が失敗した
+        outcome: 入力を保持して再試行を案内する
+        resumeAt: save
+        screen: create-task
 screens:
   - id: dashboard
-    title: Dashboard
-    description: A quick overview of work in progress.
+    title: タスク一覧
+    description: 最近のタスクを確認し、新しい作業の登録へ進む。
+    entities: [task]
+    useCases: [create-task]
+    notes: 登録直後のタスクを先頭に表示する。
     components:
-      - type: text
-        id: welcome
-        content: Welcome back, Alex
+      - { type: text, id: heading, content: チームのタスク }
       - type: button
         id: new-task
-        label: New task
+        label: タスクを追加
         action: open-create-task
-      - type: list
-        id: task-list
-        label: Recent tasks
+        useCases: [create-task]
+        outcome: タスク登録画面を開く
+      - { type: list, id: task-list, label: 最近のタスク }
   - id: create-task
-    title: Create task
+    title: タスク登録
+    description: 必須入力は件名のみ。優先度を指定して保存する。
+    entities: [task]
+    useCases: [create-task]
+    stateFlow:
+      initial: editing
+      notes: 送信中は二重送信を防ぐ。失敗時には再試行できる。
+      states:
+        - { id: editing, title: 入力中 }
+        - { id: saving, title: 保存中 }
+        - { id: error, title: 保存失敗 }
+        - { id: complete, title: 保存完了 }
+      transitions:
+        - { from: editing, to: saving, trigger: 必須項目の入力完了・保存, component: save-task }
+        - { from: saving, to: error, trigger: 通信失敗 }
+        - { from: error, to: saving, trigger: 再試行, component: save-task }
+        - { from: saving, to: complete, trigger: 保存成功 }
     components:
-      - type: input
-        id: task-title
-        label: Task title
-        placeholder: What needs to be done?
-        required: true
-      - type: toggle
-        id: priority
-        label: High priority
+      - { type: input, id: task-title, label: 件名, placeholder: 作業内容を入力, required: true }
+      - { type: toggle, id: priority, label: 優先タスク }
       - type: button
         id: save-task
-        label: Save task
+        label: 保存する
         action: save-task
+        useCases: [create-task]
+        precondition: 件名が入力されている・送信中でない
+        outcome: タスクを登録して一覧へ戻る
+        notes: 通信失敗時は入力を保持する。
 transitions:
-  - from: dashboard
-    to: create-task
-    trigger: new-task.click
-  - from: create-task
-    to: dashboard
-    trigger: save-task.submit
+  - { from: dashboard, to: create-task, trigger: new-task.click }
+  - { from: create-task, to: dashboard, trigger: save-task.submit }
