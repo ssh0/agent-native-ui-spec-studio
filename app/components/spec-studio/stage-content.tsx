@@ -1,4 +1,4 @@
-import { renameScreen } from "@shared/spec-edit";
+import { renameParticipant, renameScreen } from "@shared/spec-edit";
 import {
   componentTypes,
   type UiComponent,
@@ -170,10 +170,6 @@ export function StageContent({
                   <>
                     <dl className="spec-facts">
                       <div>
-                        <dt>利用者</dt>
-                        <dd>{flow.actor ?? "—"}</dd>
-                      </div>
-                      <div>
                         <dt>目的</dt>
                         <dd>{flow.goal ?? "—"}</dd>
                       </div>
@@ -184,6 +180,17 @@ export function StageContent({
                           <span className="spec-step-number">{i + 1}</span>
                           <div>
                             <strong>{s.title}</strong>
+                            <p>
+                              {s.performer.kind === "actor"
+                                ? "アクター"
+                                : "外部システム"}
+                              ：
+                              {(s.performer.kind === "actor"
+                                ? spec.domain.actors
+                                : spec.domain.externalSystems
+                              ).find((p) => p.id === s.performer.id)?.title ??
+                                s.performer.id}
+                            </p>
                             {s.useCase && (
                               <p>
                                 ユースケース：
@@ -197,6 +204,15 @@ export function StageContent({
                       ))}
                     </ol>
                     <Note value={flow.notes} />
+                    <h3>業務フロー図</h3>
+                    {valid ? (
+                      <Diagram
+                        key={flow.id}
+                        source={renderFlow(spec, "flows", flow.id)}
+                      />
+                    ) : (
+                      <Empty>参照エラーを修正すると図を表示できます。</Empty>
+                    )}
                   </>
                 );
               })()}
@@ -299,6 +315,9 @@ export function StageContent({
               })()}
           </>
         )}
+        {(stage === "domain" || stage === "flows") && (
+          <Participants spec={spec} update={update} />
+        )}
         {stage === "domain" && (
           <>
             {!!spec.domain.terms.length && (
@@ -323,6 +342,128 @@ export function StageContent({
         )}
       </div>
     </div>
+  );
+}
+
+function Participants({
+  spec,
+  update,
+}: {
+  spec: UiSpec;
+  update: (spec: UiSpec) => void;
+}) {
+  return (
+    <details className="spec-disclosure">
+      <summary>アクター・外部システムを編集</summary>
+      {(["actors", "externalSystems"] as const).map((section) => {
+        const kind = section === "actors" ? "actor" : "externalSystem";
+        const title = kind === "actor" ? "アクター" : "外部システム";
+        const patch = (
+          index: number,
+          values: Partial<UiSpec["domain"]["actors"][number]>,
+        ) =>
+          update({
+            ...spec,
+            domain: {
+              ...spec.domain,
+              [section]: spec.domain[section].map((p, i) =>
+                i === index ? { ...p, ...values } : p,
+              ),
+            },
+          });
+        return (
+          <section key={section}>
+            <div className="spec-section-heading">
+              <h3>{title}</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  update({
+                    ...spec,
+                    domain: {
+                      ...spec.domain,
+                      [section]: [
+                        ...spec.domain[section],
+                        {
+                          id: newId(kind),
+                          title: `新しい${title}`,
+                          description: "",
+                        },
+                      ],
+                    },
+                  })
+                }
+              >
+                {title}を追加
+              </Button>
+            </div>
+            {spec.domain[section].map((p, index) => {
+              const referenced = spec.flows.some((f) =>
+                f.steps.some(
+                  (s) => s.performer.kind === kind && s.performer.id === p.id,
+                ),
+              );
+              return (
+                <div className="spec-component" key={index}>
+                  <div className="spec-form-grid">
+                    <Field label="ID">
+                      <Input
+                        value={p.id}
+                        onChange={(e) =>
+                          update(
+                            renameParticipant(spec, kind, p.id, e.target.value),
+                          )
+                        }
+                      />
+                    </Field>
+                    <Field label="名称">
+                      <Input
+                        value={p.title}
+                        onChange={(e) =>
+                          patch(index, { title: e.target.value })
+                        }
+                      />
+                    </Field>
+                    <Field label="役割・説明">
+                      <Input
+                        value={p.description}
+                        onChange={(e) =>
+                          patch(index, { description: e.target.value })
+                        }
+                      />
+                    </Field>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={referenced}
+                    title={
+                      referenced
+                        ? "手順の実行者を変更してから削除してください"
+                        : undefined
+                    }
+                    onClick={() =>
+                      update({
+                        ...spec,
+                        domain: {
+                          ...spec.domain,
+                          [section]: spec.domain[section].filter(
+                            (_, i) => i !== index,
+                          ),
+                        },
+                      })
+                    }
+                  >
+                    {referenced ? "手順で参照中" : "削除"}
+                  </Button>
+                </div>
+              );
+            })}
+          </section>
+        );
+      })}
+    </details>
   );
 }
 

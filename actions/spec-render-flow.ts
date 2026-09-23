@@ -9,17 +9,17 @@ import * as schema from "../server/db/schema.js";
 
 export default defineAction({
   description:
-    "Render screens (default), useCases with branches/exceptions, or states as Mermaid.",
+    "Render business flows with participant lanes, screens (default), useCases with branches/exceptions, or states as Mermaid.",
   mcpTool: true,
   schema: z.object({
     kind: z
-      .enum(["screens", "useCases", "states"])
+      .enum(["flows", "screens", "useCases", "states"])
       .default("screens")
       .describe("Diagram kind; defaults to screens"),
     selectedId: z
       .string()
       .optional()
-      .describe("Optional use case or screen ID to focus"),
+      .describe("Optional business flow, use case or screen ID to focus"),
     yaml: z
       .string()
       .optional()

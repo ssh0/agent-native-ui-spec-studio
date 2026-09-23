@@ -139,3 +139,32 @@ export function editSpec(
     throw new Error(issues.map((i) => `${i.path}: ${i.message}`).join("\n"));
   return spec;
 }
+
+/** Rename a typed participant and every business-step reference to it. */
+export function renameParticipant(
+  spec: UiSpec,
+  kind: "actor" | "externalSystem",
+  from: string,
+  to: string,
+): UiSpec {
+  const section = kind === "actor" ? "actors" : "externalSystems";
+  return {
+    ...spec,
+    domain: {
+      ...spec.domain,
+      [section]: spec.domain[section].map((p) =>
+        p.id === from ? { ...p, id: to } : p,
+      ),
+    },
+    flows: spec.flows.map((flow) => ({
+      ...flow,
+      steps: flow.steps.map((step) => ({
+        ...step,
+        performer:
+          step.performer.kind === kind && step.performer.id === from
+            ? { kind, id: to }
+            : step.performer,
+      })),
+    })),
+  };
+}

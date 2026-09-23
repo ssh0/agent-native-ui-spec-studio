@@ -16,24 +16,62 @@ domain:
       title: 優先タスク
       definition: 通常の作業より先に着手するタスク
       entity: task
+  actors:
+    - id: member
+      title: チームメンバー
+      description: 作業を登録し、実施する利用者
+    - id: requester
+      title: 依頼者
+      description: 作業を依頼して結果を受け取る関係者
+  externalSystems:
+    - id: notification
+      title: 通知サービス
+      description: 受付結果を依頼者に通知する外部サービス
 flows:
   - id: task-intake
     title: 作業の受付と登録
-    actor: チームメンバー
     goal: 新しい作業を取りこぼさず一覧に追加する
-    notes: 登録後は一覧へ戻し、追加したタスクを確認できるようにする。
+    notes: 登録後は一覧へ戻し、追加したタスクを確認できるようにする。 通知サービスとの連携は業務上の想定として記載し、画面の機能仕様とは分けて検討する。
     steps:
-      - { id: discover, title: 新しい作業を確認する }
-      - { id: register, title: タスクを登録する, useCase: create-task }
-      - { id: confirm, title: 一覧で登録結果を確認する }
+      - id: request
+        title: 作業を依頼する
+        performer:
+          kind: actor
+          id: requester
+      - id: discover
+        title: 新しい作業を確認する
+        performer:
+          kind: actor
+          id: member
+      - id: register
+        title: タスクを登録する
+        useCase: create-task
+        performer:
+          kind: actor
+          id: member
+      - id: confirm
+        title: 一覧で登録結果を確認する
+        performer:
+          kind: actor
+          id: member
+      - id: notify
+        title: 受付通知を送信する
+        performer:
+          kind: externalSystem
+          id: notification
+      - id: receive
+        title: 受付結果を受け取る
+        performer:
+          kind: actor
+          id: requester
 useCases:
   - id: create-task
     title: タスクを登録する
     actor: チームメンバー
-    entities: [task]
-    screens: [dashboard, create-task]
-    preconditions: [チームに参加している]
-    postconditions: [新しいタスクが未着手で一覧に表示される]
+    entities: [ task ]
+    screens: [ dashboard, create-task ]
+    preconditions: [ チームに参加している ]
+    postconditions: [ 新しいタスクが未着手で一覧に表示される ]
     notes: 通信失敗でも入力内容を保持し、再入力の負担を避ける。
     steps:
       - id: open
@@ -65,8 +103,8 @@ screens:
   - id: dashboard
     title: タスク一覧
     description: 最近のタスクを確認し、新しい作業の登録へ進む。
-    entities: [task]
-    useCases: [create-task]
+    entities: [ task ]
+    useCases: [ create-task ]
     notes: 登録直後のタスクを先頭に表示する。
     stateFlow:
       initial: browsing
@@ -79,14 +117,14 @@ screens:
         id: new-task
         label: タスクを追加
         action: open-create-task
-        useCases: [create-task]
+        useCases: [ create-task ]
         outcome: タスク登録画面を開く
       - { type: list, id: task-list, label: 最近のタスク }
   - id: create-task
     title: タスク登録
     description: 必須入力は件名のみ。優先度を指定して保存する。
-    entities: [task]
-    useCases: [create-task]
+    entities: [ task ]
+    useCases: [ create-task ]
     stateFlow:
       initial: editing
       notes: 送信中は二重送信を防ぐ。失敗時には再試行できる。
@@ -107,7 +145,7 @@ screens:
         id: save-task
         label: 保存する
         action: save-task
-        useCases: [create-task]
+        useCases: [ create-task ]
         precondition: 件名が入力されている・送信中でない
         outcome: タスクを登録して一覧へ戻る
         notes: 通信失敗時は入力を保持する。

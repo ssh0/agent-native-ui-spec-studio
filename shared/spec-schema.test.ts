@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { stringify } from "yaml";
 
 import { DEFAULT_SPEC_YAML } from "./default-spec";
-import { editSpec } from "./spec-edit";
+import { editSpec, renameParticipant } from "./spec-edit";
 import { SpecSchema, validateSpecRelations, type UiSpec } from "./spec-schema";
 import { parseSpecYaml, renderFlow, renderWireframe } from "./spec-utils";
 const example = () => parseSpecYaml(DEFAULT_SPEC_YAML).spec!;
@@ -14,7 +14,7 @@ describe("canonical specification structure and relations", () => {
     const minimal = {
       version: "2.0",
       title: "検討開始",
-      domain: { entities: [], terms: [] },
+      domain: { actors: [], externalSystems: [], entities: [], terms: [] },
       flows: [],
       useCases: [],
       screens: [],
@@ -67,6 +67,9 @@ describe("canonical specification structure and relations", () => {
     for (const path of [
       ["domain", "entities"],
       ["domain", "terms"],
+      ["domain", "actors"],
+      ["domain", "externalSystems"],
+      ["flows", 0, "steps", 0, "performer"],
       ["domain", "entities", 0, "fields"],
       ["flows", 0, "steps"],
       ["useCases", 0, "steps"],
@@ -292,5 +295,118 @@ describe("canonical specification structure and relations", () => {
         { path: "flows", message: "配列を指定してください。" },
       ]),
     );
+  });
+});
+
+describe("business flow participants and lanes", () => {
+  it.each(["example", "todo-app"])("validates the %s sample", (name) => {
+    const parsed = parseSpecYaml(
+      readFileSync(new URL(`../specs/${name}.yaml`, import.meta.url), "utf8"),
+    );
+    expect(parsed.issues).toEqual([]);
+    expect(parsed.spec?.flows[0].steps.some((s) => !s.useCase)).toBe(true);
+  });
+  it.each(["actors", "externalSystems"] as const)(
+    "requires %s descriptions and unique IDs",
+    (section) => {
+      const spec = example();
+      spec.domain[section][0].description = "";
+      expect(SpecSchema.safeParse(spec).success).toBe(false);
+      spec.domain[section][0].description = "Role";
+      spec.domain[section].push({ ...spec.domain[section][0] });
+      expect(validateSpecRelations(spec)).toContainEqual(
+        expect.objectContaining({
+          path: `domain.${section}[${spec.domain[section].length - 1}].id`,
+        }),
+      );
+    },
+  );
+  it.each(["actor", "externalSystem"] as const)(
+    "checks the %s reference namespace",
+    (kind) => {
+      const spec = example();
+      const step = spec.flows[0].steps[0];
+      step.performer = {
+        kind,
+        id: kind === "actor" ? "notification" : "member",
+      };
+      expect(validateSpecRelations(spec)).toContainEqual(
+        expect.objectContaining({ path: "flows[0].steps[0].performer.id" }),
+      );
+      step.performer.id = "missing";
+      expect(validateSpecRelations(spec)).toHaveLength(1);
+    },
+  );
+  it.each([
+    undefined,
+    "member",
+    { kind: "system", id: "notification" },
+    { kind: "actor", id: "" },
+    { kind: "actor", id: "member", externalSystem: "notification" },
+  ])("rejects malformed performer %j", (performer) => {
+    const spec = example();
+    (spec.flows[0].steps[0] as any).performer = performer;
+    expect(SpecSchema.safeParse(spec).success).toBe(false);
+  });
+  it("rejects legacy flow-level actors and duplicate business steps", () => {
+    const spec = example();
+    expect(
+      SpecSchema.safeParse({
+        ...spec,
+        flows: [{ ...spec.flows[0], actor: "member" }],
+      }).success,
+    ).toBe(false);
+    spec.flows[0].steps.push(spec.flows[0].steps[0]);
+    expect(validateSpecRelations(spec)).toContainEqual(
+      expect.objectContaining({ path: "flows[0].steps[6].id" }),
+    );
+  });
+  it("preserves notes and typed references on participant rename", () => {
+    const spec = example();
+    spec.domain.externalSystems[0].id = "member";
+    spec.flows[0].steps[4].performer = { kind: "externalSystem", id: "member" };
+    const next = renameParticipant(spec, "actor", "member", "staff");
+    expect(validateSpecRelations(next)).toEqual([]);
+    expect(next.flows[0].steps[1].performer.id).toBe("staff");
+    expect(next.flows[0].steps[4].performer.id).toBe("member");
+    expect(next.flows[0].notes).toBe(spec.flows[0].notes);
+    expect(next.useCases).toEqual(spec.useCases);
+    expect(spec.domain.actors[0].id).toBe("member");
+    expect(() =>
+      editSpec(next, {
+        kind: "set_section",
+        section: "domain",
+        value: { ...next.domain, actors: [] },
+      }),
+    ).toThrow();
+  });
+  it("renders lanes, ordered handoffs, use case links and safe labels", () => {
+    const spec = example();
+    const diagram = renderFlow(spec, "flows", "task-intake");
+    expect(diagram.match(/subgraph f0lane/g)).toHaveLength(3);
+    for (let i = 1; i < 6; i++)
+      expect(diagram).toContain(`f0s${i - 1} --> f0s${i}`);
+    const encode = (s: string) =>
+      Array.from(s, (c) => `#${c.codePointAt(0)};`).join("");
+    expect(diagram).toContain(encode("UC: タスクを登録する"));
+    const malicious = 'end"]\nclick f0s0 "javascript:alert(1)"';
+    spec.domain.actors[0].title = malicious;
+    spec.flows[0].title = malicious;
+    spec.flows[0].steps[0].title = malicious;
+    expect(renderFlow(spec, "flows")).not.toContain("javascript:");
+    expect(renderFlow(spec, "flows")).toContain(encode(malicious));
+  });
+  it("handles multiple flows and unfinished or missing selections", () => {
+    const spec = example();
+    spec.flows.push({ ...spec.flows[0], id: "second" });
+    expect(renderFlow(spec, "flows")).toContain("f1s0 --> f1s1");
+    expect(
+      renderFlow(spec, "flows", "second").match(/subgraph f\d\[/g),
+    ).toHaveLength(1);
+    expect(renderFlow(spec, "flows", "missing")).toBe("");
+    spec.flows[0].steps = [];
+    expect(renderFlow(spec, "flows", "task-intake")).toBe("");
+    spec.flows = [];
+    expect(renderFlow(spec, "flows")).toBe("");
   });
 });

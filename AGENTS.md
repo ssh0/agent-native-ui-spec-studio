@@ -49,7 +49,7 @@ brand. Its `app.name` is used in transactional emails, and its optional
 
 The `/spec` workspace follows data → flows → use cases (including branches and exceptions) → screens/state flows → component actions. Use the required version 2.0 structure in `docs/spec-format.md`; empty arrays represent unfinished stages, including screens. That document owns the reference rules and review-history semantics. Keep decisions in stage `notes`.
 
-Use `spec-load`, `spec-update`, `spec-validate`, `spec-render-wireframe`, `spec-render-flow`, and `spec-review` for the shared workflow. `spec-edit` supports focused CRUD and `set_section` for domain/flows/useCases; `spec-render-flow` accepts screens/useCases/states. Navigation exposes stage, selected ID and editing mode. Preserve notes and existing stages during edits; review only saved, valid content.
+Use `spec-load`, `spec-update`, `spec-validate`, `spec-render-wireframe`, `spec-render-flow`, and `spec-review` for the shared workflow. `spec-edit` supports focused CRUD and `set_section` for domain/flows/useCases; `spec-render-flow` accepts flows/screens/useCases/states. Business steps use typed participant references from `domain.actors` / `domain.externalSystems`; see `docs/spec-format.md` for lane semantics. Navigation exposes stage, selected ID and editing mode. Preserve notes and existing stages during edits; review only saved, valid content.
 
 ## Application State
 

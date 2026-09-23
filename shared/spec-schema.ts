@@ -32,8 +32,15 @@ const id = z.string().min(1);
 const notes = z.string().optional();
 const refs = z.array(id);
 const Named = z.strictObject({ id, title: id, notes });
+export const ParticipantSchema = Named.extend({ description: id });
+export const PerformerSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("actor"), id }),
+  z.strictObject({ kind: z.literal("externalSystem"), id }),
+]);
 export const DomainSchema = z.strictObject({
   notes,
+  actors: z.array(ParticipantSchema),
+  externalSystems: z.array(ParticipantSchema),
   entities: z.array(
     Named.extend({
       description: z.string().optional(),
@@ -60,10 +67,15 @@ export const DomainSchema = z.strictObject({
   ),
 });
 export const FlowSchema = Named.extend({
-  actor: z.string().optional(),
   goal: z.string().optional(),
   steps: z.array(
-    z.strictObject({ id, title: id, useCase: id.optional(), notes }),
+    z.strictObject({
+      id,
+      title: id,
+      performer: PerformerSchema,
+      useCase: id.optional(),
+      notes,
+    }),
   ),
 });
 const ActionRef = z.strictObject({ screen: id, component: id });
@@ -181,6 +193,11 @@ export function validateSpecRelations(spec: UiSpec): ValidationIssue[] {
     values?.forEach((v, i) => ref(v, ids, `${path}[${i}]`));
   const screenIds = unique(spec.screens, "screens");
   const entities = unique(spec.domain.entities, "domain.entities");
+  const actors = unique(spec.domain.actors, "domain.actors");
+  const externalSystems = unique(
+    spec.domain.externalSystems,
+    "domain.externalSystems",
+  );
   const cases = unique(spec.useCases, "useCases");
   unique(spec.domain.terms, "domain.terms");
   unique(spec.flows, "flows");
@@ -195,9 +212,14 @@ export function validateSpecRelations(spec: UiSpec): ValidationIssue[] {
   );
   spec.flows.forEach((flow, i) => {
     unique(flow.steps, `flows[${i}].steps`);
-    flow.steps.forEach((step, j) =>
-      ref(step.useCase, cases, `flows[${i}].steps[${j}].useCase`),
-    );
+    flow.steps.forEach((step, j) => {
+      ref(step.useCase, cases, `flows[${i}].steps[${j}].useCase`);
+      ref(
+        step.performer.id,
+        step.performer.kind === "actor" ? actors : externalSystems,
+        `flows[${i}].steps[${j}].performer.id`,
+      );
+    });
   });
   spec.useCases.forEach((useCase, i) => {
     const path = `useCases[${i}]`;

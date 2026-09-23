@@ -110,7 +110,7 @@ export function renderWireframe(spec: UiSpec): string {
 function mermaidLabel(value: string): string {
   return Array.from(value, (char) => `#${char.codePointAt(0)};`).join("");
 }
-export type FlowKind = "screens" | "useCases" | "states";
+export type FlowKind = "flows" | "screens" | "useCases" | "states";
 export function renderFlow(
   spec: UiSpec,
   kind: FlowKind = "screens",
@@ -118,7 +118,44 @@ export function renderFlow(
 ): string {
   const lines = ["flowchart TD"];
   const label = mermaidLabel;
-  if (kind === "screens") {
+  if (kind === "flows") {
+    const flows = selectedId
+      ? spec.flows.filter((f) => f.id === selectedId)
+      : spec.flows;
+    flows.forEach((flow, i) => {
+      if (!flow.steps.length) return;
+      lines.push(`  subgraph f${i}["${label(flow.title)}"]`);
+      const participants = [
+        ...spec.domain.actors.map((p) => ({ ...p, kind: "actor" })),
+        ...spec.domain.externalSystems.map((p) => ({
+          ...p,
+          kind: "externalSystem",
+        })),
+      ];
+      participants.forEach((p, lane) => {
+        const steps = flow.steps
+          .map((step, index) => ({ step, index }))
+          .filter(
+            ({ step }) =>
+              step.performer.kind === p.kind && step.performer.id === p.id,
+          );
+        if (!steps.length) return;
+        lines.push(
+          `  subgraph f${i}lane${lane}["${label((p.kind === "actor" ? "アクター: " : "外部システム: ") + p.title)}"]`,
+        );
+        steps.forEach(({ step, index }) => {
+          const useCase = spec.useCases.find((u) => u.id === step.useCase);
+          const title = `${index + 1}. ${step.title}${useCase ? ` / UC: ${useCase.title}` : ""}`;
+          lines.push(`  f${i}s${index}["${label(title)}"]`);
+        });
+        lines.push("  end");
+      });
+      flow.steps.forEach((_, j) => {
+        if (j) lines.push(`  f${i}s${j - 1} --> f${i}s${j}`);
+      });
+      lines.push("  end");
+    });
+  } else if (kind === "screens") {
     const ids = new Map(spec.screens.map((s, i) => [s.id, `s${i}`]));
     spec.screens.forEach((s) =>
       lines.push(`  ${ids.get(s.id)}["${label(s.title)}"]`),

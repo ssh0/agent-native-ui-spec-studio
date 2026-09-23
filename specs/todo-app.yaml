@@ -33,26 +33,60 @@ domain:
       title: タスク一覧
       definition: 登録済みタスクを絞り込み条件に従って表示する一覧
       entity: task
+  actors:
+    - id: user
+      title: ユーザー
+      description: 作業を登録し、実施する利用者
+  externalSystems: []
 flows:
   - id: task-management
     title: タスクを管理する
-    actor: ユーザー
     goal: タスクを登録して日々の作業を整理する
     notes: 一覧を起点に、登録・編集・完了・削除の各操作を行う。
     steps:
-      - { id: view-list, title: タスク一覧を表示する, useCase: browse-tasks }
-      - { id: add-task, title: 新しいタスクを登録する, useCase: create-task }
-      - { id: edit-task, title: 登録済みタスクを編集する, useCase: edit-task }
-      - { id: complete-task, title: タスクを完了にする, useCase: complete-task }
-      - { id: delete-task, title: 不要なタスクを削除する, useCase: delete-task }
+      - id: view-list
+        title: タスク一覧を表示する
+        useCase: browse-tasks
+        performer:
+          kind: actor
+          id: user
+      - id: add-task
+        title: 新しいタスクを登録する
+        useCase: create-task
+        performer:
+          kind: actor
+          id: user
+      - id: edit-task
+        title: 登録済みタスクを編集する
+        useCase: edit-task
+        performer:
+          kind: actor
+          id: user
+      - id: do-work
+        title: 登録した作業を実施する
+        performer:
+          kind: actor
+          id: user
+      - id: complete-task
+        title: タスクを完了にする
+        useCase: complete-task
+        performer:
+          kind: actor
+          id: user
+      - id: delete-task
+        title: 不要なタスクを削除する
+        useCase: delete-task
+        performer:
+          kind: actor
+          id: user
 useCases:
   - id: browse-tasks
     title: タスク一覧を確認する
     actor: ユーザー
-    entities: [task, task-filter]
-    screens: [dashboard]
-    preconditions: [アプリを開いている]
-    postconditions: [指定した状態のタスクが一覧に表示されている]
+    entities: [ task, task-filter ]
+    screens: [ dashboard ]
+    preconditions: [ アプリを開いている ]
+    postconditions: [ 指定した状態のタスクが一覧に表示されている ]
     notes: 初期表示では未完了タスクを先に確認できるようにする。
     steps:
       - id: open
@@ -83,10 +117,10 @@ useCases:
   - id: create-task
     title: タスクを登録する
     actor: ユーザー
-    entities: [task]
-    screens: [dashboard, task-create]
-    preconditions: [タスク一覧を表示できる]
-    postconditions: [新しいタスクが未完了として一覧に表示される]
+    entities: [ task ]
+    screens: [ dashboard, task-create ]
+    preconditions: [ タスク一覧を表示できる ]
+    postconditions: [ 新しいタスクが未完了として一覧に表示される ]
     notes: 件名だけを必須入力とし、詳細と期限は任意とする。
     steps:
       - id: open
@@ -117,10 +151,10 @@ useCases:
   - id: edit-task
     title: タスクを編集する
     actor: ユーザー
-    entities: [task]
-    screens: [dashboard, task-edit]
-    preconditions: [編集対象のタスクが一覧に存在する]
-    postconditions: [編集内容が対象タスクに反映されて一覧に表示される]
+    entities: [ task ]
+    screens: [ dashboard, task-edit ]
+    preconditions: [ 編集対象のタスクが一覧に存在する ]
+    postconditions: [ 編集内容が対象タスクに反映されて一覧に表示される ]
     notes: 完了済みタスクも件名や詳細を編集できる。
     steps:
       - id: select
@@ -151,10 +185,10 @@ useCases:
   - id: complete-task
     title: タスクを完了にする
     actor: ユーザー
-    entities: [task]
-    screens: [dashboard]
-    preconditions: [未完了のタスクが一覧に存在する]
-    postconditions: [対象タスクが完了として表示される]
+    entities: [ task ]
+    screens: [ dashboard ]
+    preconditions: [ 未完了のタスクが一覧に存在する ]
+    postconditions: [ 対象タスクが完了として表示される ]
     notes: 完了操作は一覧上のタスクごとのボタンから行う。
     steps:
       - id: select
@@ -184,10 +218,10 @@ useCases:
   - id: delete-task
     title: タスクを削除する
     actor: ユーザー
-    entities: [task]
-    screens: [dashboard, delete-confirm]
-    preconditions: [削除対象のタスクが一覧に存在する]
-    postconditions: [対象タスクが一覧から削除される]
+    entities: [ task ]
+    screens: [ dashboard, delete-confirm ]
+    preconditions: [ 削除対象のタスクが一覧に存在する ]
+    postconditions: [ 対象タスクが一覧から削除される ]
     notes: 誤操作を防ぐため、削除前に確認画面を表示する。
     steps:
       - id: select
@@ -218,8 +252,8 @@ screens:
   - id: dashboard
     title: タスク一覧
     description: 登録済みタスクを確認し、各タスクの操作を行うホーム画面。
-    entities: [task, task-filter]
-    useCases: [browse-tasks, create-task, edit-task, complete-task, delete-task]
+    entities: [ task, task-filter ]
+    useCases: [ browse-tasks, create-task, edit-task, complete-task, delete-task ]
     notes: 空の一覧では登録を促し、読み込み失敗時は再読み込みを可能にする。
     stateFlow:
       initial: loading
@@ -241,52 +275,52 @@ screens:
         id: refresh-tasks
         label: 再読み込み
         action: refresh-tasks
-        useCases: [browse-tasks]
+        useCases: [ browse-tasks ]
         outcome: 最新のタスク一覧を取得する
       - type: button
         id: new-task
         label: タスクを追加
         action: open-create-task
-        useCases: [create-task]
+        useCases: [ create-task ]
         outcome: タスク登録画面を開く
       - type: select
         id: status-filter
         label: 表示状態
         action: filter-tasks
-        options: [すべて, 未完了, 完了]
-        useCases: [browse-tasks]
+        options: [ すべて, 未完了, 完了 ]
+        useCases: [ browse-tasks ]
         outcome: 選択した状態のタスクだけを表示する
       - type: list
         id: task-list
         label: タスク一覧
-        useCases: [browse-tasks, edit-task, complete-task, delete-task]
+        useCases: [ browse-tasks, edit-task, complete-task, delete-task ]
       - { type: text, id: empty-message, content: タスクがありません。新しいタスクを追加してください。 }
       - type: button
         id: edit-task
         label: 編集
         action: open-edit-task
-        useCases: [edit-task]
+        useCases: [ edit-task ]
         precondition: 編集対象のタスクが選択されている
         outcome: タスク編集画面を開く
       - type: button
         id: complete-task
         label: 完了にする
         action: complete-task
-        useCases: [complete-task]
+        useCases: [ complete-task ]
         precondition: 未完了のタスクが選択されている
         outcome: タスクを完了として保存する
       - type: button
         id: delete-task
         label: 削除
         action: open-delete-confirm
-        useCases: [delete-task]
+        useCases: [ delete-task ]
         precondition: 削除対象のタスクが選択されている
         outcome: 削除確認画面を開く
   - id: task-create
     title: タスク登録
     description: 新しいタスクの件名、詳細、期限を入力する画面。
-    entities: [task]
-    useCases: [create-task]
+    entities: [ task ]
+    useCases: [ create-task ]
     notes: 保存に失敗した場合も入力値を保持する。
     stateFlow:
       initial: editing
@@ -309,20 +343,20 @@ screens:
         id: save-task
         label: 保存する
         action: save-task
-        useCases: [create-task]
+        useCases: [ create-task ]
         precondition: 件名が入力され、保存中ではない
         outcome: タスクを登録して一覧へ戻る
       - type: link
         id: cancel-create
         label: キャンセル
         action: cancel-create
-        useCases: [create-task]
+        useCases: [ create-task ]
         outcome: 入力を破棄して一覧へ戻る
   - id: task-edit
     title: タスク編集
     description: 選択したタスクの内容を変更する画面。
-    entities: [task]
-    useCases: [edit-task]
+    entities: [ task ]
+    useCases: [ edit-task ]
     notes: 保存前にキャンセルした場合は変更を破棄する。
     stateFlow:
       initial: editing
@@ -345,20 +379,20 @@ screens:
         id: update-task
         label: 変更を保存
         action: update-task
-        useCases: [edit-task]
+        useCases: [ edit-task ]
         precondition: 件名が入力され、更新中ではない
         outcome: タスクを更新して一覧へ戻る
       - type: link
         id: cancel-edit
         label: キャンセル
         action: cancel-edit
-        useCases: [edit-task]
+        useCases: [ edit-task ]
         outcome: 変更を破棄して一覧へ戻る
   - id: delete-confirm
     title: タスク削除の確認
     description: 選択したタスクを削除してよいか確認する画面。
-    entities: [task]
-    useCases: [delete-task]
+    entities: [ task ]
+    useCases: [ delete-task ]
     notes: 確認操作を必須にし、誤削除を防ぐ。
     stateFlow:
       initial: confirming
@@ -379,14 +413,14 @@ screens:
         id: confirm-delete
         label: 削除する
         action: confirm-delete
-        useCases: [delete-task]
+        useCases: [ delete-task ]
         precondition: 削除対象を確認している
         outcome: タスクを削除して一覧へ戻る
       - type: link
         id: cancel-delete
         label: キャンセル
         action: cancel-delete
-        useCases: [delete-task]
+        useCases: [ delete-task ]
         outcome: 削除せず一覧へ戻る
 transitions:
   - { from: dashboard, to: task-create, trigger: open-create-task.click }
