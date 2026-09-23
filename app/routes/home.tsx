@@ -1,9 +1,6 @@
-import { markAgentChatHomeHandoff } from "@agent-native/core/client/agentkit-chat/rail";
-import { appPath } from "@agent-native/core/client/api-path";
-import { useEffect, useRef, useState } from "react";
+import { Navigate } from "react-router";
 
 import { APP_TITLE } from "@/lib/app-config";
-import { getChatHomeThreadId } from "@/lib/chat-home-thread";
 
 const SEO_TITLE = `${APP_TITLE} - Open Source AI app starter with actions`;
 const SEO_DESCRIPTION =
@@ -25,20 +22,5 @@ export function meta() {
 }
 
 export default function ChatRoute() {
-  const [threadId] = useState(getChatHomeThreadId);
-  const handoffStartedRef = useRef(false);
-
-  useEffect(() => {
-    if (handoffStartedRef.current) return;
-    handoffStartedRef.current = true;
-    markAgentChatHomeHandoff("chat");
-    try {
-      window.location.replace(appPath(`/chat/${encodeURIComponent(threadId)}`));
-    } catch (error) {
-      handoffStartedRef.current = false;
-      throw error;
-    }
-  }, [threadId]);
-
-  return null;
+  return <Navigate to="/projects" replace />;
 }

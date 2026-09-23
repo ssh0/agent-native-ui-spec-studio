@@ -47,6 +47,17 @@ brand. Its `app.name` is used in transactional emails, and its optional
 
 ## UI Spec Studio
 
+Projects are listed by `project-list` and created by `project-create` (`name`).
+The UI starts at `/projects`; opening a project resumes its scoped chat. The
+legacy `ui_specs/default` document is claimed by the first authenticated opener
+as 「以前のプロジェクト」, with its existing unscoped chat history. New chat threads use
+Core's `ui-spec-project` scope. A project's URL carries `?project=<id>` and
+`navigation.projectId` exposes the selection to the agent. Pass that `projectId`
+to every spec action; all spec actions verify ownership. Use the chat composer
+`+` to attach reference files through Core's upload mechanism. Begin new
+projects by discussing the product in chat, then save a valid rough 2.0 YAML
+with `spec-update` before sending the user to the editor.
+
 The `/spec` workspace follows data → flows → use cases (including branches and exceptions) → screens/state flows → component actions. Use the required version 2.0 structure in `docs/spec-format.md`; empty arrays represent unfinished stages, including screens. That document owns the reference rules and review-history semantics. Keep decisions in stage `notes`.
 
 Use `spec-load`, `spec-update`, `spec-validate`, `spec-render-wireframe`, `spec-render-flow`, and `spec-review` for the shared workflow. `spec-edit` supports focused CRUD and `set_section` for domain/flows/useCases; `spec-render-flow` accepts flows/screens/useCases/states. Business steps use typed participant references from `domain.actors` / `domain.externalSystems`; see `docs/spec-format.md` for lane semantics. Navigation exposes stage, selected ID and editing mode. Preserve notes and existing stages during edits; review only saved, valid content.

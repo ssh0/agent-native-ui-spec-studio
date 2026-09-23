@@ -5,14 +5,17 @@ import { z } from "zod";
 
 import { getDb } from "../server/db/index.js";
 import * as schema from "../server/db/schema.js";
-
-const SPEC_ID = "default";
+import { resolveSpecProject } from "../server/lib/spec-project.js";
 
 export default defineAction({
   description:
-    "Save the shared UI specification YAML. Saving resets the review status to draft.",
+    "Save the selected project's UI specification YAML. Saving resets the review status to draft.",
   mcpTool: true,
   schema: z.object({
+    projectId: z
+      .string()
+      .optional()
+      .describe("Selected project ID; defaults to current navigation"),
     expectedUpdatedAt: z
       .string()
       .optional()
@@ -20,7 +23,8 @@ export default defineAction({
     yaml: z.string().min(1).describe("Complete UI specification YAML document"),
   }),
   publicAgent: { expose: true, readOnly: false, requiresAuth: true },
-  run: async ({ yaml, expectedUpdatedAt }) => {
+  run: async ({ yaml, expectedUpdatedAt, projectId }) => {
+    const project = await resolveSpecProject(projectId);
     const parsed = parseSpecYaml(yaml);
     if (parsed.spec && parsed.issues.length)
       fail(
@@ -31,6 +35,7 @@ export default defineAction({
       );
     const db = getDb();
     const values = {
+      ownerEmail: project.ownerEmail,
       yaml,
       reviewStatus: "draft",
       reviewComment: null,
@@ -42,14 +47,14 @@ export default defineAction({
           .set(values)
           .where(
             and(
-              eq(schema.uiSpecs.id, SPEC_ID),
+              eq(schema.uiSpecs.id, project.id),
               eq(schema.uiSpecs.updatedAt, expectedUpdatedAt),
             ),
           )
           .returning()
       : await db
           .insert(schema.uiSpecs)
-          .values({ id: SPEC_ID, ...values })
+          .values({ id: project.id, ...values })
           .onConflictDoUpdate({ target: schema.uiSpecs.id, set: values })
           .returning();
     if (!row)

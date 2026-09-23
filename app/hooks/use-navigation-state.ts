@@ -8,6 +8,7 @@ export interface NavigationState {
   view: string;
   path?: string;
   threadId?: string;
+  projectId?: string;
   stage?: string;
   section?: string;
   selectedId?: string;
@@ -25,6 +26,9 @@ export function useNavigationState() {
       return {
         view: viewForPath(pathname),
         path: appPath(pathname),
+        ...(searchParams.get("project")
+          ? { projectId: searchParams.get("project")! }
+          : {}),
         ...(pathname === "/spec"
           ? {
               stage,
@@ -59,6 +63,7 @@ function threadIdFromPath(pathname: string): string | null {
 }
 
 function viewForPath(pathname: string): string {
+  if (pathname.startsWith("/projects")) return "projects";
   if (pathname === "/spec") return "spec";
   if (isChatPath(pathname)) return "chat";
   if (pathname.startsWith("/database")) return "database";
@@ -74,6 +79,8 @@ function viewForPath(pathname: string): string {
 
 function pathForView(view?: string): string {
   switch (view) {
+    case "projects":
+      return "/projects";
     case "chat":
     case "home":
     case "ask":
@@ -99,10 +106,18 @@ function pathForView(view?: string): string {
 
 function pathForCommand(command: any): string {
   const path = pathForView(command?.view);
+  const projectId =
+    typeof command?.projectId === "string" ? command.projectId.trim() : "";
+  if (path === "/spec" && projectId)
+    return `/spec?project=${encodeURIComponent(projectId)}`;
+  if (path === "/projects" && projectId)
+    return `/projects/${encodeURIComponent(projectId)}`;
   if (path !== "/home") return path;
   const threadId =
     typeof command?.threadId === "string" ? command.threadId.trim() : "";
-  return threadId ? `/chat/${encodeURIComponent(threadId)}` : path;
+  return threadId
+    ? `/chat/${encodeURIComponent(threadId)}${projectId ? `?project=${encodeURIComponent(projectId)}` : ""}`
+    : path;
 }
 
 function routerPath(path: string): string {

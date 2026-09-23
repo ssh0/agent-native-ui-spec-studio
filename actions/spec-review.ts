@@ -8,12 +8,17 @@ import { z } from "zod";
 
 import { getDb } from "../server/db/index.js";
 import { uiSpecs } from "../server/db/schema.js";
+import { resolveSpecProject } from "../server/lib/spec-project.js";
 
 export default defineAction({
   description:
     "Approve or return the saved specification; retain a review history linked to stage and document hash. Review requires valid YAML.",
   mcpTool: true,
   schema: z.object({
+    projectId: z
+      .string()
+      .optional()
+      .describe("Selected project ID; defaults to current navigation"),
     status: z.enum(["approved", "changes_requested"]),
     comment: z.string().max(2000).optional().describe("Review note"),
     stage: z
@@ -28,12 +33,13 @@ export default defineAction({
       .describe("Last loaded timestamp to reject a stale review"),
   }),
   publicAgent: { expose: true, readOnly: false, requiresAuth: true },
-  run: async ({ status, comment, stage, expectedUpdatedAt }) => {
+  run: async ({ status, comment, stage, expectedUpdatedAt, projectId }) => {
+    const project = await resolveSpecProject(projectId);
     const db = getDb();
     const [row] = await db
       .select()
       .from(uiSpecs)
-      .where(eq(uiSpecs.id, "default"));
+      .where(eq(uiSpecs.id, project.id));
     if (!row) fail("仕様が保存されていません。", { statusCode: 404 });
     if (expectedUpdatedAt && row.updatedAt !== expectedUpdatedAt)
       fail("仕様が更新されています。読み直してからレビューしてください。", {
@@ -58,7 +64,7 @@ export default defineAction({
         updatedAt: entry.createdAt,
       })
       .where(
-        and(eq(uiSpecs.id, "default"), eq(uiSpecs.updatedAt, row.updatedAt)),
+        and(eq(uiSpecs.id, project.id), eq(uiSpecs.updatedAt, row.updatedAt)),
       )
       .returning();
     if (!updated)

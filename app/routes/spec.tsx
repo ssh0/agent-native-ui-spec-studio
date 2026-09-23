@@ -45,11 +45,14 @@ const formatDate = (date: string) =>
 
 export default function SpecPage() {
   useSetPageTitle("UI仕様スタジオ");
-  const loaded = useActionQuery("spec-load", {});
+  const [params, setParams] = useSearchParams();
+  const projectId = params.get("project") ?? "";
+  const projects = useActionQuery("project-list", {});
+  const project = projects.data?.find((item) => item.id === projectId);
+  const loaded = useActionQuery("spec-load", { projectId });
   const save = useActionMutation("spec-update");
   const review = useActionMutation("spec-review");
   const validate = useActionMutation("spec-validate");
-  const [params, setParams] = useSearchParams();
   const stage = stages.includes(params.get("stage") as SpecStage)
     ? (params.get("stage") as SpecStage)
     : "domain";
@@ -83,13 +86,21 @@ export default function SpecPage() {
   const pending = save.isPending || review.isPending;
 
   useEffect(() => {
+    setYaml("");
+    setBase({ yaml: "", updatedAt: "" });
+    setBuilderDraft(null);
+    setSectionDraft(null);
+    setMessage("");
+  }, [projectId]);
+
+  useEffect(() => {
     if (loaded.data && !dirty && sectionDraft === null) {
       setYaml(loaded.data.yaml);
       setBase({ yaml: loaded.data.yaml, updatedAt: loaded.data.updatedAt });
     }
     // A dirty draft keeps the timestamp it was based on for conflict detection.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded.data?.updatedAt]);
+  }, [projectId, loaded.data?.updatedAt]);
 
   const navigate = (patch: Record<string, string | null>) => {
     setParams(
@@ -142,6 +153,7 @@ export default function SpecPage() {
     setMessage("保存中…");
     try {
       const result = await save.mutateAsync({
+        projectId,
         yaml,
         expectedUpdatedAt: base.updatedAt || undefined,
       });
@@ -161,6 +173,7 @@ export default function SpecPage() {
     setMessage("レビューを記録中…");
     try {
       await review.mutateAsync({
+        projectId,
         status,
         comment: comment || undefined,
         stage,
@@ -227,13 +240,23 @@ export default function SpecPage() {
       ) ?? 0,
   };
 
+  if (!projectId || (projects.data && !project))
+    return (
+      <main className="p-8" lang="ja">
+        <p>プロジェクトを一覧から選んでください。</p>
+        <Link to="/projects">既存のプロジェクトを開く</Link>
+      </main>
+    );
+
   return (
     <div className="spec-studio" lang="ja">
       <header className="spec-studio-header">
-        <Link className="spec-brand" to="/spec">
+        <Link className="spec-brand" to="/projects">
           UI仕様スタジオ
         </Link>
-        <span className="spec-document-name">{spec?.title ?? "仕様書"}</span>
+        <span className="spec-document-name">
+          {project?.name ?? "読込中…"} · {spec?.title ?? "仕様書"}
+        </span>
         <div className="spec-header-actions">
           <span className="spec-save-state">
             {dirty || hasUnapplied
@@ -242,7 +265,9 @@ export default function SpecPage() {
                 ? "保存済み"
                 : "読込中"}
           </span>
-          <Link to="/home">エージェントチャット</Link>
+          <Link to={`/projects/${encodeURIComponent(projectId)}`}>
+            エージェントチャット
+          </Link>
           <Button
             size="sm"
             onClick={() => void saveSpec()}
@@ -329,7 +354,14 @@ export default function SpecPage() {
               </Button>
             </div>
           )}
-          {!base.updatedAt && !loaded.isError ? (
+          {!base.updatedAt && loaded.data?.yaml === "" ? (
+            <div className="spec-empty">
+              仕様の骨格はまだありません。まずチャットでプロダクトの目的、利用者、主要な操作を説明してください。
+              <Link to={`/projects/${encodeURIComponent(projectId)}`}>
+                チャットを開く
+              </Link>
+            </div>
+          ) : !base.updatedAt && !loaded.isError ? (
             <div
               className="spec-skeleton"
               aria-label="仕様を読み込み中"

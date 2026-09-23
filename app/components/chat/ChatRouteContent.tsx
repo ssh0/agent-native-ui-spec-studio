@@ -23,12 +23,14 @@ import {
   GuidedQuestionFlow,
   useGuidedQuestionFlow,
 } from "@agent-native/core/client/agentkit-chat/questions";
+import { useChatThreads } from "@agent-native/core/client/agentkit-chat/rail";
 import {
   findMcpConnectionSuggestionIntegration,
   McpConnectionSuggestion,
 } from "@agent-native/core/client/agentkit-chat/suggestions";
 import { createAgentNativeAgentKitTransport } from "@agent-native/core/client/agentkit-chat/transport";
 import { trackEvent } from "@agent-native/core/client/analytics";
+import { useActionQuery } from "@agent-native/core/client/hooks";
 import { useT } from "@agent-native/core/client/i18n";
 import { IconLayoutSidebarRight } from "@tabler/icons-react";
 import {
@@ -38,7 +40,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useNavigate, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -65,9 +67,79 @@ export default function ChatRouteContent({
 } = {}) {
   const { threadId: routeThreadId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const projectId = new URLSearchParams(location.search).get("project");
+  const projects = useActionQuery("project-list", {});
+  const project = projects.data?.find((item) => item.id === projectId);
   const threadId = routeThreadId ?? initialThreadId;
 
   if (!threadId) return null;
+  if (projects.isLoading)
+    return (
+      <p className="p-8" lang="ja">
+        プロジェクトのチャットを読み込み中…
+      </p>
+    );
+  if (!project)
+    return (
+      <main className="p-8" lang="ja">
+        <p role="alert">プロジェクトを開けませんでした。</p>
+        <Link to="/projects">プロジェクト一覧に戻る</Link>
+      </main>
+    );
+  return (
+    <ProjectChatRouteContent
+      key={project.id}
+      project={project}
+      threadId={threadId}
+      routeThreadId={routeThreadId}
+      navigate={navigate}
+    />
+  );
+}
+
+function ProjectChatRouteContent({
+  project,
+  threadId,
+  routeThreadId,
+  navigate,
+}: {
+  project: { id: string; name: string };
+  threadId: string;
+  routeThreadId?: string;
+  navigate: ReturnType<typeof useNavigate>;
+}) {
+  const scope =
+    project.id !== "default"
+      ? { type: "ui-spec-project", id: project.id, label: project.name }
+      : null;
+  const history = useChatThreads(undefined, "chat", scope, {
+    autoCreate: false,
+    restoreActiveThread: false,
+    isolateHistoryByScope: Boolean(scope),
+  });
+  if (history.isLoading)
+    return (
+      <p className="p-8" lang="ja">
+        プロジェクトのチャットを読み込み中…
+      </p>
+    );
+  if (
+    !history.threads.some(
+      (thread) =>
+        thread.id === threadId &&
+        (scope
+          ? thread.scope?.type === scope.type && thread.scope.id === scope.id
+          : !thread.scope),
+    )
+  ) {
+    return (
+      <main className="p-8" lang="ja">
+        <p role="alert">このプロジェクトの会話を開けませんでした。</p>
+        <Link to="/projects">プロジェクト一覧に戻る</Link>
+      </main>
+    );
+  }
 
   return (
     <ChatThreadRouteContent
@@ -117,14 +189,19 @@ function ChatThreadRouteContent({
               onIntegrityReport: reportStreamIntegrity,
             }}
             threadId={resolvedThreadId}
-            labels={{ composerPlaceholder: t("chat.composerPlaceholder") }}
+            labels={{
+              composerPlaceholder:
+                "作りたいプロダクト、利用者、主要な操作を教えてください",
+            }}
             slots={{
               emptyState: ChatEmptyState,
               messageSupplement: ChatMcpConnectionSuggestion,
               connectionRequest: ChatMcpConnectionRequest,
               footer: ChatAgentFooter,
             }}
-            onThreadForked={(thread) => navigate(chatThreadPath(thread.id))}
+            onThreadForked={(thread) =>
+              navigate(`${chatThreadPath(thread.id)}${window.location.search}`)
+            }
           >
             <ChatLifecycleTracking threadId={resolvedThreadId} />
             <ChatMcpConnectionResume />
@@ -370,11 +447,22 @@ function ChatMcpConnectionSuggestion({
 }
 
 function ChatEmptyState() {
-  const t = useT();
   return (
     <div className="agentkit-chat-empty-copy">
-      <h1>{t("chat.heroTitle")}</h1>
-      <p>{t("chat.heroDescription")}</p>
+      <h1>作りたいプロダクトから始めましょう</h1>
+      <p>
+        目的、利用者、主な操作を話してください。会話をもとに UI
+        仕様の骨格を保存します。
+      </p>
+      <p>
+        参考資料は入力欄の ＋ から添付します。画像、PDF、テキスト、Office
+        文書など 25 MB
+        まで対応します。添付が無効な場合はファイル保存先の接続を確認してください。
+      </p>
+      <p>
+        形式や容量で拒否された場合は PDF かテキストに変換するか、25 MB
+        以下に分けて再度添付してください。アップロードに失敗した場合は接続を確認して再試行してください。
+      </p>
     </div>
   );
 }
@@ -387,6 +475,8 @@ function ChatCanvas({
   setWorkspaceOpen: (value: boolean | ((current: boolean) => boolean)) => void;
 }) {
   const t = useT();
+  const location = useLocation();
+  const projectId = new URLSearchParams(location.search).get("project");
   const thread = useAgentThread();
   const hasConversation = thread.messages.length > 0;
 
@@ -415,19 +505,29 @@ function ChatCanvas({
   );
 
   return (
-    <AgentKitChat
-      className="h-full"
-      title={thread.thread?.title ?? APP_TITLE}
-      toolbar={toolbar}
-      emptyComposerPlacement="center"
-      composerProps={{
-        queueWhileRunning: true,
-        autoFocus: true,
-        plusMenuMode: "full",
-        voiceEnabled: true,
-        includeDefaultSlashCommands: false,
-        includeDefaultSlashSkills: false,
-      }}
-    />
+    <div className="flex h-full flex-col">
+      {projectId && (
+        <div className="flex items-center justify-between border-b px-4 py-2 text-sm">
+          <Link to="/projects">プロジェクト一覧</Link>
+          <Link to={`/spec?project=${encodeURIComponent(projectId)}`}>
+            仕様を開く
+          </Link>
+        </div>
+      )}
+      <AgentKitChat
+        className="min-h-0 flex-1"
+        title={thread.thread?.title ?? APP_TITLE}
+        toolbar={toolbar}
+        emptyComposerPlacement="center"
+        composerProps={{
+          queueWhileRunning: true,
+          autoFocus: true,
+          plusMenuMode: "full",
+          voiceEnabled: true,
+          includeDefaultSlashCommands: false,
+          includeDefaultSlashSkills: false,
+        }}
+      />
+    </div>
   );
 }

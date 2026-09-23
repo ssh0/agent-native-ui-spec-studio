@@ -30,7 +30,7 @@ export default function MarketingHomeRoute() {
         "Use shared actions from chat, UI, HTTP, MCP, A2A, and CLI",
         "Plug in your own agent runtime or use the included app-agent loop",
       ]}
-      primaryActionHref={appPath("/home")}
+      primaryActionHref={appPath("/projects")}
       secondaryActionHref={appPath("/sign-in")}
     />
   );

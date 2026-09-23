@@ -5,6 +5,7 @@ import {
   useChatThreads,
   type ChatThreadSummary,
 } from "@agent-native/core/client/agentkit-chat/rail";
+import { useActionQuery } from "@agent-native/core/client/hooks";
 import { useT } from "@agent-native/core/client/i18n";
 import { openCommandMenu } from "@agent-native/core/client/navigation";
 import { OrgSwitcher } from "@agent-native/core/client/org";
@@ -44,6 +45,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { APP_TITLE } from "@/lib/app-config";
+import { createProjectThread } from "@/lib/project-chat";
 import { visibleChatThreads } from "@/lib/sidebar-thread-state";
 import { cn } from "@/lib/utils";
 
@@ -66,12 +68,18 @@ const primaryNavigation = [
 
 function PrimaryNavigation({ collapsed }: { collapsed: boolean }) {
   const t = useT();
+  const location = useLocation();
+  const projectId = new URLSearchParams(location.search).get("project");
   const links = primaryNavigation.map(({ href, labelKey, Icon }) => {
     const label = t(labelKey);
     const link = (
       <NavLink
         key={href}
-        to={href}
+        to={
+          href === "/spec" && projectId
+            ? `${href}?project=${encodeURIComponent(projectId)}`
+            : href
+        }
         end={href === "/settings"}
         className={({ isActive }) =>
           cn(
@@ -101,10 +109,7 @@ function PrimaryNavigation({ collapsed }: { collapsed: boolean }) {
 
   return (
     <div
-      className={cn(
-        "shrink-0",
-        collapsed ? "space-y-1" : "space-y-0.5 px-2",
-      )}
+      className={cn("shrink-0", collapsed ? "space-y-1" : "space-y-0.5 px-2")}
     >
       {links}
     </div>
@@ -316,6 +321,13 @@ function ChatThreadsSection({ collapsed }: { collapsed: boolean }) {
   const navigate = useNavigate();
   const location = useLocation();
   const t = useT();
+  const projectId = new URLSearchParams(location.search).get("project");
+  const projects = useActionQuery("project-list", {});
+  const project = projects.data?.find((item) => item.id === projectId);
+  const scope =
+    project && project.id !== "default"
+      ? { type: "ui-spec-project", id: project.id, label: project.name }
+      : null;
   const {
     threads,
     activeThreadId,
@@ -325,16 +337,25 @@ function ChatThreadsSection({ collapsed }: { collapsed: boolean }) {
     archiveThread,
     renameThread,
     refreshThreads,
-  } = useChatThreads(undefined, CHAT_STORAGE_KEY, undefined, {
+  } = useChatThreads(undefined, CHAT_STORAGE_KEY, scope, {
     autoCreate: false,
     restoreActiveThread: false,
+    isolateHistoryByScope: Boolean(scope),
   });
   const { workingThreadIds, observedThreadStarts } =
     useAgentChatRunningThreads();
 
   const visibleThreads = useMemo(
-    () => visibleChatThreads(threads, observedThreadStarts),
-    [observedThreadStarts, threads],
+    () =>
+      project
+        ? visibleChatThreads(threads, observedThreadStarts).filter((thread) =>
+            scope
+              ? thread.scope?.type === scope.type &&
+                thread.scope.id === scope.id
+              : !thread.scope,
+          )
+        : [],
+    [project, scope, observedThreadStarts, threads],
   );
   const displayedActiveThreadId =
     threadIdFromPath(location.pathname) ??
@@ -394,6 +415,7 @@ function ChatThreadsSection({ collapsed }: { collapsed: boolean }) {
   }, [refreshThreads]);
 
   function openThread(threadId: string, options?: { isNew?: boolean }) {
+    if (!project) return;
     switchThread(threadId);
     persistActiveThreadId(threadId);
     if (options?.isNew) {
@@ -403,7 +425,10 @@ function ChatThreadsSection({ collapsed }: { collapsed: boolean }) {
         }),
       );
     }
-    navigateWithAgentChatViewTransition(navigate, chatThreadPath(threadId));
+    navigateWithAgentChatViewTransition(
+      navigate,
+      `${chatThreadPath(threadId)}?project=${encodeURIComponent(project.id)}`,
+    );
     if (options?.isNew) return;
     window.requestAnimationFrame(() => {
       window.dispatchEvent(
@@ -415,8 +440,20 @@ function ChatThreadsSection({ collapsed }: { collapsed: boolean }) {
   }
 
   async function handleNewChat() {
-    const threadId = await createThread();
-    if (threadId) openThread(threadId, { isNew: true });
+    if (!project) {
+      navigate("/projects");
+      return;
+    }
+    try {
+      const threadId = crypto.randomUUID();
+      await createProjectThread(threadId, project);
+      await createThread(threadId);
+      openThread(threadId, { isNew: true });
+    } catch {
+      toast.error(
+        "会話を作成できませんでした。接続を確認して再試行してください。",
+      );
+    }
   }
 
   async function handleArchiveThread(threadId: string) {
@@ -450,7 +487,7 @@ function ChatThreadsSection({ collapsed }: { collapsed: boolean }) {
     >
       <IconEdit className="size-4 shrink-0" strokeWidth={1.8} />
       <span className={collapsed ? "sr-only" : "truncate"}>
-        {t("chat.newChat")}
+        {project ? t("chat.newChat") : "プロジェクトを選択"}
       </span>
     </button>
   );
@@ -503,6 +540,8 @@ export function Sidebar({
   onCollapsedChange,
 }: SidebarProps) {
   const t = useT();
+  const location = useLocation();
+  const projects = useActionQuery("project-list", {});
   const ToggleIcon = collapsed
     ? IconLayoutSidebarLeftExpand
     : IconLayoutSidebarLeftCollapse;
@@ -588,6 +627,23 @@ export function Sidebar({
           collapsed ? "items-center gap-1 px-1 py-2" : "pt-1",
         )}
       >
+        <Link
+          to="/projects"
+          className={cn(
+            "mb-2 rounded-lg px-3 py-2 text-sm font-medium hover:bg-sidebar-accent",
+            collapsed ? "text-xs" : "mx-2",
+          )}
+        >
+          {collapsed ? "P" : "プロジェクト一覧"}
+        </Link>
+        {!collapsed && (
+          <div className="mx-4 mb-2 truncate text-xs text-muted-foreground">
+            {projects.data?.find(
+              (item) =>
+                item.id === new URLSearchParams(location.search).get("project"),
+            )?.name ?? "プロジェクト未選択"}
+          </div>
+        )}
         <PrimaryNavigation collapsed={collapsed} />
         <ChatThreadsSection collapsed={collapsed} />
         {collapsed ? searchButton : null}
