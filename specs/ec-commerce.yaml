@@ -1,0 +1,298 @@
+version: "2.0"
+title: 単一通貨ECの注文・出荷
+notes: 単一通貨・単一配送先の通常注文を対象とする検討用サンプル。価格は注文時に確定し、在庫引当後に決済を確定する想定。税計算、クーポン、分割配送、返品・返金は今後検討する。
+domain:
+  notes: 会員情報は会員管理システム、引当可能数と出荷実績は発注・在庫管理システムを正とする。EC側は注文時の明細と処理状態を保持する。
+  actors:
+    - { id: customer, title: エンドユーザー, description: 商品を選び、注文・配送状況を確認する購入者 }
+    - { id: operator, title: EC事業者, description: 受注内容を確認し、出荷を指示する担当者 }
+  externalSystems:
+    - { id: payment-service, title: 決済代行サービス, description: 決済の認証・確定結果を返す外部サービス }
+    - { id: inventory-service, title: 発注・在庫管理システム, description: 在庫引当と出荷実績を管理する外部システム }
+    - { id: member-service, title: 会員管理システム, description: 会員の識別と登録済み配送先を管理する外部システム }
+  entities:
+    - id: member
+      title: 会員
+      fields:
+        - { id: member-id, title: 会員ID, type: string, required: true }
+        - { id: delivery-address, title: 配送先, type: address, required: true }
+    - id: product
+      title: 商品
+      fields:
+        - { id: sku, title: 商品コード, type: string, required: true }
+        - { id: name, title: 商品名, type: string, required: true }
+        - { id: price, title: 販売価格, type: money, required: true }
+    - id: inventory
+      title: 在庫
+      fields:
+        - { id: product, title: 対象商品, type: reference, entity: product, required: true }
+        - { id: available, title: 引当可能数, type: integer, required: true }
+    - id: cart
+      title: カート
+      fields:
+        - { id: member, title: 所有会員, type: reference, entity: member }
+        - { id: items, title: 明細, type: "list<reference>", entity: cart-item, required: true }
+    - id: cart-item
+      title: カート明細
+      fields:
+        - { id: product, title: 商品, type: reference, entity: product, required: true }
+        - { id: quantity, title: 数量, type: integer, required: true }
+    - id: order
+      title: 注文
+      fields:
+        - { id: order-id, title: 注文番号, type: string, required: true }
+        - { id: member, title: 購入会員, type: reference, entity: member, required: true }
+        - { id: items, title: 確定明細, type: "list<reference>", entity: order-item, required: true }
+        - { id: delivery-address, title: 配送先スナップショット, type: address, required: true }
+        - { id: status, title: 注文状態, type: "enum: 注文確定 / 出荷準備中 / 出荷済み", required: true }
+    - id: order-item
+      title: 注文明細
+      fields:
+        - { id: product, title: 商品, type: reference, entity: product, required: true }
+        - { id: quantity, title: 確定数量, type: integer, required: true }
+        - { id: unit-price, title: 注文時単価, type: money, required: true }
+    - id: payment
+      title: 決済
+      fields:
+        - { id: order, title: 対象注文, type: reference, entity: order, required: true }
+        - { id: amount, title: 決済額, type: money, required: true }
+        - { id: status, title: 決済状態, type: "enum: 処理中 / 確定 / 失敗", required: true }
+        - { id: provider-reference, title: 決済代行側の照会番号, type: string }
+  terms:
+    - { id: reservation, title: 在庫引当, definition: 注文確定のために販売可能数を一時確保すること, entity: inventory }
+    - { id: confirmed-order, title: 注文確定, definition: 在庫引当と決済の成功後に注文番号を発行した状態, entity: order }
+flows:
+  - id: purchase
+    title: 商品選択から注文確定
+    goal: 購入者が商品を選び、在庫・決済を確認して注文を確定する
+    notes: 在庫切れはカートに戻して数量を見直す。決済失敗時は引当解除が必要だが、解除の再試行・補償設計は今後検討する。外部応答は直列の代表手順として表す。
+    steps:
+      - { id: browse, title: 商品を探す, performer: { kind: actor, id: customer }, useCase: browse-products }
+      - { id: add, title: 商品と数量をカートに入れる, performer: { kind: actor, id: customer }, useCase: manage-cart }
+      - { id: checkout, title: 配送先と注文内容を確認して注文する, performer: { kind: actor, id: customer }, useCase: place-order }
+      - { id: member-check, title: 会員と配送先を照合する, performer: { kind: externalSystem, id: member-service } }
+      - { id: reserve, title: 商品の在庫を引き当てる, performer: { kind: externalSystem, id: inventory-service } }
+      - { id: charge, title: 決済を認証・確定する, performer: { kind: externalSystem, id: payment-service } }
+      - { id: receive-order, title: 注文番号と受付結果を確認する, performer: { kind: actor, id: customer }, useCase: view-order }
+  - id: fulfillment
+    title: 受注から出荷
+    goal: 確定した注文を事業者が処理し、購入者へ出荷状況を反映する
+    notes: 梱包・配送事業者への引き渡しは担当者の業務として代表化し、配送事業者との連携は対象外とする。
+    steps:
+      - { id: inspect, title: 確定注文と配送先を確認する, performer: { kind: actor, id: operator }, useCase: fulfill-order }
+      - { id: prepare, title: 商品を梱包して出荷を指示する, performer: { kind: actor, id: operator } }
+      - { id: ship, title: 出荷実績を登録する, performer: { kind: externalSystem, id: inventory-service } }
+      - { id: record, title: 注文を出荷済みに更新する, performer: { kind: actor, id: operator }, useCase: fulfill-order }
+      - { id: check, title: 出荷状況を確認する, performer: { kind: actor, id: customer }, useCase: view-order }
+  - id: order-followup
+    title: 購入後の状況確認
+    goal: 購入者が注文番号から現在の処理状況を確認する
+    notes: 配送追跡番号や到着予定日の連携は未確定。注文状態までを表示する。
+    steps:
+      - { id: identify, title: 会員を識別する, performer: { kind: externalSystem, id: member-service } }
+      - { id: open-history, title: 自分の注文を開く, performer: { kind: actor, id: customer }, useCase: view-order }
+      - { id: inspect-status, title: 注文・出荷状態を確認する, performer: { kind: actor, id: customer }, useCase: view-order }
+useCases:
+  - id: browse-products
+    title: 商品を探す
+    actor: エンドユーザー
+    entities: [product, inventory]
+    screens: [catalog, product-detail]
+    preconditions: [商品カタログを閲覧できる]
+    postconditions: [選択した商品の価格と在庫目安を確認できる]
+    steps:
+      - { id: search, title: 商品一覧から候補を探す, screen: catalog }
+      - { id: open, title: 商品詳細を開く, screen: catalog, action: { screen: catalog, component: open-product } }
+      - { id: inspect, title: 価格と在庫目安を確認する, screen: product-detail }
+    branches:
+      - { id: no-result, kind: alternate, from: search, condition: 該当商品がない, outcome: 検索条件の変更を案内する, resumeAt: search, screen: catalog }
+  - id: manage-cart
+    title: カートに商品を入れる
+    actor: エンドユーザー
+    entities: [product, inventory, cart, cart-item]
+    screens: [product-detail, cart]
+    preconditions: [商品詳細を表示している]
+    postconditions: [選択した商品と数量がカートに表示される]
+    steps:
+      - { id: choose, title: 購入数量を選ぶ, screen: product-detail }
+      - { id: add, title: カートに追加する, screen: product-detail, action: { screen: product-detail, component: add-to-cart } }
+      - { id: review, title: カートの明細と合計を確認する, screen: cart }
+    branches:
+      - { id: unavailable, kind: exception, from: add, condition: 選択数量が販売可能数を超える, outcome: 追加せず数量の変更を促す, resumeAt: choose, screen: product-detail }
+  - id: place-order
+    title: 注文を確定する
+    actor: エンドユーザー
+    entities: [member, cart, cart-item, inventory, order, order-item, payment]
+    screens: [cart, checkout, order-status]
+    preconditions: [カートに商品がある, 会員として識別できる]
+    postconditions: [在庫引当と決済が成功した注文に注文番号が付く]
+    notes: 注文実行中の二重送信を防ぐ。在庫引当後の決済失敗では引当を解除する。解除失敗時の運用は未確定。
+    steps:
+      - { id: start, title: カートから注文手続きに進む, screen: cart, action: { screen: cart, component: start-checkout } }
+      - { id: review, title: 登録配送先と注文内容を確認する, screen: checkout }
+      - { id: submit, title: 注文を送信する, screen: checkout, action: { screen: checkout, component: submit-order } }
+      - { id: confirm, title: 注文番号と受付結果を確認する, screen: order-status }
+    branches:
+      - { id: change-address, kind: alternate, from: review, condition: 登録配送先を変更したい, outcome: 会員管理側で配送先を更新してから再確認する, resumeAt: review, screen: checkout }
+      - { id: out-of-stock, kind: exception, from: submit, condition: 在庫引当に失敗した, outcome: 注文を確定せずカートに戻して数量変更を案内する, resumeAt: start, screen: cart }
+      - { id: payment-failed, kind: exception, from: submit, condition: 決済が失敗した, outcome: 在庫引当を解除し、入力を保持して再試行を案内する, resumeAt: submit, screen: checkout }
+      - { id: member-unavailable, kind: exception, from: submit, condition: 会員情報を照合できない, outcome: 注文を確定せず再試行を案内する, resumeAt: review, screen: checkout }
+  - id: fulfill-order
+    title: 受注を出荷処理する
+    actor: EC事業者
+    entities: [order, order-item, inventory]
+    screens: [merchant-orders]
+    preconditions: [注文が確定している, 事業者として操作できる]
+    postconditions: [出荷実績の登録後に注文が出荷済みとなる]
+    notes: 実際の梱包・引き渡しは画面外の作業。出荷実績の登録確認後に状態を更新する。
+    steps:
+      - { id: select, title: 出荷対象の注文を選ぶ, screen: merchant-orders }
+      - { id: inspect, title: 明細と配送先を確認する, screen: merchant-orders }
+      - { id: ship, title: 出荷処理を登録する, screen: merchant-orders, action: { screen: merchant-orders, component: mark-shipped } }
+      - { id: confirm, title: 出荷済み表示を確認する, screen: merchant-orders }
+    branches:
+      - { id: stock-mismatch, kind: exception, from: ship, condition: 実在庫と注文数量が一致しない, outcome: 出荷済みにせず担当者による確認を促す, resumeAt: inspect, screen: merchant-orders }
+      - { id: record-failed, kind: exception, from: ship, condition: 出荷実績を登録できない, outcome: 注文状態を維持し再試行を案内する, resumeAt: ship, screen: merchant-orders }
+  - id: view-order
+    title: 注文状況を確認する
+    actor: エンドユーザー
+    entities: [member, order, order-item, payment]
+    screens: [order-status]
+    preconditions: [会員として識別できる]
+    postconditions: [自分の注文の受付・出荷状態を確認できる]
+    steps:
+      - { id: open, title: 注文状況を開く, screen: order-status, action: { screen: order-status, component: refresh-order } }
+      - { id: inspect, title: 注文番号と現在の状態を確認する, screen: order-status }
+    branches:
+      - { id: no-order, kind: alternate, from: open, condition: 注文履歴がない, outcome: 注文がないことを表示して商品一覧へ誘導する, screen: order-status }
+      - { id: load-failed, kind: exception, from: open, condition: 注文状況の取得に失敗した, outcome: エラーを表示して再読み込みを案内する, resumeAt: open, screen: order-status }
+screens:
+  - id: catalog
+    title: 商品一覧
+    description: 商品を探し、詳細に進む。
+    entities: [product, inventory]
+    useCases: [browse-products]
+    components:
+      - { id: keyword, type: input, label: 商品を探す, placeholder: 商品名を入力 }
+      - { id: product-list, type: list, label: 商品一覧 }
+      - { id: open-product, type: link, label: 商品詳細を見る, action: open-product, useCases: [browse-products], outcome: 選択商品の詳細へ進む }
+    stateFlow:
+      initial: loading
+      states:
+        - { id: loading, title: 読み込み中 }
+        - { id: browsing, title: 閲覧中 }
+        - { id: empty, title: 該当商品なし }
+      transitions:
+        - { from: loading, to: browsing, trigger: 商品取得成功 }
+        - { from: loading, to: empty, trigger: 該当商品なし }
+        - { from: empty, to: browsing, trigger: 条件変更 }
+  - id: product-detail
+    title: 商品詳細
+    description: 商品の価格と販売可能な数量の目安を表示する。
+    entities: [product, inventory, cart]
+    useCases: [browse-products, manage-cart]
+    components:
+      - { id: product-summary, type: card, label: 商品情報 }
+      - { id: quantity, type: input, label: 数量, required: true }
+      - { id: add-to-cart, type: button, label: カートに入れる, action: add-to-cart, useCases: [manage-cart], precondition: 数量が1以上, outcome: カートに明細を追加する }
+    stateFlow:
+      initial: ready
+      states:
+        - { id: ready, title: 選択中 }
+        - { id: adding, title: 追加中 }
+        - { id: error, title: 追加失敗 }
+      transitions:
+        - { from: ready, to: adding, trigger: カートに追加, component: add-to-cart }
+        - { from: adding, to: error, trigger: 在庫不足または通信失敗 }
+        - { from: error, to: adding, trigger: 再試行, component: add-to-cart }
+  - id: cart
+    title: カート
+    description: 注文前に商品、数量、概算合計を確認する。
+    entities: [cart, cart-item, product]
+    useCases: [manage-cart, place-order]
+    components:
+      - { id: cart-items, type: list, label: カートの明細 }
+      - { id: estimated-total, type: text, label: 概算合計 }
+      - { id: start-checkout, type: button, label: 注文手続きへ, action: start-checkout, useCases: [place-order], precondition: カートが空でない, outcome: 配送先と注文内容の確認へ進む }
+    stateFlow:
+      initial: reviewing
+      states:
+        - { id: reviewing, title: 確認中 }
+        - { id: empty, title: カートが空 }
+      transitions:
+        - { from: reviewing, to: empty, trigger: 明細が0件になった }
+        - { from: empty, to: reviewing, trigger: 商品を追加した }
+  - id: checkout
+    title: 注文内容の確認
+    description: 会員の配送先、注文明細と確定額を確認して注文する。
+    notes: 配送先の変更は会員管理側の手続きへ誘導する想定で、具体的な連携画面は今後検討する。
+    entities: [member, cart, cart-item, order, payment]
+    useCases: [place-order]
+    components:
+      - { id: address, type: card, label: 登録配送先 }
+      - { id: order-summary, type: list, label: 注文内容 }
+      - { id: submit-order, type: button, label: 注文する, action: submit-order, useCases: [place-order], precondition: 配送先と金額を確認済みかつ送信中でない, outcome: 在庫と決済の結果を確認して注文を確定する }
+    stateFlow:
+      initial: reviewing
+      notes: 失敗時も確認内容を保持し、二重送信を避ける。
+      states:
+        - { id: reviewing, title: 確認中 }
+        - { id: submitting, title: 注文処理中 }
+        - { id: error, title: 注文失敗 }
+        - { id: complete, title: 注文確定 }
+      transitions:
+        - { from: reviewing, to: submitting, trigger: 注文, component: submit-order }
+        - { from: submitting, to: error, trigger: 在庫引当または決済失敗 }
+        - { from: error, to: submitting, trigger: 再試行, component: submit-order }
+        - { from: submitting, to: complete, trigger: 注文確定 }
+  - id: order-status
+    title: 注文状況
+    description: 購入者が自分の注文番号、決済と出荷の状態を確認する。
+    entities: [member, order, order-item, payment]
+    useCases: [place-order, view-order]
+    components:
+      - { id: order-list, type: list, label: 自分の注文 }
+      - { id: status-card, type: card, label: 注文・出荷状況 }
+      - { id: refresh-order, type: button, label: 最新の状況に更新, action: refresh-order, useCases: [view-order], outcome: 注文状況を再取得する }
+    stateFlow:
+      initial: loading
+      states:
+        - { id: loading, title: 読み込み中 }
+        - { id: showing, title: 表示中 }
+        - { id: empty, title: 注文なし }
+        - { id: error, title: 取得失敗 }
+      transitions:
+        - { from: loading, to: showing, trigger: 注文取得成功 }
+        - { from: loading, to: empty, trigger: 注文なし }
+        - { from: loading, to: error, trigger: 取得失敗 }
+        - { from: showing, to: loading, trigger: 再読み込み, component: refresh-order }
+        - { from: error, to: loading, trigger: 再試行, component: refresh-order }
+  - id: merchant-orders
+    title: 事業者の受注一覧
+    description: 確定注文の明細・配送先を確認し、出荷処理を登録する。
+    entities: [order, order-item, inventory]
+    useCases: [fulfill-order]
+    components:
+      - { id: pending-orders, type: list, label: 出荷待ち注文 }
+      - { id: selected-order, type: card, label: 選択した注文 }
+      - { id: mark-shipped, type: button, label: 出荷済みにする, action: mark-shipped, useCases: [fulfill-order], precondition: 梱包と引き渡しが完了している, outcome: 出荷実績を登録し注文状態を更新する }
+    stateFlow:
+      initial: loading
+      states:
+        - { id: loading, title: 読み込み中 }
+        - { id: reviewing, title: 受注確認中 }
+        - { id: recording, title: 出荷登録中 }
+        - { id: error, title: 登録失敗 }
+      transitions:
+        - { from: loading, to: reviewing, trigger: 受注取得成功 }
+        - { from: reviewing, to: recording, trigger: 出荷登録, component: mark-shipped }
+        - { from: recording, to: reviewing, trigger: 登録成功 }
+        - { from: recording, to: error, trigger: 登録失敗 }
+        - { from: error, to: recording, trigger: 再試行, component: mark-shipped }
+transitions:
+  - { from: catalog, to: product-detail, trigger: 商品詳細を見る }
+  - { from: product-detail, to: cart, trigger: カートに追加成功 }
+  - { from: cart, to: checkout, trigger: 注文手続きへ }
+  - { from: checkout, to: cart, trigger: 在庫不足でカートに戻る }
+  - { from: checkout, to: order-status, trigger: 注文確定 }
+  - { from: order-status, to: catalog, trigger: 商品一覧へ戻る }
