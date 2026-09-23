@@ -1,6 +1,7 @@
 import { LanguagePicker, useT } from "@agent-native/core/client/i18n";
 import {
   AccountSettingsCard,
+  AgentSettingsContent,
   SettingsGroup,
   SettingsRow,
   SettingsTabsPage,
@@ -12,6 +13,7 @@ import { useSetPageTitle } from "@agent-native/toolkit/app-shell";
 import { useMemo } from "react";
 
 import { APP_TITLE } from "@/lib/app-config";
+import { ProviderModelSettings } from "@/components/settings/ProviderModelSettings";
 
 export function meta() {
   return [{ title: `Settings - ${APP_TITLE}` }];
@@ -20,6 +22,24 @@ export function meta() {
 export default function SettingsRoute() {
   const t = useT();
   const agentSettingsTabs = useAgentSettingsTabs();
+  const settingsTabs = agentSettingsTabs.map((tab) =>
+    tab.id === "agent"
+      ? {
+          ...tab,
+          label: "AI & models",
+          keywords: "AI provider model API key Anthropic OpenAI OpenRouter Gemini Groq Mistral Cohere",
+          searchEntries: [
+            { id: "ai-provider", label: "AI provider", keywords: "API key model", hash: "ai-provider" },
+          ],
+          content: (
+            <div className="mx-auto w-full max-w-2xl space-y-8" id="ai-provider">
+              <ProviderModelSettings />
+              <AgentSettingsContent sections={["limits", "voice"]} />
+            </div>
+          ),
+        }
+      : tab,
+  );
   useSetPageTitle(t("settings.title"));
 
   const generalSearchEntries = useMemo<SettingsSearchEntry[]>(
@@ -38,7 +58,7 @@ export default function SettingsRoute() {
     <SettingsTabsPage
       account={<AccountSettingsCard />}
       teamLabel={t("navigation.team")}
-      extraTabs={agentSettingsTabs}
+      extraTabs={settingsTabs}
       generalSearchEntries={generalSearchEntries}
       general={
         <div className="mx-auto w-full max-w-2xl space-y-6">
