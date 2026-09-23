@@ -18,9 +18,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { parse, stringify } from "yaml";
 
+import { Field, SourceEditor } from "@/components/spec-studio/spec-editor-ui";
 import {
-  Field,
-  SourceEditor,
   StageContent,
   sectionValue,
 } from "@/components/spec-studio/stage-content";
