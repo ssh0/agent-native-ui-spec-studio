@@ -2,7 +2,7 @@ version: "2.0"
 title: 単一通貨ECの注文・出荷
 notes: 単一通貨・単一配送先の通常注文を対象とする検討用サンプル。価格は注文時に確定し、在庫引当後に決済を確定する想定。税計算、クーポン、分割配送、返品・返金は今後検討する。
 domain:
-  notes: 会員情報は会員管理システム、引当可能数と出荷実績は発注・在庫管理システムを正とする。EC側は注文時の明細と処理状態を保持する。
+  notes: 会員情報は会員管理システム、引当可能数と出荷実績は発注・在庫管理システムを正とする。EC側は注文時の明細と処理状態を保持する。 商品型は配送商品とデジタル商品の二分類を想定する。カテゴリは商品と多対多。 定期購入商品は配送・デジタルのどちらにもなり得る交差分類。
   actors:
     - { id: customer, title: エンドユーザー, description: 商品を選び、注文・配送状況を確認する購入者 }
     - { id: operator, title: EC事業者, description: 受注内容を確認し、出荷を指示する担当者 }
@@ -13,89 +13,149 @@ domain:
   entities:
     - id: member
       title: 会員
+      extends: []
       fields:
         - { id: member-id, title: 会員ID, type: string, required: true }
         - { id: delivery-address, title: 配送先, type: address, required: true }
     - id: product
       title: 商品
+      extends: []
       fields:
         - { id: sku, title: 商品コード, type: string, required: true }
         - { id: name, title: 商品名, type: string, required: true }
         - { id: price, title: 販売価格, type: money, required: true }
     - id: inventory
       title: 在庫
+      extends: []
       fields:
-        - { id: product, title: 対象商品, type: reference, entity: product, required: true }
         - { id: available, title: 引当可能数, type: integer, required: true }
     - id: cart
       title: カート
-      fields:
-        - { id: member, title: 所有会員, type: reference, entity: member }
-        - { id: items, title: 明細, type: "list<reference>", entity: cart-item, required: true }
+      extends: []
+      fields: []
     - id: cart-item
       title: カート明細
+      extends: []
       fields:
-        - { id: product, title: 商品, type: reference, entity: product, required: true }
         - { id: quantity, title: 数量, type: integer, required: true }
     - id: order
       title: 注文
+      extends: []
       fields:
         - { id: order-id, title: 注文番号, type: string, required: true }
-        - { id: member, title: 購入会員, type: reference, entity: member, required: true }
-        - { id: items, title: 確定明細, type: "list<reference>", entity: order-item, required: true }
         - { id: delivery-address, title: 配送先スナップショット, type: address, required: true }
         - { id: status, title: 注文状態, type: "enum: 注文確定 / 出荷準備中 / 出荷済み", required: true }
     - id: order-item
       title: 注文明細
+      extends: []
       fields:
-        - { id: product, title: 商品, type: reference, entity: product, required: true }
         - { id: quantity, title: 確定数量, type: integer, required: true }
         - { id: unit-price, title: 注文時単価, type: money, required: true }
     - id: payment
       title: 決済
+      extends: []
       fields:
-        - { id: order, title: 対象注文, type: reference, entity: order, required: true }
         - { id: amount, title: 決済額, type: money, required: true }
         - { id: status, title: 決済状態, type: "enum: 処理中 / 確定 / 失敗", required: true }
         - { id: provider-reference, title: 決済代行側の照会番号, type: string }
+    - id: physical-product
+      title: 配送商品
+      extends: [product]
+      fields:
+        - {id: weight, title: 配送重量, type: decimal, required: true}
+    - id: digital-product
+      title: デジタル商品
+      extends: [product]
+      fields:
+        - {id: download-url, title: 配信先, type: url, required: true}
+    - id: category
+      title: 商品カテゴリ
+      extends: []
+      fields:
+        - {id: name, title: カテゴリ名, type: string, required: true}
+    - id: subscription-product
+      title: 定期購入商品
+      extends: [product]
+      fields:
+        - {id: billing-cycle, title: 請求周期, type: duration, required: true}
+  relations:
+    - id: inventory-product
+      title: 在庫・対象商品
+      from: {entity: {kind: entity, id: inventory}, role: 在庫, min: 0, max: 1}
+      to: {entity: {kind: entity, id: product}, role: 対象商品, min: 1, max: 1}
+    - id: cart-member
+      title: カート・所有会員
+      from: {entity: {kind: entity, id: cart}, role: カート, min: 0, max: null}
+      to: {entity: {kind: entity, id: member}, role: 所有会員, min: 0, max: 1}
+    - id: cart-items
+      title: カート・明細
+      from: {entity: {kind: entity, id: cart}, role: カート, min: 1, max: 1}
+      to: {entity: {kind: entity, id: cart-item}, role: 明細, min: 0, max: null}
+    - id: cart-item-product
+      title: カート明細・商品
+      from: {entity: {kind: entity, id: cart-item}, role: カート明細, min: 0, max: null}
+      to: {entity: {kind: entity, id: product}, role: 商品, min: 1, max: 1}
+    - id: order-member
+      title: 注文・購入会員
+      from: {entity: {kind: entity, id: order}, role: 注文, min: 0, max: null}
+      to: {entity: {kind: entity, id: member}, role: 購入会員, min: 1, max: 1}
+    - id: order-items
+      title: 注文・確定明細
+      from: {entity: {kind: entity, id: order}, role: 注文, min: 1, max: 1}
+      to: {entity: {kind: entity, id: order-item}, role: 確定明細, min: 1, max: null}
+    - id: order-item-product
+      title: 注文明細・商品
+      from: {entity: {kind: entity, id: order-item}, role: 注文明細, min: 0, max: null}
+      to: {entity: {kind: entity, id: product}, role: 商品, min: 1, max: 1}
+    - id: payment-order
+      title: 決済・対象注文
+      from: {entity: {kind: entity, id: payment}, role: 決済, min: 0, max: null}
+      to: {entity: {kind: entity, id: order}, role: 対象注文, min: 1, max: 1}
+    - id: product-category
+      title: 商品のカテゴリ分類
+      from: {entity: {kind: entity, id: product}, role: 商品, min: 0, max: null}
+      to: {entity: {kind: entity, id: category}, role: カテゴリ, min: 0, max: null}
   terms:
     - { id: reservation, title: 在庫引当, definition: 注文確定のために販売可能数を一時確保すること, entity: inventory }
     - { id: confirmed-order, title: 注文確定, definition: 在庫引当と決済の成功後に注文番号を発行した状態, entity: order }
+    - {id: storefront-users, title: ストア利用者, definition: 購入者または商品を確認する受注担当者, actorSet: {op: union, operands: [{kind: actor, id: customer}, {kind: actor, id: operator}]}}
+    - {id: shippable-product, title: 配送対象商品, definition: 商品型からデジタル商品型を除いた分類。商品型は配送商品とデジタル商品で構成する前提。, entitySet: {op: difference, operands: [{kind: entity, id: product}, {kind: entity, id: digital-product}]}}
+    - {id: digital-subscription, title: デジタル定期購入商品, definition: デジタル商品型と定期購入商品型の両方に属する商品分類, entitySet: {op: intersection, operands: [{kind: entity, id: digital-product}, {kind: entity, id: subscription-product}]}}
 flows:
   - id: purchase
     title: 商品選択から注文確定
     goal: 購入者が商品を選び、在庫・決済を確認して注文を確定する
     notes: 在庫切れはカートに戻して数量を見直す。決済失敗時は引当解除が必要だが、解除の再試行・補償設計は今後検討する。外部応答は直列の代表手順として表す。
     steps:
-      - { id: browse, title: 商品を探す, performer: { kind: actor, id: customer }, useCase: browse-products }
-      - { id: add, title: 商品と数量をカートに入れる, performer: { kind: actor, id: customer }, useCase: manage-cart }
-      - { id: checkout, title: 配送先と注文内容を確認して注文する, performer: { kind: actor, id: customer }, useCase: place-order }
+      - { id: browse, title: 商品を探す, performer: { kind: actors, refs: [{ kind: actor, id: customer }] }, useCase: browse-products }
+      - { id: add, title: 商品と数量をカートに入れる, performer: { kind: actors, refs: [{ kind: actor, id: customer }] }, useCase: manage-cart }
+      - { id: checkout, title: 配送先と注文内容を確認して注文する, performer: { kind: actors, refs: [{ kind: actor, id: customer }] }, useCase: place-order }
       - { id: member-check, title: 会員と配送先を照合する, performer: { kind: externalSystem, id: member-service } }
       - { id: reserve, title: 商品の在庫を引き当てる, performer: { kind: externalSystem, id: inventory-service } }
       - { id: charge, title: 決済を認証・確定する, performer: { kind: externalSystem, id: payment-service } }
-      - { id: receive-order, title: 注文番号と受付結果を確認する, performer: { kind: actor, id: customer }, useCase: view-order }
+      - { id: receive-order, title: 注文番号と受付結果を確認する, performer: { kind: actors, refs: [{ kind: actor, id: customer }] }, useCase: view-order }
   - id: fulfillment
     title: 受注から出荷
     goal: 確定した注文を事業者が処理し、購入者へ出荷状況を反映する
     notes: 梱包・配送事業者への引き渡しは担当者の業務として代表化し、配送事業者との連携は対象外とする。
     steps:
-      - { id: inspect, title: 確定注文と配送先を確認する, performer: { kind: actor, id: operator }, useCase: fulfill-order }
-      - { id: prepare, title: 商品を梱包して出荷を指示する, performer: { kind: actor, id: operator } }
+      - { id: inspect, title: 確定注文と配送先を確認する, performer: { kind: actors, refs: [{ kind: actor, id: operator }] }, useCase: fulfill-order }
+      - { id: prepare, title: 商品を梱包して出荷を指示する, performer: { kind: actors, refs: [{ kind: actor, id: operator }] } }
       - { id: ship, title: 出荷実績を登録する, performer: { kind: externalSystem, id: inventory-service } }
-      - { id: record, title: 注文を出荷済みに更新する, performer: { kind: actor, id: operator }, useCase: fulfill-order }
-      - { id: check, title: 出荷状況を確認する, performer: { kind: actor, id: customer }, useCase: view-order }
+      - { id: record, title: 注文を出荷済みに更新する, performer: { kind: actors, refs: [{ kind: actor, id: operator }] }, useCase: fulfill-order }
+      - { id: check, title: 出荷状況を確認する, performer: { kind: actors, refs: [{ kind: actor, id: customer }] }, useCase: view-order }
   - id: order-followup
     title: 購入後の状況確認
     goal: 購入者が注文番号から現在の処理状況を確認する
     notes: 配送追跡番号や到着予定日の連携は未確定。注文状態までを表示する。
     steps:
       - { id: identify, title: 会員を識別する, performer: { kind: externalSystem, id: member-service } }
-      - { id: open-history, title: 自分の注文を開く, performer: { kind: actor, id: customer }, useCase: view-order }
-      - { id: inspect-status, title: 注文・出荷状態を確認する, performer: { kind: actor, id: customer }, useCase: view-order }
+      - { id: open-history, title: 自分の注文を開く, performer: { kind: actors, refs: [{ kind: actor, id: customer }] }, useCase: view-order }
+      - { id: inspect-status, title: 注文・出荷状態を確認する, performer: { kind: actors, refs: [{ kind: actor, id: customer }] }, useCase: view-order }
 useCases:
   - id: browse-products
     title: 商品を探す
-    actor: エンドユーザー
+    actors: [{ kind: term, id: storefront-users }]
     entities: [product, inventory]
     screens: [catalog, product-detail]
     preconditions: [商品カタログを閲覧できる]
@@ -108,7 +168,7 @@ useCases:
       - { id: no-result, kind: alternate, from: search, condition: 該当商品がない, outcome: 検索条件の変更を案内する, resumeAt: search, screen: catalog }
   - id: manage-cart
     title: カートに商品を入れる
-    actor: エンドユーザー
+    actors: [{ kind: actor, id: customer }]
     entities: [product, inventory, cart, cart-item]
     screens: [product-detail, cart]
     preconditions: [商品詳細を表示している]
@@ -121,7 +181,7 @@ useCases:
       - { id: unavailable, kind: exception, from: add, condition: 選択数量が販売可能数を超える, outcome: 追加せず数量の変更を促す, resumeAt: choose, screen: product-detail }
   - id: place-order
     title: 注文を確定する
-    actor: エンドユーザー
+    actors: [{ kind: actor, id: customer }]
     entities: [member, cart, cart-item, inventory, order, order-item, payment]
     screens: [cart, checkout, order-status]
     preconditions: [カートに商品がある, 会員として識別できる]
@@ -139,7 +199,7 @@ useCases:
       - { id: member-unavailable, kind: exception, from: submit, condition: 会員情報を照合できない, outcome: 注文を確定せず再試行を案内する, resumeAt: review, screen: checkout }
   - id: fulfill-order
     title: 受注を出荷処理する
-    actor: EC事業者
+    actors: [{ kind: actor, id: operator }]
     entities: [order, order-item, inventory]
     screens: [merchant-orders]
     preconditions: [注文が確定している, 事業者として操作できる]
@@ -155,7 +215,7 @@ useCases:
       - { id: record-failed, kind: exception, from: ship, condition: 出荷実績を登録できない, outcome: 注文状態を維持し再試行を案内する, resumeAt: ship, screen: merchant-orders }
   - id: view-order
     title: 注文状況を確認する
-    actor: エンドユーザー
+    actors: [{ kind: actor, id: customer }]
     entities: [member, order, order-item, payment]
     screens: [order-status]
     preconditions: [会員として識別できる]

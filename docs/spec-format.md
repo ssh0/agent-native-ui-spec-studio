@@ -27,6 +27,7 @@ domain:
   actors: []
   externalSystems: []
   entities: []
+  relations: []
   terms: []
 flows: []
 useCases: []
@@ -48,11 +49,19 @@ transitions: []
 | --------------------- | --------------------------------------------------------------------------------------------------- |
 | `notes`               | 任意の検討メモ                                                                                      |
 | `actors[]`, `externalSystems[]` | 必須配列。各項目は `id`, `title`, `description`（空でない説明）、任意 `notes` |
-| `entities[]`          | `id`, `title`, 必須 `fields[]`、任意 `description`, `notes`                                         |
-| `entities[].fields[]` | `id`, `title`, `type`（文字列）, 任意 `required`（真偽値）, `entity`（関連エンティティID）, `notes` |
-| `terms[]`             | `id`, `title`, `definition`, 任意 `entity`（エンティティID）, `notes`                               |
+| `entities[]`          | `id`, `title`, 必須 `extends[]`（上位エンティティID）, `fields[]`、任意 `description`, `notes` |
+| `entities[].fields[]` | 値項目。`id`, `title`, `type`（文字列）, 任意 `required`（真偽値）, `notes` |
+| `relations[]` | `id`, `title`, `from`, `to`、任意 `notes`。各端は `{ entity, role, min, max }` |
+| `terms[]`             | `id`, `title`, `definition`, 任意 `entity`（説明対象）, `actorSet`, `entitySet`, `notes` |
 
-`actors`, `externalSystems`, `entities`, `terms`, `fields` は必須の配列。`type` は業務上の型の記述であり、実行可能なSQL型ではない。
+`actors`, `externalSystems`, `entities`, `relations`, `terms`, `extends`, `fields` は必須の配列。`type` は業務上の値型の記述であり、実行可能なSQL型ではない。アクターと外部システムのID空間は別。
+
+`extends` は is-a（下位型から上位型への参照）で複数継承を許すが循環は不可。`relations` は独立した関連定義で、両端の `entity` は `{ kind: entity, id: <定義済みエンティティID> }`。`role` はその端が担う名前、`min` / `max` は**反対側の1件に対応する、この端の件数**。`max: null` は上限なし、`min: 0` は任意。`max` は正の整数か `null` で、有限の最大数は最小数以上。関連IDは文書内で一意。関連先を `fields[].entity` に重複定義しない。
+
+`actorSet` と `entitySet` は用語の名前付き集合で、1用語にはどちらか一方だけ定義できる。葉は `{ kind: actor | term, id }`（アクター集合）または `{ kind: entity | term, id }`（エンティティ集合）。`term` は同種の集合を持つ用語だけ参照できる。複合式は `{ op: union | intersection | difference, operands: [式, 式, ...] }`。`union` はいずれか、`intersection` はすべてに属する型、`difference` は左から右を除外する差集合で**ちょうど2項**。空・単項演算、未知参照、型違い、用語間の循環は不可。これは定義済み型の集合式であり、レコードの条件判定や実データの評価はしない。エンティティの is-a と association は集合演算ではない。
+
+EC例の `ストア利用者` は購入者と商品を確認する受注担当者の和集合。`配送対象商品` は商品型からデジタル商品型を除いた分類で、商品の型が配送商品とデジタル商品の二分類という明示的な前提を持つ。`デジタル定期購入商品` はデジタル商品と定期購入商品の交差で、配送軸と販売方式の両方に属する分類。業務状態や動的な在庫数は集合式に含めない。
+関連では `在庫→商品` が任意の1対1、`注文→注文明細` が1対多、`商品↔カテゴリ` が任意の多対多を例示する。明細を通じた注文と商品の対応を別の直接関連として重複保存しない。
 
 ## 業務フロー `flows[]`
 
@@ -61,8 +70,8 @@ transitions: []
 
 `id`, `title`, `steps[]` が必須。`goal`, `notes` は任意。従来のフロー全体の自由文字列 `actor` は使用しない。
 各手順は `id`, `title`, `performer` が必須、`useCase`（ユースケースID）, `notes` は任意。
-`performer` は `{ kind: actor, id: <domain.actorsのID> }` または
-`{ kind: externalSystem, id: <domain.externalSystemsのID> }`。種類に対応する参照先が必要。
+`performer` は `{ kind: actors, refs: [<アクター参照>, ...] }` または
+`{ kind: externalSystem, id: <domain.externalSystemsのID> }`。アクター参照は `{ kind: actor, id: <domain.actorsのID> }` または `{ kind: term, id: <actorSetを持つ用語ID> }`。`refs` は1件以上。複数件はその手順を担いうる参加者の集合で、共同実行や順序を意味しない。
 アクターと外部システムは別のIDスコープで、同名IDでも種類で区別する。
 
 ```yaml
@@ -74,10 +83,10 @@ flows:
     steps:
       - id: request
         title: 作業を依頼する
-        performer: { kind: actor, id: requester }
+        performer: { kind: actors, refs: [{ kind: actor, id: requester }] }
       - id: register
         title: タスクを登録する
-        performer: { kind: actor, id: member }
+        performer: { kind: actors, refs: [{ kind: actor, id: member }] }
         useCase: create-task
       - id: notify
         title: 受付通知を送る
@@ -93,20 +102,21 @@ flows:
 手順番号・順序の矢印・任意のユースケース名を表示する。図の配置はMermaidに委ねるため厳密な等幅スイムレーンではない。
 sequenceDiagramではなくflowchartを選んだ理由は、メッセージ送受信のない手作業も手順ノードとして表現できるため。
 生Mermaidは保存せず、この構造化YAMLから再生成する。
-スタジオのデータ・用語段階では、エンティティ・用語・アクター・外部システムを独立した選択セクションとして表示する。アクターと外部システムの追加・編集は各セクションで行い、ID変更時は業務手順の参照を追従し、参照中の削除は不可。業務フロー段階では参加者を参照先として表示し、「この段階を編集」で手順を編集する。
+スタジオのデータ・用語段階では、エンティティ・関連・用語・アクター・外部システムを独立した選択セクションとして表示する。アクター・用語・エンティティのID変更時は型付き参照を追従し、参照中の削除は先に置換が必要。関連IDは外部参照されない。業務フロー段階では参加者を参照名で表示・選択する。
 
 ## ユースケース `useCases[]`
 
 | フィールド                        | 形式・意味                                                                                               |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `id`, `title`                     | 必須の識別子と名称                                                                                       |
-| `actor`, `notes`                  | 任意の利用者（自由記述）・検討メモ                                                                                   |
+| `actors`, `notes`                  | 必須の型付きアクター参照配列・任意の検討メモ |
 | `entities`, `screens`             | 必須のエンティティID配列・画面ID配列（未定義は `[]`）                                                    |
 | `preconditions`, `postconditions` | 必須の文字列配列（未検討は `[]`）                                                                        |
 | `steps[]`                         | `id`, `title`, 任意 `screen`, `action: { screen, component }`, `notes`                                   |
 | `branches[]`                      | `id`, `kind: alternate \| exception`, `from`, `condition`, `outcome`, 任意 `resumeAt`, `screen`, `notes` |
 
 `steps` と `branches` は必須の配列。基本系列は `steps` の配列順。
+`actors` は未検討なら `[]`。単一・複数とも同じ配列構造で、各参照は業務フローの `refs` と同じ `actor` / `term` 型。複数件は利用可能な役割の集合で、全員の同時参加を強制しない。外部システムはユースケースの利用アクターに含めない。
 `from` と `resumeAt` は同一ユースケース内の手順ID。`resumeAt` 省略時はその分岐で終了。
 `alternate` は条件別の代替系列、`exception` は失敗・異常系。
 `screen` は画面ID、`action` はその画面内で空でない `action` を持つ部品への参照。
@@ -156,10 +166,10 @@ stateFlow:
 ## 検証・共有アクション
 
 - `spec-load`: YAML・最新レビュー・レビュー履歴を取得。
-- `spec-update`: 全YAMLを保存。構文エラーを含む下書きも保存可。承認状態は下書きに戻るが履歴は保持。
+- `spec-update`: 全YAMLを保存。構文エラーを含む下書きも保存可。ただし型が正しい文書に未知参照や循環等の関係エラーがある場合は保存を拒否。承認状態は下書きに戻るが履歴は保持。
   任意 `expectedUpdatedAt` を指定すると別編集の上書きを拒否。
 - `spec-validate`: YAML構文・型、各スコープのID重複、全明示参照の整合を検査。
-- `spec-edit`: 画面／部品／遷移のCRUD。`set_section` + `section: domain | flows | useCases` + `value` で段階を置換。
+- `spec-edit`: 画面／部品／遷移のCRUD。`set_section` + `section: domain | flows | useCases` + `value` で段階を置換し、集合式・階層・関連・アクター参照を編集できる。
   `update_screen` の `screen` パッチで `stateFlow` などを変更可能。保存前に全参照検証。
   画面の改名は参照を追従。参照を壊す削除は拒否（画面間遷移は画面削除時に除去）。複数段階同時編集には `spec-update`。
 - `spec-render-wireframe`: 文字をエスケープしたHTMLフラグメント。
@@ -168,7 +178,7 @@ stateFlow:
 - `spec-review`: `approved` / `changes_requested` と任意コメント、`stage`（既定 `screens`）、任意 `expectedUpdatedAt`。
   承認は保存済み文書全体に対する決定。`stage` は検討の焦点。形式・参照が無効な仕様はレビュー不可。
 
-ID重複はアクター・外部システム・エンティティ・用語・フロー・ユースケース・画面、およびそれぞれのフィールド／手順／分岐／部品／状態スコープで検出する。
+ID重複はアクター・外部システム・エンティティ・関連・用語・フロー・ユースケース・画面、およびそれぞれのフィールド／手順／分岐／部品／状態スコープで検出する。
 参照の存在を検証し、網羅性（例: 全例外の検討済み）を推定したり承認したりはしない。
 
 ## 検討過程・レビュー履歴

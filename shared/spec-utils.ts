@@ -5,8 +5,35 @@ import {
   SpecSchema,
   validateSpecRelations,
   type UiSpec,
+  type ActorRef,
   type ValidationIssue,
 } from "./spec-schema.js";
+
+export function actorRefTitle(spec: UiSpec, ref: ActorRef): string {
+  return (
+    (ref.kind === "actor" ? spec.domain.actors : spec.domain.terms).find(
+      (item) => item.id === ref.id,
+    )?.title ?? ref.id
+  );
+}
+export function performerTitle(
+  spec: UiSpec,
+  performer: UiSpec["flows"][number]["steps"][number]["performer"],
+): string {
+  return performer.kind === "externalSystem"
+    ? `外部システム: ${spec.domain.externalSystems.find((item) => item.id === performer.id)?.title ?? performer.id}`
+    : `アクター: ${performer.refs.map((ref) => actorRefTitle(spec, ref)).join("、")}`;
+}
+function performerKey(
+  performer: UiSpec["flows"][number]["steps"][number]["performer"],
+): string {
+  return performer.kind === "externalSystem"
+    ? `externalSystem:${performer.id}`
+    : `actors:${performer.refs
+        .map((ref) => `${ref.kind}:${ref.id}`)
+        .sort()
+        .join("|")}`;
+}
 
 export type ParsedSpec = {
   spec?: UiSpec;
@@ -125,23 +152,23 @@ export function renderFlow(
     flows.forEach((flow, i) => {
       if (!flow.steps.length) return;
       lines.push(`  subgraph f${i}["${label(flow.title)}"]`);
-      const participants = [
-        ...spec.domain.actors.map((p) => ({ ...p, kind: "actor" })),
-        ...spec.domain.externalSystems.map((p) => ({
-          ...p,
-          kind: "externalSystem",
-        })),
-      ];
+      const participants = Array.from(
+        new Map(
+          flow.steps.map((step) => [
+            performerKey(step.performer),
+            step.performer,
+          ]),
+        ).values(),
+      );
       participants.forEach((p, lane) => {
         const steps = flow.steps
           .map((step, index) => ({ step, index }))
           .filter(
-            ({ step }) =>
-              step.performer.kind === p.kind && step.performer.id === p.id,
+            ({ step }) => performerKey(step.performer) === performerKey(p),
           );
         if (!steps.length) return;
         lines.push(
-          `  subgraph f${i}lane${lane}["${label((p.kind === "actor" ? "アクター: " : "外部システム: ") + p.title)}"]`,
+          `  subgraph f${i}lane${lane}["${label(performerTitle(spec, p))}"]`,
         );
         steps.forEach(({ step, index }) => {
           const useCase = spec.useCases.find((u) => u.id === step.useCase);

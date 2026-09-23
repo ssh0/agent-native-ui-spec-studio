@@ -7,10 +7,12 @@ domain:
     - id: task
       title: タスク
       description: チームで管理する作業の単位
+      extends: []
       fields:
         - { id: title, title: 件名, type: string, required: true }
         - { id: status, title: 状態, type: "enum: 未着手 / 進行中 / 完了", required: true }
         - { id: priority, title: 優先度, type: boolean }
+  relations: []
   terms:
     - id: high-priority
       title: 優先タスク
@@ -35,25 +37,17 @@ flows:
     steps:
       - id: request
         title: 作業を依頼する
-        performer:
-          kind: actor
-          id: requester
+        performer: { kind: actors, refs: [{ kind: actor, id: requester }] }
       - id: discover
         title: 新しい作業を確認する
-        performer:
-          kind: actor
-          id: member
+        performer: { kind: actors, refs: [{ kind: actor, id: member }] }
       - id: register
         title: タスクを登録する
         useCase: create-task
-        performer:
-          kind: actor
-          id: member
+        performer: { kind: actors, refs: [{ kind: actor, id: member }] }
       - id: confirm
         title: 一覧で登録結果を確認する
-        performer:
-          kind: actor
-          id: member
+        performer: { kind: actors, refs: [{ kind: actor, id: member }] }
       - id: notify
         title: 受付通知を送信する
         performer:
@@ -61,13 +55,11 @@ flows:
           id: notification
       - id: receive
         title: 受付結果を受け取る
-        performer:
-          kind: actor
-          id: requester
+        performer: { kind: actors, refs: [{ kind: actor, id: requester }] }
 useCases:
   - id: create-task
     title: タスクを登録する
-    actor: チームメンバー
+    actors: [{ kind: actor, id: member }]
     entities: [ task ]
     screens: [ dashboard, create-task ]
     preconditions: [ チームに参加している ]

@@ -7,6 +7,7 @@ domain:
     - id: task
       title: タスク
       description: ユーザーが管理する作業項目
+      extends: []
       fields:
         - { id: id, title: 識別子, type: string, required: true }
         - { id: title, title: 件名, type: string, required: true }
@@ -18,8 +19,10 @@ domain:
     - id: task-filter
       title: タスク絞り込み条件
       description: 一覧に表示するタスクの状態を指定する条件
+      extends: []
       fields:
         - { id: status, title: 状態, type: "enum: すべて / 未完了 / 完了", required: true }
+  relations: []
   terms:
     - id: incomplete-task
       title: 未完了タスク
@@ -47,42 +50,30 @@ flows:
       - id: view-list
         title: タスク一覧を表示する
         useCase: browse-tasks
-        performer:
-          kind: actor
-          id: user
+        performer: { kind: actors, refs: [{ kind: actor, id: user }] }
       - id: add-task
         title: 新しいタスクを登録する
         useCase: create-task
-        performer:
-          kind: actor
-          id: user
+        performer: { kind: actors, refs: [{ kind: actor, id: user }] }
       - id: edit-task
         title: 登録済みタスクを編集する
         useCase: edit-task
-        performer:
-          kind: actor
-          id: user
+        performer: { kind: actors, refs: [{ kind: actor, id: user }] }
       - id: do-work
         title: 登録した作業を実施する
-        performer:
-          kind: actor
-          id: user
+        performer: { kind: actors, refs: [{ kind: actor, id: user }] }
       - id: complete-task
         title: タスクを完了にする
         useCase: complete-task
-        performer:
-          kind: actor
-          id: user
+        performer: { kind: actors, refs: [{ kind: actor, id: user }] }
       - id: delete-task
         title: 不要なタスクを削除する
         useCase: delete-task
-        performer:
-          kind: actor
-          id: user
+        performer: { kind: actors, refs: [{ kind: actor, id: user }] }
 useCases:
   - id: browse-tasks
     title: タスク一覧を確認する
-    actor: ユーザー
+    actors: [{ kind: actor, id: user }]
     entities: [ task, task-filter ]
     screens: [ dashboard ]
     preconditions: [ アプリを開いている ]
@@ -116,7 +107,7 @@ useCases:
         screen: dashboard
   - id: create-task
     title: タスクを登録する
-    actor: ユーザー
+    actors: [{ kind: actor, id: user }]
     entities: [ task ]
     screens: [ dashboard, task-create ]
     preconditions: [ タスク一覧を表示できる ]
@@ -150,7 +141,7 @@ useCases:
         screen: task-create
   - id: edit-task
     title: タスクを編集する
-    actor: ユーザー
+    actors: [{ kind: actor, id: user }]
     entities: [ task ]
     screens: [ dashboard, task-edit ]
     preconditions: [ 編集対象のタスクが一覧に存在する ]
@@ -184,7 +175,7 @@ useCases:
         screen: task-edit
   - id: complete-task
     title: タスクを完了にする
-    actor: ユーザー
+    actors: [{ kind: actor, id: user }]
     entities: [ task ]
     screens: [ dashboard ]
     preconditions: [ 未完了のタスクが一覧に存在する ]
@@ -217,7 +208,7 @@ useCases:
         screen: dashboard
   - id: delete-task
     title: タスクを削除する
-    actor: ユーザー
+    actors: [{ kind: actor, id: user }]
     entities: [ task ]
     screens: [ dashboard, delete-confirm ]
     preconditions: [ 削除対象のタスクが一覧に存在する ]

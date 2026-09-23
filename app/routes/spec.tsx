@@ -109,9 +109,11 @@ export default function SpecPage() {
       stage === "domain"
         ? domainSection === "entities"
           ? spec.domain.entities
-          : domainSection === "terms"
-            ? spec.domain.terms
-            : []
+          : domainSection === "relations"
+            ? spec.domain.relations
+            : domainSection === "terms"
+              ? spec.domain.terms
+              : []
         : stage === "flows"
           ? spec.flows
           : stage === "useCases"
@@ -213,6 +215,7 @@ export default function SpecPage() {
         : spec.domain.entities.length +
           spec.domain.terms.length +
           spec.domain.actors.length +
+          spec.domain.relations.length +
           spec.domain.externalSystems.length,
     flows: spec?.flows?.length ?? 0,
     useCases: spec?.useCases?.length ?? 0,

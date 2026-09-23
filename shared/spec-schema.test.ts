@@ -4,7 +4,12 @@ import { describe, expect, it } from "vitest";
 import { stringify } from "yaml";
 
 import { DEFAULT_SPEC_YAML } from "./default-spec";
-import { editSpec, renameParticipant } from "./spec-edit";
+import {
+  editSpec,
+  renameEntity,
+  renameParticipant,
+  renameTerm,
+} from "./spec-edit";
 import { SpecSchema, validateSpecRelations, type UiSpec } from "./spec-schema";
 import { parseSpecYaml, renderFlow, renderWireframe } from "./spec-utils";
 const example = () => parseSpecYaml(DEFAULT_SPEC_YAML).spec!;
@@ -14,7 +19,13 @@ describe("canonical specification structure and relations", () => {
     const minimal = {
       version: "2.0",
       title: "検討開始",
-      domain: { actors: [], externalSystems: [], entities: [], terms: [] },
+      domain: {
+        actors: [],
+        externalSystems: [],
+        entities: [],
+        relations: [],
+        terms: [],
+      },
       flows: [],
       useCases: [],
       screens: [],
@@ -66,11 +77,13 @@ describe("canonical specification structure and relations", () => {
   it("requires explicit nested stage structures", () => {
     for (const path of [
       ["domain", "entities"],
+      ["domain", "relations"],
       ["domain", "terms"],
       ["domain", "actors"],
       ["domain", "externalSystems"],
       ["flows", 0, "steps", 0, "performer"],
       ["domain", "entities", 0, "fields"],
+      ["domain", "entities", 0, "extends"],
       ["flows", 0, "steps"],
       ["useCases", 0, "steps"],
       ["useCases", 0, "branches"],
@@ -113,7 +126,22 @@ describe("canonical specification structure and relations", () => {
     [
       "entity relationship",
       (s: UiSpec) => {
-        s.domain.entities[0].fields[0].entity = "missing";
+        s.domain.relations.push({
+          id: "missing",
+          title: "missing",
+          from: {
+            entity: { kind: "entity", id: "missing" },
+            role: "元",
+            min: 0,
+            max: 1,
+          },
+          to: {
+            entity: { kind: "entity", id: "task" },
+            role: "先",
+            min: 0,
+            max: 1,
+          },
+        });
       },
     ],
     [
@@ -275,6 +303,7 @@ describe("canonical specification structure and relations", () => {
       {
         id: "planned",
         title: "検討中",
+        actors: [],
         entities: [],
         screens: [],
         preconditions: [],
@@ -299,13 +328,16 @@ describe("canonical specification structure and relations", () => {
 });
 
 describe("business flow participants and lanes", () => {
-  it.each(["example", "todo-app"])("validates the %s sample", (name) => {
-    const parsed = parseSpecYaml(
-      readFileSync(new URL(`../specs/${name}.yaml`, import.meta.url), "utf8"),
-    );
-    expect(parsed.issues).toEqual([]);
-    expect(parsed.spec?.flows[0].steps.some((s) => !s.useCase)).toBe(true);
-  });
+  it.each(["example", "todo-app", "ec-commerce"])(
+    "validates the %s sample",
+    (name) => {
+      const parsed = parseSpecYaml(
+        readFileSync(new URL(`../specs/${name}.yaml`, import.meta.url), "utf8"),
+      );
+      expect(parsed.issues).toEqual([]);
+      expect(parsed.spec?.flows[0].steps.some((s) => !s.useCase)).toBe(true);
+    },
+  );
   it.each(["actors", "externalSystems"] as const)(
     "requires %s descriptions and unique IDs",
     (section) => {
@@ -321,19 +353,26 @@ describe("business flow participants and lanes", () => {
       );
     },
   );
-  it.each(["actor", "externalSystem"] as const)(
+  it.each(["actors", "externalSystem"] as const)(
     "checks the %s reference namespace",
     (kind) => {
       const spec = example();
       const step = spec.flows[0].steps[0];
-      step.performer = {
-        kind,
-        id: kind === "actor" ? "notification" : "member",
-      };
+      step.performer =
+        kind === "actors"
+          ? { kind, refs: [{ kind: "actor", id: "notification" }] }
+          : { kind, id: "member" };
       expect(validateSpecRelations(spec)).toContainEqual(
-        expect.objectContaining({ path: "flows[0].steps[0].performer.id" }),
+        expect.objectContaining({
+          path:
+            kind === "actors"
+              ? "flows[0].steps[0].performer.refs[0].id"
+              : "flows[0].steps[0].performer.id",
+        }),
       );
-      step.performer.id = "missing";
+      if (step.performer.kind === "actors")
+        step.performer.refs[0].id = "missing";
+      else step.performer.id = "missing";
       expect(validateSpecRelations(spec)).toHaveLength(1);
     },
   );
@@ -341,8 +380,9 @@ describe("business flow participants and lanes", () => {
     undefined,
     "member",
     { kind: "system", id: "notification" },
-    { kind: "actor", id: "" },
-    { kind: "actor", id: "member", externalSystem: "notification" },
+    { kind: "actors", refs: [] },
+    { kind: "actors", refs: [{ kind: "actor", id: "" }] },
+    { kind: "actors", id: "member" },
   ])("rejects malformed performer %j", (performer) => {
     const spec = example();
     (spec.flows[0].steps[0] as any).performer = performer;
@@ -367,10 +407,16 @@ describe("business flow participants and lanes", () => {
     spec.flows[0].steps[4].performer = { kind: "externalSystem", id: "member" };
     const next = renameParticipant(spec, "actor", "member", "staff");
     expect(validateSpecRelations(next)).toEqual([]);
-    expect(next.flows[0].steps[1].performer.id).toBe("staff");
-    expect(next.flows[0].steps[4].performer.id).toBe("member");
+    expect(next.flows[0].steps[1].performer).toEqual({
+      kind: "actors",
+      refs: [{ kind: "actor", id: "staff" }],
+    });
+    expect(next.flows[0].steps[4].performer).toEqual({
+      kind: "externalSystem",
+      id: "member",
+    });
     expect(next.flows[0].notes).toBe(spec.flows[0].notes);
-    expect(next.useCases).toEqual(spec.useCases);
+    expect(next.useCases[0].actors).toEqual([{ kind: "actor", id: "staff" }]);
     expect(spec.domain.actors[0].id).toBe("member");
     expect(() =>
       editSpec(next, {
@@ -408,5 +454,257 @@ describe("business flow participants and lanes", () => {
     expect(renderFlow(spec, "flows", "task-intake")).toBe("");
     spec.flows = [];
     expect(renderFlow(spec, "flows")).toBe("");
+  });
+});
+
+describe("typed domain sets, hierarchy and associations", () => {
+  const ec = () =>
+    parseSpecYaml(
+      readFileSync(
+        new URL("../specs/ec-commerce.yaml", import.meta.url),
+        "utf8",
+      ),
+    ).spec!;
+  it("uses a named actor union and a grounded entity difference in the EC sample", () => {
+    const spec = ec();
+    expect(
+      spec.domain.terms.find((t) => t.id === "storefront-users")?.actorSet,
+    ).toEqual({
+      op: "union",
+      operands: [
+        { kind: "actor", id: "customer" },
+        { kind: "actor", id: "operator" },
+      ],
+    });
+    expect(
+      spec.useCases.find((u) => u.id === "browse-products")?.actors,
+    ).toEqual([{ kind: "term", id: "storefront-users" }]);
+    expect(
+      spec.domain.terms.find((t) => t.id === "shippable-product")?.entitySet,
+    ).toMatchObject({ op: "difference" });
+    expect(
+      spec.domain.terms.find((t) => t.id === "digital-subscription")?.entitySet,
+    ).toMatchObject({ op: "intersection" });
+    expect(
+      spec.domain.entities.find((e) => e.id === "digital-product")?.extends,
+    ).toEqual(["product"]);
+    expect(
+      spec.domain.relations.find((r) => r.id === "product-category")?.to.max,
+    ).toBeNull();
+    expect(
+      spec.domain.relations.find((r) => r.id === "inventory-product")?.from.max,
+    ).toBe(1);
+    expect(
+      spec.domain.relations.find((r) => r.id === "order-items")?.from.max,
+    ).toBe(1);
+    expect(
+      spec.domain.relations.find((r) => r.id === "order-items")?.to.max,
+    ).toBeNull();
+  });
+  it("rejects unknown and wrong-kind actor references in use cases and flows", () => {
+    const spec = ec();
+    spec.useCases[0].actors = [{ kind: "actor", id: "missing" }];
+    expect(validateSpecRelations(spec)).toContainEqual(
+      expect.objectContaining({ path: "useCases[0].actors[0].id" }),
+    );
+    spec.useCases[0].actors = [{ kind: "term", id: "shippable-product" }];
+    expect(validateSpecRelations(spec)).toContainEqual(
+      expect.objectContaining({ path: "useCases[0].actors[0]" }),
+    );
+    spec.flows[0].steps[0].performer = {
+      kind: "actors",
+      refs: [{ kind: "actor", id: "member-service" }],
+    };
+    expect(validateSpecRelations(spec)).toContainEqual(
+      expect.objectContaining({
+        path: "flows[0].steps[0].performer.refs[0].id",
+      }),
+    );
+  });
+  it("requires a nonempty performer set and a bounded difference", () => {
+    const spec = ec();
+    spec.flows[0].steps[0].performer = { kind: "actors", refs: [] };
+    expect(SpecSchema.safeParse(spec).success).toBe(false);
+    spec.flows[0].steps[0].performer = {
+      kind: "actors",
+      refs: [{ kind: "actor", id: "customer" }],
+    };
+    spec.domain.terms.find((t) => t.id === "shippable-product")!.entitySet = {
+      op: "difference",
+      operands: [
+        { kind: "entity", id: "product" },
+        { kind: "entity", id: "digital-product" },
+        { kind: "entity", id: "category" },
+      ],
+    };
+    expect(validateSpecRelations(spec)).toContainEqual(
+      expect.objectContaining({ path: expect.stringContaining("entitySet") }),
+    );
+    spec.domain.terms.find((t) => t.id === "shippable-product")!.entitySet = {
+      op: "union",
+      operands: [],
+    };
+    expect(SpecSchema.safeParse(spec).success).toBe(false);
+  });
+  it("detects set cycles, including through composed entity terms", () => {
+    const spec = ec();
+    spec.domain.terms.push(
+      {
+        id: "a",
+        title: "A",
+        definition: "A",
+        actorSet: { kind: "term", id: "b" },
+      },
+      {
+        id: "b",
+        title: "B",
+        definition: "B",
+        actorSet: { kind: "term", id: "a" },
+      },
+    );
+    expect(
+      validateSpecRelations(spec).some((i) => i.message.includes("循環")),
+    ).toBe(true);
+    spec.domain.terms.splice(-2);
+    spec.domain.terms.push(
+      {
+        id: "x",
+        title: "X",
+        definition: "X",
+        entitySet: { kind: "term", id: "y" },
+      },
+      {
+        id: "y",
+        title: "Y",
+        definition: "Y",
+        entitySet: { kind: "term", id: "x" },
+      },
+    );
+    expect(
+      validateSpecRelations(spec).some((i) => i.message.includes("循環")),
+    ).toBe(true);
+  });
+  it("detects inheritance cycles, endpoint errors and invalid multiplicities", () => {
+    const spec = ec();
+    spec.domain.entities.find((e) => e.id === "product")!.extends = [
+      "physical-product",
+    ];
+    expect(
+      validateSpecRelations(spec).some((i) =>
+        i.message.includes("継承関係が循環"),
+      ),
+    ).toBe(true);
+    spec.domain.entities.find((e) => e.id === "product")!.extends = [];
+    spec.domain.relations[0].to.entity.id = "missing";
+    spec.domain.relations[0].from.min = 2;
+    spec.domain.relations[0].from.max = 1;
+    expect(validateSpecRelations(spec)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: "domain.relations[0].to.entity.id" }),
+        expect.objectContaining({ path: "domain.relations[0].from.max" }),
+      ]),
+    );
+  });
+  it("renames actor, term and entity references without changing other namespaces", () => {
+    const original = ec();
+    const actor = renameParticipant(original, "actor", "customer", "buyer");
+    expect(validateSpecRelations(actor)).toEqual([]);
+    expect(
+      actor.domain.terms.find((t) => t.id === "storefront-users")?.actorSet,
+    ).toMatchObject({
+      op: "union",
+      operands: [
+        { kind: "actor", id: "buyer" },
+        { kind: "actor", id: "operator" },
+      ],
+    });
+    const term = renameTerm(actor, "storefront-users", "stakeholders");
+    expect(validateSpecRelations(term)).toEqual([]);
+    expect(
+      term.useCases.find((u) => u.id === "browse-products")?.actors,
+    ).toEqual([{ kind: "term", id: "stakeholders" }]);
+    term.domain.terms.push({
+      id: "delivery-class",
+      title: "配送分類",
+      definition: "配送対象商品の別名",
+      entitySet: { kind: "term", id: "shippable-product" },
+    });
+    const renamedEntityTerm = renameTerm(
+      term,
+      "shippable-product",
+      "delivery-product",
+    );
+    expect(
+      renamedEntityTerm.domain.terms.find((t) => t.id === "delivery-class")
+        ?.entitySet,
+    ).toEqual({ kind: "term", id: "delivery-product" });
+    const entity = renameEntity(renamedEntityTerm, "product", "item");
+    expect(validateSpecRelations(entity)).toEqual([]);
+    expect(
+      entity.domain.entities.find((e) => e.id === "physical-product")?.extends,
+    ).toEqual(["item"]);
+    expect(
+      entity.domain.relations.find((r) => r.id === "product-category")?.from
+        .entity,
+    ).toEqual({ kind: "entity", id: "item" });
+    expect(original.domain.actors[0].id).toBe("customer");
+  });
+  it("guards referenced deletion through the agent section edit path", () => {
+    const spec = ec();
+    expect(() =>
+      editSpec(spec, {
+        kind: "set_section",
+        section: "domain",
+        value: {
+          ...spec.domain,
+          actors: spec.domain.actors.filter((a) => a.id !== "customer"),
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      editSpec(spec, {
+        kind: "set_section",
+        section: "domain",
+        value: {
+          ...spec.domain,
+          terms: spec.domain.terms.filter((t) => t.id !== "storefront-users"),
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      editSpec(spec, {
+        kind: "set_section",
+        section: "domain",
+        value: {
+          ...spec.domain,
+          entities: spec.domain.entities.filter((e) => e.id !== "product"),
+        },
+      }),
+    ).toThrow();
+  });
+  it("renders named and multi-actor business lanes", () => {
+    const spec = ec();
+    spec.flows[0].steps[0].performer = {
+      kind: "actors",
+      refs: [
+        { kind: "actor", id: "customer" },
+        { kind: "term", id: "storefront-users" },
+      ],
+    };
+    const diagram = renderFlow(spec, "flows", "purchase");
+    const encode = (s: string) =>
+      Array.from(s, (c) => `#${c.codePointAt(0)};`).join("");
+    expect(diagram).toContain(encode("アクター: エンドユーザー、ストア利用者"));
+    expect(diagram).toContain("f0s0 --> f0s1");
+    spec.flows[0].steps[1].performer = {
+      kind: "actors",
+      refs: [
+        { kind: "term", id: "storefront-users" },
+        { kind: "actor", id: "customer" },
+      ],
+    };
+    expect(
+      renderFlow(spec, "flows", "purchase").match(/subgraph f0lane/g),
+    ).toHaveLength(5);
   });
 });

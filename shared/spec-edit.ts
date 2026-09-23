@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  type ActorRef,
   SpecSchema,
   validateSpecRelations,
   type UiSpec,
@@ -148,6 +149,16 @@ export function renameParticipant(
   to: string,
 ): UiSpec {
   const section = kind === "actor" ? "actors" : "externalSystems";
+  const renameRef = (ref: ActorRef): ActorRef =>
+    kind === "actor" && ref.kind === "actor" && ref.id === from
+      ? { ...ref, id: to }
+      : ref;
+  const renameSet = (
+    set: NonNullable<UiSpec["domain"]["terms"][number]["actorSet"]>,
+  ): typeof set =>
+    "op" in set
+      ? { ...set, operands: set.operands.map(renameSet) }
+      : renameRef(set);
   return {
     ...spec,
     domain: {
@@ -155,16 +166,118 @@ export function renameParticipant(
       [section]: spec.domain[section].map((p) =>
         p.id === from ? { ...p, id: to } : p,
       ),
+      terms: spec.domain.terms.map((term) => ({
+        ...term,
+        actorSet: term.actorSet ? renameSet(term.actorSet) : undefined,
+      })),
     },
     flows: spec.flows.map((flow) => ({
       ...flow,
       steps: flow.steps.map((step) => ({
         ...step,
         performer:
-          step.performer.kind === kind && step.performer.id === from
-            ? { kind, id: to }
-            : step.performer,
+          step.performer.kind === "actors"
+            ? { ...step.performer, refs: step.performer.refs.map(renameRef) }
+            : kind === "externalSystem" && step.performer.id === from
+              ? { ...step.performer, id: to }
+              : step.performer,
       })),
+    })),
+    useCases: spec.useCases.map((useCase) => ({
+      ...useCase,
+      actors: useCase.actors.map(renameRef),
+    })),
+  };
+}
+
+export function renameTerm(spec: UiSpec, from: string, to: string): UiSpec {
+  const renameRef = (ref: ActorRef): ActorRef =>
+    ref.kind === "term" && ref.id === from ? { ...ref, id: to } : ref;
+  const renameSet = (
+    set: NonNullable<UiSpec["domain"]["terms"][number]["actorSet"]>,
+  ): typeof set =>
+    "op" in set
+      ? { ...set, operands: set.operands.map(renameSet) }
+      : renameRef(set);
+  const renameEntitySet = (
+    set: NonNullable<UiSpec["domain"]["terms"][number]["entitySet"]>,
+  ): typeof set =>
+    "op" in set
+      ? { ...set, operands: set.operands.map(renameEntitySet) }
+      : set.kind === "term" && set.id === from
+        ? { ...set, id: to }
+        : set;
+  return {
+    ...spec,
+    domain: {
+      ...spec.domain,
+      terms: spec.domain.terms.map((t) => ({
+        ...t,
+        id: t.id === from ? to : t.id,
+        actorSet: t.actorSet ? renameSet(t.actorSet) : undefined,
+        entitySet: t.entitySet ? renameEntitySet(t.entitySet) : undefined,
+      })),
+    },
+    flows: spec.flows.map((f) => ({
+      ...f,
+      steps: f.steps.map((s) => ({
+        ...s,
+        performer:
+          s.performer.kind === "actors"
+            ? { ...s.performer, refs: s.performer.refs.map(renameRef) }
+            : s.performer,
+      })),
+    })),
+    useCases: spec.useCases.map((u) => ({
+      ...u,
+      actors: u.actors.map(renameRef),
+    })),
+  };
+}
+
+export function renameEntity(spec: UiSpec, from: string, to: string): UiSpec {
+  const replace = (id: string) => (id === from ? to : id);
+  const renameSet = (
+    set: NonNullable<UiSpec["domain"]["terms"][number]["entitySet"]>,
+  ): typeof set =>
+    "op" in set
+      ? { ...set, operands: set.operands.map(renameSet) }
+      : set.kind === "entity"
+        ? { ...set, id: replace(set.id) }
+        : set;
+  return {
+    ...spec,
+    domain: {
+      ...spec.domain,
+      entities: spec.domain.entities.map((e) => ({
+        ...e,
+        id: replace(e.id),
+        extends: e.extends.map(replace),
+      })),
+      relations: spec.domain.relations.map((r) => ({
+        ...r,
+        from: {
+          ...r.from,
+          entity: { ...r.from.entity, id: replace(r.from.entity.id) },
+        },
+        to: {
+          ...r.to,
+          entity: { ...r.to.entity, id: replace(r.to.entity.id) },
+        },
+      })),
+      terms: spec.domain.terms.map((t) => ({
+        ...t,
+        entity: t.entity ? replace(t.entity) : undefined,
+        entitySet: t.entitySet ? renameSet(t.entitySet) : undefined,
+      })),
+    },
+    useCases: spec.useCases.map((u) => ({
+      ...u,
+      entities: u.entities.map(replace),
+    })),
+    screens: spec.screens.map((s) => ({
+      ...s,
+      entities: s.entities.map(replace),
     })),
   };
 }

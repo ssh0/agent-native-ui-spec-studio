@@ -1,4 +1,5 @@
 import { defineAction, fail } from "@agent-native/core/action";
+import { parseSpecYaml } from "@shared/spec-utils";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -20,6 +21,14 @@ export default defineAction({
   }),
   publicAgent: { expose: true, readOnly: false, requiresAuth: true },
   run: async ({ yaml, expectedUpdatedAt }) => {
+    const parsed = parseSpecYaml(yaml);
+    if (parsed.spec && parsed.issues.length)
+      fail(
+        parsed.issues
+          .map((issue) => `${issue.path}: ${issue.message}`)
+          .join("\n"),
+        { statusCode: 400 },
+      );
     const db = getDb();
     const values = {
       yaml,

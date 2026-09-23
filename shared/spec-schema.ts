@@ -10,6 +10,7 @@ export const stages = [
 export type SpecStage = (typeof stages)[number];
 export const domainSections = [
   "entities",
+  "relations",
   "terms",
   "actors",
   "externalSystems",
@@ -17,6 +18,7 @@ export const domainSections = [
 export type DomainSection = (typeof domainSections)[number];
 export const domainSectionLabels: Record<DomainSection, string> = {
   entities: "エンティティ",
+  relations: "エンティティ間の関連",
   terms: "用語",
   actors: "アクター",
   externalSystems: "外部システム",
@@ -46,24 +48,63 @@ const notes = z.string().optional();
 const refs = z.array(id);
 const Named = z.strictObject({ id, title: id, notes });
 export const ParticipantSchema = Named.extend({ description: id });
-export const PerformerSchema = z.discriminatedUnion("kind", [
+export const ActorRefSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("actor"), id }),
+  z.strictObject({ kind: z.literal("term"), id }),
+]);
+export type ActorRef = z.infer<typeof ActorRefSchema>;
+export const EntityRefSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("entity"), id }),
+  z.strictObject({ kind: z.literal("term"), id }),
+]);
+export type EntityRef = z.infer<typeof EntityRefSchema>;
+function setExpression<T extends z.ZodType>(reference: T) {
+  type Expr =
+    | z.infer<T>
+    | { op: "union" | "intersection" | "difference"; operands: Expr[] };
+  const expression: z.ZodType<Expr> = z.lazy(() =>
+    z.union([
+      reference,
+      z.strictObject({
+        op: z.enum(["union", "intersection", "difference"]),
+        operands: z.array(expression).min(2),
+      }),
+    ]),
+  );
+  return expression;
+}
+export const ActorSetSchema = setExpression(ActorRefSchema);
+export const EntitySetSchema = setExpression(EntityRefSchema);
+export const PerformerSchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("actors"),
+    refs: z.array(ActorRefSchema).min(1),
+  }),
   z.strictObject({ kind: z.literal("externalSystem"), id }),
 ]);
+const RelationEndSchema = z.strictObject({
+  entity: z.strictObject({ kind: z.literal("entity"), id }),
+  role: id,
+  min: z.number().int().nonnegative(),
+  max: z.number().int().positive().nullable(),
+});
 export const DomainSchema = z.strictObject({
   notes,
   actors: z.array(ParticipantSchema),
   externalSystems: z.array(ParticipantSchema),
+  relations: z.array(
+    Named.extend({ from: RelationEndSchema, to: RelationEndSchema }),
+  ),
   entities: z.array(
     Named.extend({
       description: z.string().optional(),
+      extends: refs,
       fields: z.array(
         z.strictObject({
           id,
           title: id,
           type: id,
           required: z.boolean().optional(),
-          entity: id.optional(),
           notes,
         }),
       ),
@@ -75,6 +116,8 @@ export const DomainSchema = z.strictObject({
       title: id,
       definition: id,
       entity: id.optional(),
+      actorSet: ActorSetSchema.optional(),
+      entitySet: EntitySetSchema.optional(),
       notes,
     }),
   ),
@@ -93,7 +136,7 @@ export const FlowSchema = Named.extend({
 });
 const ActionRef = z.strictObject({ screen: id, component: id });
 export const UseCaseSchema = Named.extend({
-  actor: z.string().optional(),
+  actors: z.array(ActorRefSchema),
   entities: refs,
   screens: refs,
   preconditions: z.array(z.string()),
@@ -212,13 +255,176 @@ export function validateSpecRelations(spec: UiSpec): ValidationIssue[] {
     "domain.externalSystems",
   );
   const cases = unique(spec.useCases, "useCases");
-  unique(spec.domain.terms, "domain.terms");
+  const terms = unique(spec.domain.terms, "domain.terms");
+  unique(spec.domain.relations, "domain.relations");
   unique(spec.flows, "flows");
+  const actorRef = (value: ActorRef, path: string) => {
+    ref(value.id, value.kind === "actor" ? actors : terms, `${path}.id`);
+    if (
+      value.kind === "term" &&
+      terms.has(value.id) &&
+      !spec.domain.terms.find((t) => t.id === value.id)?.actorSet
+    )
+      issues.push({
+        path,
+        message: "参照先の用語にアクター集合がありません。",
+      });
+  };
+  const actorRefs = (values: ActorRef[], path: string) => {
+    const seen = new Set<string>();
+    values.forEach((value, i) => {
+      actorRef(value, `${path}[${i}]`);
+      const key = `${value.kind}:${value.id}`;
+      if (seen.has(key))
+        issues.push({
+          path: `${path}[${i}]`,
+          message: "同じアクター参照が重複しています。",
+        });
+      seen.add(key);
+    });
+  };
+  const checkSet = (
+    value: z.infer<typeof ActorSetSchema> | z.infer<typeof EntitySetSchema>,
+    path: string,
+    kind: "actor" | "entity",
+    dependencies: Set<string>,
+  ): void => {
+    if ("op" in value) {
+      if (value.op === "difference" && value.operands.length !== 2)
+        issues.push({
+          path: `${path}.operands`,
+          message: "差集合は左集合と除外集合の2項を指定してください。",
+        });
+      value.operands.forEach((operand, i) =>
+        checkSet(operand, `${path}.operands[${i}]`, kind, dependencies),
+      );
+    } else if (kind === "actor") {
+      if (value.kind === "actor") ref(value.id, actors, `${path}.id`);
+      else if (value.kind === "term") {
+        ref(value.id, terms, `${path}.id`);
+        if (
+          terms.has(value.id) &&
+          !spec.domain.terms.find((t) => t.id === value.id)?.actorSet
+        )
+          issues.push({
+            path,
+            message: "参照先の用語にアクター集合がありません。",
+          });
+        dependencies.add(value.id);
+      } else
+        issues.push({
+          path,
+          message: "アクター集合にはアクターまたは用語を指定してください。",
+        });
+    } else if (value.kind === "entity") ref(value.id, entities, `${path}.id`);
+    else if (value.kind === "term") {
+      ref(value.id, terms, `${path}.id`);
+      if (
+        terms.has(value.id) &&
+        !spec.domain.terms.find((t) => t.id === value.id)?.entitySet
+      )
+        issues.push({
+          path,
+          message: "参照先の用語にエンティティ集合がありません。",
+        });
+      dependencies.add(value.id);
+    } else
+      issues.push({
+        path,
+        message:
+          "エンティティ集合にはエンティティまたは用語を指定してください。",
+      });
+  };
+  const termGraph = new Map<string, Set<string>>();
+  spec.domain.terms.forEach((term, i) => {
+    if (term.actorSet && term.entitySet)
+      issues.push({
+        path: `domain.terms[${i}]`,
+        message: "アクター集合とエンティティ集合は同じ用語に定義できません。",
+      });
+    const dependencies = new Set<string>();
+    if (term.actorSet)
+      checkSet(
+        term.actorSet,
+        `domain.terms[${i}].actorSet`,
+        "actor",
+        dependencies,
+      );
+    if (term.entitySet)
+      checkSet(
+        term.entitySet,
+        `domain.terms[${i}].entitySet`,
+        "entity",
+        dependencies,
+      );
+    termGraph.set(term.id, dependencies);
+  });
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const visitTerm = (termId: string) => {
+    if (visiting.has(termId)) return true;
+    if (visited.has(termId)) return false;
+    visiting.add(termId);
+    for (const next of termGraph.get(termId) ?? []) {
+      if (visitTerm(next)) {
+        issues.push({
+          path: `domain.terms.${termId}.actorSet`,
+          message: "用語の集合定義が循環しています。",
+        });
+        break;
+      }
+    }
+    visiting.delete(termId);
+    visited.add(termId);
+    return false;
+  };
+  spec.domain.terms.forEach((term) => visitTerm(term.id));
+  const entityGraph = new Map(
+    spec.domain.entities.map((entity) => [entity.id, entity.extends]),
+  );
+  const entityVisiting = new Set<string>();
+  const entityVisited = new Set<string>();
+  const visitEntity = (entityId: string) => {
+    if (entityVisiting.has(entityId)) return true;
+    if (entityVisited.has(entityId)) return false;
+    entityVisiting.add(entityId);
+    for (const parent of entityGraph.get(entityId) ?? []) {
+      if (visitEntity(parent)) {
+        issues.push({
+          path: `domain.entities.${entityId}.extends`,
+          message: "エンティティの継承関係が循環しています。",
+        });
+        break;
+      }
+    }
+    entityVisiting.delete(entityId);
+    entityVisited.add(entityId);
+    return false;
+  };
   spec.domain.entities.forEach((entity, i) => {
     unique(entity.fields, `domain.entities[${i}].fields`);
-    entity.fields.forEach((field, j) =>
-      ref(field.entity, entities, `domain.entities[${i}].fields[${j}].entity`),
-    );
+    many(entity.extends, entities, `domain.entities[${i}].extends`);
+    if (new Set(entity.extends).size !== entity.extends.length)
+      issues.push({
+        path: `domain.entities[${i}].extends`,
+        message: "上位エンティティの参照が重複しています。",
+      });
+    visitEntity(entity.id);
+  });
+  spec.domain.relations.forEach((relation, i) => {
+    for (const end of ["from", "to"] as const) {
+      const endpoint = relation[end];
+      ref(
+        endpoint.entity.id,
+        entities,
+        `domain.relations[${i}].${end}.entity.id`,
+      );
+      if (endpoint.max !== null && endpoint.max < endpoint.min)
+        issues.push({
+          path: `domain.relations[${i}].${end}.max`,
+          message: "最大多重度は最小多重度以上にしてください。",
+        });
+    }
   });
   spec.domain.terms.forEach((term, i) =>
     ref(term.entity, entities, `domain.terms[${i}].entity`),
@@ -227,15 +433,22 @@ export function validateSpecRelations(spec: UiSpec): ValidationIssue[] {
     unique(flow.steps, `flows[${i}].steps`);
     flow.steps.forEach((step, j) => {
       ref(step.useCase, cases, `flows[${i}].steps[${j}].useCase`);
-      ref(
-        step.performer.id,
-        step.performer.kind === "actor" ? actors : externalSystems,
-        `flows[${i}].steps[${j}].performer.id`,
-      );
+      if (step.performer.kind === "actors")
+        actorRefs(
+          step.performer.refs,
+          `flows[${i}].steps[${j}].performer.refs`,
+        );
+      else
+        ref(
+          step.performer.id,
+          externalSystems,
+          `flows[${i}].steps[${j}].performer.id`,
+        );
     });
   });
   spec.useCases.forEach((useCase, i) => {
     const path = `useCases[${i}]`;
+    actorRefs(useCase.actors, `${path}.actors`);
     many(useCase.entities, entities, `${path}.entities`);
     many(useCase.screens, screenIds, `${path}.screens`);
     const stepIds = unique(useCase.steps, `${path}.steps`);
