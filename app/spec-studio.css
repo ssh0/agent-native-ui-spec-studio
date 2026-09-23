@@ -182,6 +182,49 @@
   flex: 1;
   min-height: 0;
 }
+.spec-domain-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.spec-domain-sections {
+  display: flex;
+  gap: 4px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--spec-border-strong);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.spec-domain-section {
+  min-width: 96px;
+  height: auto;
+  min-height: 42px;
+  flex-direction: column;
+  gap: 0;
+  padding: 5px 12px;
+}
+.spec-domain-section.is-active {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+.spec-domain-section small {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  line-height: 1.2;
+}
+.spec-domain-section.is-active small {
+  color: inherit;
+}
+.spec-participant-editor {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 28px 36px;
+}
+.spec-participant-editor .spec-section-heading h2 {
+  font-size: 15px;
+}
 .spec-item-list {
   border-right: 1px solid var(--spec-border-strong);
   display: flex;
@@ -815,6 +858,13 @@
   .spec-stage-layout {
     display: flex;
     flex-direction: column;
+  }
+  .spec-domain-sections {
+    padding: 8px 10px;
+  }
+  .spec-participant-editor {
+    overflow: visible;
+    padding: 20px 14px;
   }
   .spec-item-list {
     flex-direction: row;

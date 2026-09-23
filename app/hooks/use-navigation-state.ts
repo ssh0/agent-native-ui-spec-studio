@@ -1,5 +1,6 @@
 import { appBasePath, appPath } from "@agent-native/core/client/api-path";
 import { useAgentRouteState } from "@agent-native/core/client/navigation";
+import { domainSections, type DomainSection } from "@shared/spec-schema";
 
 import { TAB_ID } from "@/lib/tab-id";
 
@@ -8,6 +9,7 @@ export interface NavigationState {
   path?: string;
   threadId?: string;
   stage?: string;
+  section?: string;
   selectedId?: string;
   mode?: string;
 }
@@ -18,12 +20,21 @@ export function useNavigationState() {
     requestSource: TAB_ID,
     getNavigationState: ({ pathname, searchParams }) => {
       const threadId = threadIdFromPath(pathname);
+      const stage = searchParams.get("stage") ?? "domain";
+      const section = searchParams.get("section");
       return {
         view: viewForPath(pathname),
         path: appPath(pathname),
         ...(pathname === "/spec"
           ? {
-              stage: searchParams.get("stage") ?? "domain",
+              stage,
+              ...(stage === "domain"
+                ? {
+                    section: domainSections.includes(section as DomainSection)
+                      ? section!
+                      : "entities",
+                  }
+                : {}),
               selectedId: searchParams.get("selected") ?? "",
               mode: searchParams.get("mode") ?? "builder",
             }

@@ -1,6 +1,9 @@
 import { renameParticipant, renameScreen } from "@shared/spec-edit";
 import {
   componentTypes,
+  domainSectionLabels,
+  domainSections,
+  type DomainSection,
   type UiComponent,
   type UiSpec,
   type SpecStage,
@@ -80,6 +83,8 @@ export function StageContent({
   update,
   selectedId,
   select,
+  domainSection,
+  selectDomainSection,
   valid,
 }: {
   stage: SpecStage;
@@ -87,18 +92,28 @@ export function StageContent({
   update: (s: UiSpec) => void;
   selectedId: string;
   select: (id: string) => void;
+  domainSection: DomainSection;
+  selectDomainSection: (section: DomainSection) => void;
   valid: boolean;
 }) {
   if (stage === "screens" || stage === "actions")
     return (
       <ScreenBuilder {...{ stage, spec, update, selectedId, select, valid }} />
     );
-  const items =
-    stage === "domain"
-      ? (spec.domain?.entities ?? [])
-      : stage === "flows"
-        ? (spec.flows ?? [])
-        : (spec.useCases ?? []);
+  if (stage === "domain")
+    return (
+      <DomainContent
+        {...{
+          spec,
+          update,
+          selectedId,
+          select,
+          domainSection,
+          selectDomainSection,
+        }}
+      />
+    );
+  const items = stage === "flows" ? (spec.flows ?? []) : (spec.useCases ?? []);
   const selected = items.find((i) => i.id === selectedId) ?? items[0];
   return (
     <div className="spec-stage-layout">
@@ -125,44 +140,6 @@ export function StageContent({
               <h2>{selected.title}</h2>
               <code>{selected.id}</code>
             </div>
-            {stage === "domain" &&
-              (() => {
-                const entity = spec.domain!.entities.find(
-                  (e) => e.id === selected.id,
-                )!;
-                return (
-                  <>
-                    {entity.description && <p>{entity.description}</p>}
-                    <table className="spec-table">
-                      <thead>
-                        <tr>
-                          <th>項目</th>
-                          <th>型・構造</th>
-                          <th>必須</th>
-                          <th>関連データ</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {entity.fields.map((f) => (
-                          <tr key={f.id}>
-                            <td>
-                              {f.title}
-                              <code>{f.id}</code>
-                            </td>
-                            <td>{f.type}</td>
-                            <td>{f.required ? "必須" : "任意"}</td>
-                            <td>
-                              {f.entity ?? "—"}
-                              {f.notes && <p>{f.notes}</p>}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    <Note value={entity.notes} />
-                  </>
-                );
-              })()}
             {stage === "flows" &&
               (() => {
                 const flow = spec.flows!.find((f) => f.id === selected.id)!;
@@ -315,155 +292,309 @@ export function StageContent({
               })()}
           </>
         )}
-        {(stage === "domain" || stage === "flows") && (
-          <Participants spec={spec} update={update} />
-        )}
-        {stage === "domain" && (
-          <>
-            {!!spec.domain.terms.length && (
-              <>
-                <h3>用語</h3>
-                <dl className="spec-terms">
-                  {spec.domain.terms.map((term) => (
-                    <div key={term.id}>
-                      <dt>{term.title}</dt>
-                      <dd>
-                        {term.definition}
-                        {term.entity && <code>{term.entity}</code>}
-                        <Note value={term.notes} />
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </>
-            )}
-            <Note value={spec.domain.notes} />
-          </>
-        )}
       </div>
     </div>
   );
 }
 
-function Participants({
+function DomainContent({
   spec,
   update,
+  selectedId,
+  select,
+  domainSection,
+  selectDomainSection,
 }: {
   spec: UiSpec;
   update: (spec: UiSpec) => void;
+  selectedId: string;
+  select: (id: string) => void;
+  domainSection: DomainSection;
+  selectDomainSection: (section: DomainSection) => void;
+}) {
+  const sectionItems =
+    domainSection === "entities"
+      ? spec.domain.entities
+      : domainSection === "terms"
+        ? spec.domain.terms
+        : [];
+  const selected =
+    sectionItems.find((item) => item.id === selectedId) ?? sectionItems[0];
+
+  return (
+    <div className="spec-domain-content">
+      <nav
+        className="spec-domain-sections"
+        aria-label="データ・用語のセクション"
+      >
+        {domainSections.map((section) => {
+          const count = spec.domain[section].length;
+          return (
+            <Button
+              key={section}
+              variant="ghost"
+              className={`spec-domain-section ${domainSection === section ? "is-active" : ""}`}
+              aria-current={domainSection === section ? "page" : undefined}
+              onClick={() => selectDomainSection(section)}
+            >
+              <span>{domainSectionLabels[section]}</span>
+              <small>{count}</small>
+            </Button>
+          );
+        })}
+      </nav>
+      {domainSection === "actors" || domainSection === "externalSystems" ? (
+        <ParticipantEditor
+          key={domainSection}
+          spec={spec}
+          update={update}
+          section={domainSection}
+        />
+      ) : (
+        <div className="spec-stage-layout">
+          <aside
+            className="spec-item-list"
+            aria-label={`${domainSectionLabels[domainSection]}一覧`}
+          >
+            {sectionItems.map((item) => (
+              <Button
+                key={item.id}
+                variant="ghost"
+                className={`spec-item ${item.id === selected?.id ? "is-selected" : ""}`}
+                onClick={() => select(item.id)}
+              >
+                <span>{item.title}</span>
+                <code>{item.id}</code>
+              </Button>
+            ))}
+            {!sectionItems.length && <Empty>未定義</Empty>}
+          </aside>
+          <div className="spec-stage-detail">
+            {!selected ? (
+              <>
+                <Empty>「この段階を編集」から検討内容を追加できます。</Empty>
+                <Note value={spec.domain.notes} />
+              </>
+            ) : domainSection === "entities" ? (
+              <EntityDetail
+                entity={
+                  spec.domain.entities.find(
+                    (entity) => entity.id === selected.id,
+                  )!
+                }
+                domainNotes={spec.domain.notes}
+              />
+            ) : (
+              <TermDetail
+                term={
+                  spec.domain.terms.find((term) => term.id === selected.id)!
+                }
+                domainNotes={spec.domain.notes}
+              />
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EntityDetail({
+  entity,
+  domainNotes,
+}: {
+  entity: UiSpec["domain"]["entities"][number];
+  domainNotes?: string;
 }) {
   return (
-    <details className="spec-disclosure">
-      <summary>アクター・外部システムを編集</summary>
-      {(["actors", "externalSystems"] as const).map((section) => {
-        const kind = section === "actors" ? "actor" : "externalSystem";
-        const title = kind === "actor" ? "アクター" : "外部システム";
-        const patch = (
-          index: number,
-          values: Partial<UiSpec["domain"]["actors"][number]>,
-        ) =>
-          update({
-            ...spec,
-            domain: {
-              ...spec.domain,
-              [section]: spec.domain[section].map((p, i) =>
-                i === index ? { ...p, ...values } : p,
-              ),
-            },
-          });
+    <>
+      <div className="spec-detail-title">
+        <h2>{entity.title}</h2>
+        <code>{entity.id}</code>
+      </div>
+      {entity.description && <p>{entity.description}</p>}
+      <table className="spec-table">
+        <thead>
+          <tr>
+            <th>項目</th>
+            <th>型・構造</th>
+            <th>必須</th>
+            <th>関連データ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entity.fields.map((field) => (
+            <tr key={field.id}>
+              <td>
+                {field.title}
+                <code>{field.id}</code>
+              </td>
+              <td>{field.type}</td>
+              <td>{field.required ? "必須" : "任意"}</td>
+              <td>
+                {field.entity ?? "—"}
+                {field.notes && <p>{field.notes}</p>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <Note value={entity.notes} />
+      <Note value={domainNotes} />
+    </>
+  );
+}
+
+function TermDetail({
+  term,
+  domainNotes,
+}: {
+  term: UiSpec["domain"]["terms"][number];
+  domainNotes?: string;
+}) {
+  return (
+    <>
+      <div className="spec-detail-title">
+        <h2>{term.title}</h2>
+        <code>{term.id}</code>
+      </div>
+      <p>{term.definition}</p>
+      <dl className="spec-facts">
+        <div>
+          <dt>関連エンティティ</dt>
+          <dd>{term.entity ?? "—"}</dd>
+        </div>
+      </dl>
+      <Note value={term.notes} />
+      <Note value={domainNotes} />
+    </>
+  );
+}
+
+function ParticipantEditor({
+  spec,
+  update,
+  section,
+}: {
+  spec: UiSpec;
+  update: (spec: UiSpec) => void;
+  section: Extract<DomainSection, "actors" | "externalSystems">;
+}) {
+  const kind = section === "actors" ? "actor" : "externalSystem";
+  const title = domainSectionLabels[section];
+  const patch = (
+    index: number,
+    values: Partial<UiSpec["domain"]["actors"][number]>,
+  ) =>
+    update({
+      ...spec,
+      domain: {
+        ...spec.domain,
+        [section]: spec.domain[section].map((participant, i) =>
+          i === index ? { ...participant, ...values } : participant,
+        ),
+      },
+    });
+
+  return (
+    <div className="spec-participant-editor">
+      <div className="spec-section-heading">
+        <h2>{title}</h2>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            update({
+              ...spec,
+              domain: {
+                ...spec.domain,
+                [section]: [
+                  ...spec.domain[section],
+                  {
+                    id: newId(kind),
+                    title: `新しい${title}`,
+                    description: "",
+                  },
+                ],
+              },
+            })
+          }
+        >
+          {title}を追加
+        </Button>
+      </div>
+      {!spec.domain[section].length && <Empty>未定義</Empty>}
+      {spec.domain[section].map((participant, index) => {
+        const referenced = spec.flows.some((flow) =>
+          flow.steps.some(
+            (step) =>
+              step.performer.kind === kind &&
+              step.performer.id === participant.id,
+          ),
+        );
         return (
-          <section key={section}>
-            <div className="spec-section-heading">
-              <h3>{title}</h3>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  update({
-                    ...spec,
-                    domain: {
-                      ...spec.domain,
-                      [section]: [
-                        ...spec.domain[section],
-                        {
-                          id: newId(kind),
-                          title: `新しい${title}`,
-                          description: "",
-                        },
-                      ],
-                    },
-                  })
-                }
-              >
-                {title}を追加
-              </Button>
+          <div className="spec-component" key={participant.id}>
+            <div className="spec-form-grid">
+              <Field label="ID">
+                <Input
+                  value={participant.id}
+                  onChange={(event) =>
+                    update(
+                      renameParticipant(
+                        spec,
+                        kind,
+                        participant.id,
+                        event.target.value,
+                      ),
+                    )
+                  }
+                />
+              </Field>
+              <Field label="名称">
+                <Input
+                  value={participant.title}
+                  onChange={(event) =>
+                    patch(index, { title: event.target.value })
+                  }
+                />
+              </Field>
+              <Field label="役割・説明">
+                <Input
+                  value={participant.description}
+                  onChange={(event) =>
+                    patch(index, { description: event.target.value })
+                  }
+                />
+              </Field>
             </div>
-            {spec.domain[section].map((p, index) => {
-              const referenced = spec.flows.some((f) =>
-                f.steps.some(
-                  (s) => s.performer.kind === kind && s.performer.id === p.id,
-                ),
-              );
-              return (
-                <div className="spec-component" key={index}>
-                  <div className="spec-form-grid">
-                    <Field label="ID">
-                      <Input
-                        value={p.id}
-                        onChange={(e) =>
-                          update(
-                            renameParticipant(spec, kind, p.id, e.target.value),
-                          )
-                        }
-                      />
-                    </Field>
-                    <Field label="名称">
-                      <Input
-                        value={p.title}
-                        onChange={(e) =>
-                          patch(index, { title: e.target.value })
-                        }
-                      />
-                    </Field>
-                    <Field label="役割・説明">
-                      <Input
-                        value={p.description}
-                        onChange={(e) =>
-                          patch(index, { description: e.target.value })
-                        }
-                      />
-                    </Field>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={referenced}
-                    title={
-                      referenced
-                        ? "手順の実行者を変更してから削除してください"
-                        : undefined
-                    }
-                    onClick={() =>
-                      update({
-                        ...spec,
-                        domain: {
-                          ...spec.domain,
-                          [section]: spec.domain[section].filter(
-                            (_, i) => i !== index,
-                          ),
-                        },
-                      })
-                    }
-                  >
-                    {referenced ? "手順で参照中" : "削除"}
-                  </Button>
-                </div>
-              );
-            })}
-          </section>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={referenced}
+              title={
+                referenced
+                  ? "手順の実行者を変更してから削除してください"
+                  : undefined
+              }
+              onClick={() =>
+                update({
+                  ...spec,
+                  domain: {
+                    ...spec.domain,
+                    [section]: spec.domain[section].filter(
+                      (_, i) => i !== index,
+                    ),
+                  },
+                })
+              }
+            >
+              {referenced ? "手順で参照中" : "削除"}
+            </Button>
+          </div>
         );
       })}
-    </details>
+      <Note value={spec.domain.notes} />
+    </div>
   );
 }
 

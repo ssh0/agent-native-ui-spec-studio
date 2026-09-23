@@ -4,11 +4,13 @@ import {
 } from "@agent-native/core/client/hooks";
 import { useSetPageTitle } from "@agent-native/toolkit/app-shell";
 import {
+  domainSections,
   stages,
   stageLabels,
   SpecSchema,
   formatZodIssues,
   type UiSpec,
+  type DomainSection,
   type SpecStage,
 } from "@shared/spec-schema";
 import { parseSpecYaml } from "@shared/spec-utils";
@@ -51,6 +53,11 @@ export default function SpecPage() {
   const stage = stages.includes(params.get("stage") as SpecStage)
     ? (params.get("stage") as SpecStage)
     : "domain";
+  const domainSection = domainSections.includes(
+    params.get("section") as DomainSection,
+  )
+    ? (params.get("section") as DomainSection)
+    : "entities";
   const selectedId = params.get("selected") ?? "";
   const mode = params.get("mode") === "yaml" ? "yaml" : "builder";
   const [yaml, setYaml] = useState("");
@@ -100,7 +107,11 @@ export default function SpecPage() {
     if (!spec || sectionDraft !== null) return;
     const items =
       stage === "domain"
-        ? spec.domain?.entities
+        ? domainSection === "entities"
+          ? spec.domain.entities
+          : domainSection === "terms"
+            ? spec.domain.terms
+            : []
         : stage === "flows"
           ? spec.flows
           : stage === "useCases"
@@ -109,7 +120,7 @@ export default function SpecPage() {
     const id =
       items?.find((item) => item.id === selectedId)?.id ?? items?.[0]?.id ?? "";
     if (id !== selectedId) navigate({ selected: id || null });
-  }, [spec, stage, selectedId, sectionDraft]);
+  }, [spec, stage, domainSection, selectedId, sectionDraft]);
 
   const update = (next: UiSpec) => {
     const nextYaml = stringify(next);
@@ -196,7 +207,13 @@ export default function SpecPage() {
   const remoteChanged =
     (dirty || hasUnapplied) && loaded.data?.updatedAt !== base.updatedAt;
   const counts: Record<SpecStage, number> = {
-    domain: spec?.domain?.entities.length ?? 0,
+    domain:
+      spec === undefined
+        ? 0
+        : spec.domain.entities.length +
+          spec.domain.terms.length +
+          spec.domain.actors.length +
+          spec.domain.externalSystems.length,
     flows: spec?.flows?.length ?? 0,
     useCases: spec?.useCases?.length ?? 0,
     screens: spec?.screens.length ?? 0,
@@ -358,8 +375,11 @@ export default function SpecPage() {
             </div>
           ) : spec ? (
             <StageContent
-              {...{ stage, spec, update, selectedId }}
+              {...{ stage, spec, update, selectedId, domainSection }}
               select={(id) => navigate({ selected: id })}
+              selectDomainSection={(section) =>
+                navigate({ section, selected: null })
+              }
               valid={!parsed.issues.length}
             />
           ) : (

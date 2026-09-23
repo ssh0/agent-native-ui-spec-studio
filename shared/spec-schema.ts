@@ -8,6 +8,19 @@ export const stages = [
   "actions",
 ] as const;
 export type SpecStage = (typeof stages)[number];
+export const domainSections = [
+  "entities",
+  "terms",
+  "actors",
+  "externalSystems",
+] as const;
+export type DomainSection = (typeof domainSections)[number];
+export const domainSectionLabels: Record<DomainSection, string> = {
+  entities: "エンティティ",
+  terms: "用語",
+  actors: "アクター",
+  externalSystems: "外部システム",
+};
 export const stageLabels: Record<SpecStage, string> = {
   domain: "データ・用語",
   flows: "業務フロー",
