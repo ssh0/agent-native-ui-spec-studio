@@ -17,10 +17,12 @@ import {
   type SpecStage,
 } from "@shared/spec-schema";
 import {
-  actorRefTitle,
+  formatReferenceLabel,
   performerTitle,
+  resolveNamedReference,
   renderFlow,
   renderWireframe,
+  shortReferenceId,
 } from "@shared/spec-utils";
 import { useEffect, useState, type ReactNode } from "react";
 import { parse, stringify } from "yaml";
@@ -67,6 +69,66 @@ export function Note({ value }: { value?: string }) {
     </div>
   ) : null;
 }
+function ReferenceLabel({
+  items,
+  id,
+}: {
+  items: readonly { id: string; title: string }[];
+  id: string;
+}) {
+  const reference = resolveNamedReference(items, id);
+  return (
+    <span className="spec-reference-label">
+      {reference.title !== undefined ? (
+        <span>{reference.title}</span>
+      ) : (
+        <span className="spec-reference-unresolved">未解決</span>
+      )}
+      <code title={id} aria-label={`ID: ${id}`}>
+        {shortReferenceId(
+          id,
+          items.map((item) => item.id),
+        )}
+      </code>
+    </span>
+  );
+}
+function referenceText(
+  items: readonly { id: string; title: string }[],
+  id: string,
+) {
+  return formatReferenceLabel(
+    resolveNamedReference(items, id),
+    items.map((item) => item.id),
+  );
+}
+function ReferenceOptions({
+  items,
+  id,
+}: {
+  items: readonly { id: string; title: string }[];
+  id?: string;
+}) {
+  return (
+    <>
+      {id && !items.some((item) => item.id === id) && (
+        <option value={id}>{referenceText(items, id)}</option>
+      )}
+      {items.map((item) => (
+        <option key={item.id} value={item.id}>
+          {referenceText(items, item.id)}
+        </option>
+      ))}
+    </>
+  );
+}
+function ReferenceId({ id, ids }: { id: string; ids: readonly string[] }) {
+  return (
+    <code title={id} aria-label={`ID: ${id}`}>
+      {shortReferenceId(id, ids)}
+    </code>
+  );
+}
 export function Empty({ children }: { children: ReactNode }) {
   return <div className="spec-empty">{children}</div>;
 }
@@ -106,11 +168,45 @@ function ActorRefsEditor({
                 )
               }
             />{" "}
-            {actorRefTitle(spec, option)}{" "}
+            <ReferenceLabel
+              items={
+                option.kind === "actor" ? spec.domain.actors : spec.domain.terms
+              }
+              id={option.id}
+            />{" "}
             <small>({option.kind === "term" ? "用語" : "アクター"})</small>
           </label>
         );
       })}
+      {value
+        .filter(
+          (ref) =>
+            !options.some(
+              (option) => option.kind === ref.kind && option.id === ref.id,
+            ),
+        )
+        .map((ref) => (
+          <label key={`${ref.kind}:${ref.id}`}>
+            <input
+              type="checkbox"
+              checked
+              onChange={() =>
+                onChange(
+                  value.filter(
+                    (item) => item.kind !== ref.kind || item.id !== ref.id,
+                  ),
+                )
+              }
+            />{" "}
+            <ReferenceLabel
+              items={
+                ref.kind === "actor" ? spec.domain.actors : spec.domain.terms
+              }
+              id={ref.id}
+            />{" "}
+            <small>({ref.kind === "term" ? "用語" : "アクター"})</small>
+          </label>
+        ))}
     </div>
   );
 }
@@ -191,7 +287,10 @@ export function StageContent({
             onClick={() => select(item.id)}
           >
             <span>{item.title}</span>
-            <code>{item.id}</code>
+            <ReferenceId
+              id={item.id}
+              ids={items.map((candidate) => candidate.id)}
+            />
           </Button>
         ))}
         {!items.length && <Empty>未定義</Empty>}
@@ -203,7 +302,10 @@ export function StageContent({
           <>
             <div className="spec-detail-title">
               <h2>{selected.title}</h2>
-              <code>{selected.id}</code>
+              <ReferenceId
+                id={selected.id}
+                ids={items.map((item) => item.id)}
+              />
             </div>
             {stage === "flows" &&
               (() => {
@@ -325,19 +427,20 @@ export function StageContent({
                                     })
                                   }
                                 >
-                                  {spec.domain.externalSystems.map((system) => (
-                                    <option key={system.id} value={system.id}>
-                                      {system.title}
-                                    </option>
-                                  ))}
+                                  <ReferenceOptions
+                                    items={spec.domain.externalSystems}
+                                    id={s.performer.id}
+                                  />
                                 </select>
                               </Field>
                             )}
                             {s.useCase && (
                               <p>
                                 ユースケース：
-                                {spec.useCases?.find((u) => u.id === s.useCase)
-                                  ?.title ?? s.useCase}
+                                <ReferenceLabel
+                                  items={spec.useCases}
+                                  id={s.useCase}
+                                />
                               </p>
                             )}
                             <Note value={s.notes} />
@@ -367,9 +470,27 @@ export function StageContent({
                       <div>
                         <dt>利用者</dt>
                         <dd>
-                          {u.actors
-                            .map((r) => actorRefTitle(spec, r))
-                            .join("、") || "—"}
+                          {u.actors.length ? (
+                            <span className="spec-reference-list">
+                              {u.actors.map((ref) => (
+                                <span key={`${ref.kind}:${ref.id}`}>
+                                  <ReferenceLabel
+                                    items={
+                                      ref.kind === "actor"
+                                        ? spec.domain.actors
+                                        : spec.domain.terms
+                                    }
+                                    id={ref.id}
+                                  />{" "}
+                                  <small>
+                                    {ref.kind === "term" ? "用語" : "アクター"}
+                                  </small>
+                                </span>
+                              ))}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
                         </dd>
                       </div>
                       <div>
@@ -391,7 +512,39 @@ export function StageContent({
                       </div>
                       <div>
                         <dt>対象データ</dt>
-                        <dd>{u.entities?.join("、") || "—"}</dd>
+                        <dd>
+                          {u.entities.length ? (
+                            <span className="spec-reference-list">
+                              {u.entities.map((id) => (
+                                <ReferenceLabel
+                                  key={id}
+                                  items={spec.domain.entities}
+                                  id={id}
+                                />
+                              ))}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>対象画面</dt>
+                        <dd>
+                          {u.screens.length ? (
+                            <span className="spec-reference-list">
+                              {u.screens.map((id) => (
+                                <ReferenceLabel
+                                  key={id}
+                                  items={spec.screens}
+                                  id={id}
+                                />
+                              ))}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </dd>
                       </div>
                       <div>
                         <dt>事前条件</dt>
@@ -419,8 +572,56 @@ export function StageContent({
                               <code>{s.id}</code>
                               {s.notes && <p>{s.notes}</p>}
                             </td>
-                            <td>{s.screen ?? s.action?.screen ?? "—"}</td>
-                            <td>{s.action?.component ?? "—"}</td>
+                            <td>
+                              {[
+                                ...new Set(
+                                  [s.screen, s.action?.screen].filter(
+                                    (id): id is string => id !== undefined,
+                                  ),
+                                ),
+                              ].length ? (
+                                <span className="spec-reference-list">
+                                  {[
+                                    ...new Set(
+                                      [s.screen, s.action?.screen].filter(
+                                        (id): id is string => id !== undefined,
+                                      ),
+                                    ),
+                                  ].map((id) => (
+                                    <ReferenceLabel
+                                      key={id}
+                                      items={spec.screens}
+                                      id={id}
+                                    />
+                                  ))}
+                                </span>
+                              ) : (
+                                "—"
+                              )}
+                            </td>
+                            <td>
+                              {s.action ? (
+                                <ReferenceLabel
+                                  items={
+                                    spec.screens
+                                      .find(
+                                        (screen) =>
+                                          screen.id === s.action?.screen,
+                                      )
+                                      ?.components.map((component) => ({
+                                        id: component.id,
+                                        title:
+                                          component.label ??
+                                          component.content ??
+                                          typeLabels[component.type],
+                                      })) ?? []
+                                  }
+                                  id={s.action.component}
+                                />
+                              ) : (
+                                "—"
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -447,6 +648,15 @@ export function StageContent({
                               <td>{b.from}</td>
                               <td>
                                 {b.outcome}
+                                {b.screen && (
+                                  <span className="spec-reference-list">
+                                    画面：
+                                    <ReferenceLabel
+                                      items={spec.screens}
+                                      id={b.screen}
+                                    />
+                                  </span>
+                                )}
                                 <code>
                                   {b.resumeAt
                                     ? `→ ${b.resumeAt}`
@@ -609,7 +819,10 @@ function DomainContent({
                 onClick={() => select(item.id)}
               >
                 <span>{item.title}</span>
-                <code>{item.id}</code>
+                <ReferenceId
+                  id={item.id}
+                  ids={sectionItems.map((candidate) => candidate.id)}
+                />
               </Button>
             ))}
             {!sectionItems.length && <Empty>未定義</Empty>}
@@ -699,7 +912,10 @@ function EntityDetail({
     <>
       <div className="spec-detail-title">
         <h2>{entity.title}</h2>
-        <code>{entity.id}</code>
+        <ReferenceId
+          id={entity.id}
+          ids={spec.domain.entities.map((item) => item.id)}
+        />
       </div>
       {entity.description && <p>{entity.description}</p>}
       <div className="spec-form-grid">
@@ -744,7 +960,7 @@ function EntityDetail({
                   })
                 }
               />{" "}
-              {other.title}
+              <ReferenceLabel items={spec.domain.entities} id={other.id} />
             </label>
           ))}
       </div>
@@ -840,7 +1056,10 @@ function TermDetail({
     <>
       <div className="spec-detail-title">
         <h2>{term.title}</h2>
-        <code>{term.id}</code>
+        <ReferenceId
+          id={term.id}
+          ids={spec.domain.terms.map((item) => item.id)}
+        />
       </div>
       <p>{term.definition}</p>
       <div className="spec-form-grid">
@@ -947,7 +1166,13 @@ function TermDetail({
       <dl className="spec-facts">
         <div>
           <dt>関連エンティティ</dt>
-          <dd>{term.entity ?? "—"}</dd>
+          <dd>
+            {term.entity ? (
+              <ReferenceLabel items={spec.domain.entities} id={term.entity} />
+            ) : (
+              "—"
+            )}
+          </dd>
         </div>
       </dl>
       <Field label="説明対象のエンティティ">
@@ -958,11 +1183,7 @@ function TermDetail({
           }
         >
           <option value="">なし</option>
-          {spec.domain.entities.map((entity) => (
-            <option key={entity.id} value={entity.id}>
-              {entity.title}
-            </option>
-          ))}
+          <ReferenceOptions items={spec.domain.entities} id={term.entity} />
         </select>
       </Field>
       <Note value={term.notes} />
@@ -993,7 +1214,15 @@ function SetEditor({
       </p>
       <p>
         参照先:{" "}
-        {choices.map((c) => `${c.title} (${c.kind}:${c.id})`).join("、")}
+        {choices
+          .map(
+            (choice) =>
+              `${choice.kind}: ${formatReferenceLabel(
+                { id: choice.id, title: choice.title },
+                choices.map((candidate) => candidate.id),
+              )}`,
+          )
+          .join("、")}
       </p>
       <textarea
         rows={8}
@@ -1061,11 +1290,10 @@ function RelationDetail({
                 patchEnd({ entity: { kind: "entity", id: event.target.value } })
               }
             >
-              {spec.domain.entities.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.title}
-                </option>
-              ))}
+              <ReferenceOptions
+                items={spec.domain.entities}
+                id={end.entity.id}
+              />
             </select>
           </Field>
           <Field label="役割名">
@@ -1107,7 +1335,10 @@ function RelationDetail({
     <>
       <div className="spec-detail-title">
         <h2>{relation.title}</h2>
-        <code>{relation.id}</code>
+        <ReferenceId
+          id={relation.id}
+          ids={spec.domain.relations.map((item) => item.id)}
+        />
       </div>
       <div className="spec-form-grid">
         <Field label="ID">
@@ -1396,7 +1627,10 @@ function ScreenBuilder({
             onClick={() => select(s.id)}
           >
             <span>{s.title}</span>
-            <code>{s.id}</code>
+            <ReferenceId
+              id={s.id}
+              ids={spec.screens.map((screen) => screen.id)}
+            />
           </Button>
         ))}
         <Button variant="outline" size="sm" onClick={addScreen}>
@@ -1406,6 +1640,10 @@ function ScreenBuilder({
       <div className="spec-stage-detail">
         <div className="spec-detail-title">
           <h2>{selected.title}</h2>
+          <ReferenceId
+            id={selected.id}
+            ids={spec.screens.map((screen) => screen.id)}
+          />
           {stage === "screens" && (
             <Button
               variant="ghost"
@@ -1455,7 +1693,10 @@ function ScreenBuilder({
               <div
                 className="spec-wireframe-preview"
                 dangerouslySetInnerHTML={{
-                  __html: renderWireframe({ ...spec, screens: [selected] }),
+                  __html: renderWireframe(
+                    { ...spec, screens: [selected] },
+                    spec.screens.map((screen) => screen.id),
+                  ),
                 }}
               />
             ) : (
@@ -1505,10 +1746,36 @@ function ScreenBuilder({
                 </div>
                 <div className="spec-reference-line">
                   <span>
-                    対象データ：{selected.entities?.join("、") || "未設定"}
+                    対象データ：{" "}
+                    {selected.entities.length ? (
+                      <span className="spec-reference-list">
+                        {selected.entities.map((id) => (
+                          <ReferenceLabel
+                            key={id}
+                            items={spec.domain.entities}
+                            id={id}
+                          />
+                        ))}
+                      </span>
+                    ) : (
+                      "未設定"
+                    )}
                   </span>
                   <span>
-                    ユースケース：{selected.useCases?.join("、") || "未設定"}
+                    ユースケース：{" "}
+                    {selected.useCases.length ? (
+                      <span className="spec-reference-list">
+                        {selected.useCases.map((id) => (
+                          <ReferenceLabel
+                            key={id}
+                            items={spec.useCases}
+                            id={id}
+                          />
+                        ))}
+                      </span>
+                    ) : (
+                      "未設定"
+                    )}
                   </span>
                 </div>
               </>
@@ -1688,11 +1955,7 @@ function ScreenBuilder({
                           })
                         }
                       >
-                        {spec.screens.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.title}
-                          </option>
-                        ))}
+                        <ReferenceOptions items={spec.screens} id={t.to} />
                       </select>
                       <Input
                         aria-label="遷移のきっかけ"

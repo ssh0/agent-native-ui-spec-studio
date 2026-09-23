@@ -289,10 +289,20 @@ describe("canonical specification structure and relations", () => {
     const diagram = renderFlow(spec);
     expect(diagram).not.toContain("<script>");
     expect(diagram).not.toContain("malicious");
+    const encode = (s: string) =>
+      Array.from(s, (c) => `#${c.codePointAt(0)};`).join("");
+    expect(renderFlow(example())).toContain(encode("タスク一覧 (dashboar…)"));
     expect(renderFlow(example(), "useCases")).toContain("u0b1");
+    expect(renderFlow(example(), "useCases")).toContain(
+      encode("タスクを登録する (create-t…)"),
+    );
     expect(renderFlow(example(), "useCases")).toContain("u0o1 --> u0s2");
     expect(renderFlow(example(), "states", "create-task")).toContain("start");
     expect(renderWireframe(spec)).not.toContain("<script>");
+    const wireframe = renderWireframe(example());
+    expect(wireframe.indexOf("<h2>タスク一覧</h2>")).toBeLessThan(
+      wireframe.indexOf('class="wireframe-screen__id"'),
+    );
   });
   it("leaves undefined or missing flow selections empty", () => {
     const spec = example();
@@ -434,6 +444,7 @@ describe("business flow participants and lanes", () => {
       expect(diagram).toContain(`f0s${i - 1} --> f0s${i}`);
     const encode = (s: string) =>
       Array.from(s, (c) => `#${c.codePointAt(0)};`).join("");
+    expect(diagram).toContain(encode("作業の受付と登録 (task-int…)"));
     expect(diagram).toContain(encode("UC: タスクを登録する"));
     const malicious = 'end"]\nclick f0s0 "javascript:alert(1)"';
     spec.domain.actors[0].title = malicious;
@@ -694,7 +705,11 @@ describe("typed domain sets, hierarchy and associations", () => {
     const diagram = renderFlow(spec, "flows", "purchase");
     const encode = (s: string) =>
       Array.from(s, (c) => `#${c.codePointAt(0)};`).join("");
-    expect(diagram).toContain(encode("アクター: エンドユーザー、ストア利用者"));
+    expect(diagram).toContain(
+      encode(
+        "アクター: エンドユーザー (customer)、用語: ストア利用者 (storefro…)",
+      ),
+    );
     expect(diagram).toContain("f0s0 --> f0s1");
     spec.flows[0].steps[1].performer = {
       kind: "actors",

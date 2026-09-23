@@ -322,6 +322,30 @@
 .spec-facts dd {
   margin: 0;
 }
+.spec-reference-label {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+.spec-reference-label code {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.spec-reference-unresolved {
+  color: var(--destructive);
+}
+.spec-reference-list {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.spec-reference-list small {
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
 .spec-note {
   padding: 14px 16px;
   border-left: 2px solid var(--spec-border-strong);
@@ -716,6 +740,8 @@
   margin-top: 8px;
 }
 .wireframe-screen__id {
+  display: block;
+  margin-top: 4px;
   font:
     11px ui-monospace,
     monospace;

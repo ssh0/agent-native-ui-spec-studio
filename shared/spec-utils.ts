@@ -9,20 +9,67 @@ import {
   type ValidationIssue,
 } from "./spec-schema.js";
 
+export type NamedReference = {
+  id: string;
+  title?: string;
+};
+
+export function resolveNamedReference(
+  items: readonly { id: string; title: string }[],
+  id: string,
+): NamedReference {
+  const item = items.find((candidate) => candidate.id === id);
+  return { id, title: item?.title };
+}
+
+export function shortReferenceId(
+  id: string,
+  candidateIds: readonly string[] = [],
+): string {
+  const otherIds = Array.from(new Set(candidateIds)).filter(
+    (candidate) => candidate !== id,
+  );
+  let length = Math.min(id.length, 8);
+  while (
+    length < id.length &&
+    otherIds.some((candidate) => candidate.startsWith(id.slice(0, length)))
+  ) {
+    length += 1;
+  }
+  return length < id.length ? `${id.slice(0, length)}…` : id;
+}
+
+export function formatReferenceLabel(
+  reference: NamedReference,
+  candidateIds: readonly string[] = [],
+): string {
+  return `${reference.title ?? "未解決"} (${shortReferenceId(reference.id, candidateIds)})`;
+}
+
 export function actorRefTitle(spec: UiSpec, ref: ActorRef): string {
-  return (
-    (ref.kind === "actor" ? spec.domain.actors : spec.domain.terms).find(
-      (item) => item.id === ref.id,
-    )?.title ?? ref.id
+  const items = ref.kind === "actor" ? spec.domain.actors : spec.domain.terms;
+  return formatReferenceLabel(
+    resolveNamedReference(items, ref.id),
+    items.map((item) => item.id),
   );
 }
 export function performerTitle(
   spec: UiSpec,
   performer: UiSpec["flows"][number]["steps"][number]["performer"],
 ): string {
-  return performer.kind === "externalSystem"
-    ? `外部システム: ${spec.domain.externalSystems.find((item) => item.id === performer.id)?.title ?? performer.id}`
-    : `アクター: ${performer.refs.map((ref) => actorRefTitle(spec, ref)).join("、")}`;
+  if (performer.kind === "externalSystem") {
+    const systems = spec.domain.externalSystems;
+    return `外部システム: ${formatReferenceLabel(
+      resolveNamedReference(systems, performer.id),
+      systems.map((system) => system.id),
+    )}`;
+  }
+  return performer.refs
+    .map(
+      (ref) =>
+        `${ref.kind === "term" ? "用語" : "アクター"}: ${actorRefTitle(spec, ref)}`,
+    )
+    .join("、");
 }
 function performerKey(
   performer: UiSpec["flows"][number]["steps"][number]["performer"],
@@ -90,14 +137,19 @@ function componentText(
   );
 }
 
-export function renderWireframe(spec: UiSpec): string {
+export function renderWireframe(
+  spec: UiSpec,
+  candidateScreenIds: readonly string[] = spec.screens.map(
+    (screen) => screen.id,
+  ),
+): string {
   const screens = spec.screens
     .map(
       (screen) => `
 <section class="wireframe-screen" data-screen-id="${escapeHtml(screen.id)}">
   <header class="wireframe-screen__header">
-    <span class="wireframe-screen__id">${escapeHtml(screen.id)}</span>
     <h2>${escapeHtml(screen.title)}</h2>
+    <span class="wireframe-screen__id" title="ID: ${escapeHtml(screen.id)}" aria-label="ID: ${escapeHtml(screen.id)}">${escapeHtml(shortReferenceId(screen.id, candidateScreenIds))}</span>
     ${screen.description ? `<p>${escapeHtml(screen.description)}</p>` : ""}
   </header>
   <div class="wireframe-screen__body">
@@ -151,7 +203,14 @@ export function renderFlow(
       : spec.flows;
     flows.forEach((flow, i) => {
       if (!flow.steps.length) return;
-      lines.push(`  subgraph f${i}["${label(flow.title)}"]`);
+      lines.push(
+        `  subgraph f${i}["${label(
+          formatReferenceLabel(
+            resolveNamedReference(spec.flows, flow.id),
+            spec.flows.map((item) => item.id),
+          ),
+        )}"]`,
+      );
       const participants = Array.from(
         new Map(
           flow.steps.map((step) => [
@@ -171,8 +230,13 @@ export function renderFlow(
           `  subgraph f${i}lane${lane}["${label(performerTitle(spec, p))}"]`,
         );
         steps.forEach(({ step, index }) => {
-          const useCase = spec.useCases.find((u) => u.id === step.useCase);
-          const title = `${index + 1}. ${step.title}${useCase ? ` / UC: ${useCase.title}` : ""}`;
+          const useCaseLabel = step.useCase
+            ? ` / UC: ${formatReferenceLabel(
+                resolveNamedReference(spec.useCases, step.useCase),
+                spec.useCases.map((item) => item.id),
+              )}`
+            : "";
+          const title = `${index + 1}. ${step.title}${useCaseLabel}`;
           lines.push(`  f${i}s${index}["${label(title)}"]`);
         });
         lines.push("  end");
@@ -185,7 +249,14 @@ export function renderFlow(
   } else if (kind === "screens") {
     const ids = new Map(spec.screens.map((s, i) => [s.id, `s${i}`]));
     spec.screens.forEach((s) =>
-      lines.push(`  ${ids.get(s.id)}["${label(s.title)}"]`),
+      lines.push(
+        `  ${ids.get(s.id)}["${label(
+          formatReferenceLabel(
+            resolveNamedReference(spec.screens, s.id),
+            spec.screens.map((item) => item.id),
+          ),
+        )}"]`,
+      ),
     );
     spec.transitions.forEach((t) =>
       lines.push(
@@ -215,7 +286,14 @@ export function renderFlow(
       : spec.useCases;
     useCases.forEach((u, i) => {
       if (!u.steps.length) return;
-      lines.push(`  subgraph uc${i}["${label(u.title)}"]`);
+      lines.push(
+        `  subgraph uc${i}["${label(
+          formatReferenceLabel(
+            resolveNamedReference(spec.useCases, u.id),
+            spec.useCases.map((item) => item.id),
+          ),
+        )}"]`,
+      );
       const ids = new Map(u.steps.map((s, j) => [s.id, `u${i}s${j}`]));
       u.steps.forEach((s, j) => {
         lines.push(`  ${ids.get(s.id)}["${label(s.title)}"]`);
