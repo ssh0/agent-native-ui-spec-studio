@@ -2,7 +2,7 @@
   "name": "ui-spec-studio",
   "displayName": "Ui Spec Studio",
   "private": true,
-  "description": "Workspace app for Ui Spec Studio.",
+  "description": "AI-assisted workspace for structured UI specifications, prototypes, and reviews",
   "type": "module",
   "scripts": {
     "migrate:production": "tsx scripts/migrate-production.ts",

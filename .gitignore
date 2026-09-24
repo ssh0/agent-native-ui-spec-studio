@@ -47,3 +47,14 @@ learnings.md
 .vercel/
 .agent-native/
 data/*.lock
+# Local orchestration and review artifacts
+.treehouse/
+/report.md
+
+# Deployment configuration is prepared privately when production is ready.
+/netlify.toml
+
+# Keep local audit output and private reference material out of commits.
+/audit/
+/references/
+/attachments/

@@ -1,26 +1,35 @@
 # UI Spec Studio
 
-要件定義フェーズのUI仕様モデルをYAMLで管理し、画面遷移とワイヤーフレームを人間とAIエージェントが共同レビューできるAgent-Nativeアプリです。
+UI Spec Studio is an Agent-Native workspace for drafting structured UI specifications, previewing flows and wireframes, and reviewing proposed changes. The application UI is primarily in Japanese.
 
-## 開発を始める
+The public landing page is `/`. Sign in to create a project at `/projects`. A project conversation can draft a specification proposal; a person reviews and applies it at `/spec-proposals` before editing the saved specification at `/spec`. The format and review contract are in [docs/spec-format.md](docs/spec-format.md).
 
-```bash
-pnpm install
-AUTH_DISABLED=true pnpm dev
+## Local development
+
+Requirements: Node.js 22.22 or later, Corepack, and pnpm 12.6.0 (declared in `package.json`).
+
+```sh
+corepack enable
+pnpm install --frozen-lockfile
+cp .env.example .env
+# For local development only, set AUTH_DISABLED=true in .env.
+pnpm dev
 ```
 
-開発サーバーを起動したら `/spec` を開きます。`/home` の組み込みエージェントチャットからも、同じ共有アクションを呼び出せます。
+Local development uses PGlite under `data/pglite` when `DATABASE_URL` is unset. The `data/` directory and `.env` are ignored. Never put real specifications, reference attachments, conversations, or credentials in the repository, including tests and screenshots.
 
-## 共有アクション
+Run the local checks with:
 
-- `spec-load` — 共有YAMLとレビュー状態を読み込む
-- `spec-update` — YAMLを保存する
-- `spec-validate` — 必須構造、ID重複、段階間の参照を検証する
-- `spec-render-wireframe` — ワイヤーフレームHTMLを生成する
-- `spec-render-flow` — 画面遷移・ユースケースの分岐／例外・画面状態をMermaidで描画する
-- `spec-edit` — 段階・画面・部品・遷移を編集する
-- `spec-review` — 判断・コメント・対象段階と文書ハッシュを履歴に残す
+```sh
+pnpm typecheck
+pnpm exec vitest run --maxWorkers=1 --hookTimeout=30000
+pnpm agent-native:doctor
+```
 
-アクションの実装は `actions/`、YAML形式とサンプルは `docs/spec-format.md`、`specs/example.yaml` を参照してください。ローカル開発ではPGliteが `data/pglite` に共有データを保存します。
+The production build and production configuration checks are deferred until deployment settings are ready. This repository has no automatic deployment workflow. See [DEVELOPING.md](DEVELOPING.md) for the local verification policy.
 
-仕様は `version: "2.0"` の必須構造を使用します。旧形式の自動変換はありません。1920×1080での確認手順は [スタジオ実機確認](docs/studio-review.md) を参照してください。
+## Contributing and security
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before sending a change. Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+
+There is currently no project-wide license grant in this repository. Public visibility does not imply permission to reuse its code or bundled assets. Existing upstream notices and attribution must be preserved; licensing will be clarified by the maintainer before broader reuse.
