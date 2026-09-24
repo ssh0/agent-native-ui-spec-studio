@@ -9,6 +9,7 @@ import { IconMenu2 } from "@tabler/icons-react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useLocation } from "react-router";
 
+import { PersistentProjectChat } from "@/components/chat/PersistentProjectChat";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -169,23 +170,34 @@ export function Layout({ children }: LayoutProps) {
             <Sidebar collapsed={false} collapsible={false} />
           </SheetContent>
         </Sheet>
-        {isChatRoute ? (
-          <div
-            data-agent-chat-canvas="true"
-            className="agent-layout-main-surface flex min-w-0 flex-1 overflow-hidden"
-          >
-            {contentFrame}
-          </div>
-        ) : (
-          <Suspense fallback={contentFrame}>
-            <AgentInspector
-              chatHomeHandoffActive={chatHomeHandoffActive}
-              chatHomeHandoffPending={chatHomeHandoffPending}
+        <div
+          data-agent-chat-canvas={isChatRoute ? "true" : undefined}
+          className="agent-layout-main-surface flex min-w-0 flex-1 overflow-hidden"
+        >
+          {isChatRoute || isSpecRoute ? (
+            <div
+              className={
+                isChatRoute
+                  ? "hidden"
+                  : "flex min-w-0 flex-1 flex-col overflow-hidden"
+              }
             >
               {contentFrame}
-            </AgentInspector>
-          </Suspense>
-        )}
+            </div>
+          ) : (
+            <Suspense fallback={contentFrame}>
+              <AgentInspector
+                chatHomeHandoffActive={chatHomeHandoffActive}
+                chatHomeHandoffPending={chatHomeHandoffPending}
+              >
+                {contentFrame}
+              </AgentInspector>
+            </Suspense>
+          )}
+          <PersistentProjectChat
+            onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
+          />
+        </div>
       </div>
     </HeaderActionsProvider>
   );

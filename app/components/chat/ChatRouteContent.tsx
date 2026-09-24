@@ -23,7 +23,6 @@ import {
   GuidedQuestionFlow,
   useGuidedQuestionFlow,
 } from "@agent-native/core/client/agentkit-chat/questions";
-import { useChatThreads } from "@agent-native/core/client/agentkit-chat/rail";
 import {
   findMcpConnectionSuggestionIntegration,
   McpConnectionSuggestion,
@@ -40,7 +39,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -50,7 +49,7 @@ import {
 } from "@/components/ui/tooltip";
 import { APP_TITLE } from "@/lib/app-config";
 import { consumeChatHomeThreadId } from "@/lib/chat-home-thread";
-import { projectThreadExists } from "@/lib/project-chat";
+import { proposalForMessage } from "@/lib/proposal-card";
 import { TAB_ID } from "@/lib/tab-id";
 
 function chatThreadPath(threadId: string | null) {
@@ -61,126 +60,16 @@ function chatThreadPath(threadId: string | null) {
 // a new callback each render would rebuild the client and drop the stream.
 const reportStreamIntegrity = createAgentKitIntegrityReporter("chat");
 
-export default function ChatRouteContent({
-  initialThreadId,
-}: {
-  initialThreadId?: string;
-} = {}) {
-  const { threadId: routeThreadId } = useParams();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const projectId = new URLSearchParams(location.search).get("project");
-  const projects = useActionQuery("project-list", {});
-  const project = projects.data?.find((item) => item.id === projectId);
-  const threadId = routeThreadId ?? initialThreadId;
-
-  if (!threadId) return null;
-  if (projects.isLoading)
-    return (
-      <p className="p-8" lang="ja">
-        プロジェクトのチャットを読み込み中…
-      </p>
-    );
-  if (!project)
-    return (
-      <main className="p-8" lang="ja">
-        <p role="alert">プロジェクトを開けませんでした。</p>
-        <Link to="/projects">プロジェクト一覧に戻る</Link>
-      </main>
-    );
-  return (
-    <ProjectChatRouteContent
-      key={project.id}
-      project={project}
-      threadId={threadId}
-      routeThreadId={routeThreadId}
-      navigate={navigate}
-    />
-  );
-}
-
-function ProjectChatRouteContent({
-  project,
-  threadId,
-  routeThreadId,
-  navigate,
-}: {
-  project: { id: string; name: string };
-  threadId: string;
-  routeThreadId?: string;
-  navigate: ReturnType<typeof useNavigate>;
-}) {
-  const scope =
-    project.id !== "default"
-      ? { type: "ui-spec-project", id: project.id, label: project.name }
-      : null;
-  const history = useChatThreads(undefined, "chat", scope, {
-    autoCreate: false,
-    restoreActiveThread: false,
-    isolateHistoryByScope: Boolean(scope),
-  });
-  const listed = history.threads.some(
-    (thread) =>
-      thread.id === threadId &&
-      (scope
-        ? thread.scope?.type === scope.type && thread.scope.id === scope.id
-        : !thread.scope),
-  );
-  const [verification, setVerification] = useState<{
-    threadId: string;
-    status: "found" | "missing";
-  } | null>(null);
-  const verified =
-    verification?.threadId === threadId ? verification.status : "checking";
-
-  useEffect(() => {
-    if (history.isLoading || listed) return;
-    let active = true;
-    void projectThreadExists(threadId, project.id)
-      .then((exists) => {
-        if (active)
-          setVerification({ threadId, status: exists ? "found" : "missing" });
-      })
-      .catch(() => {
-        if (active) setVerification({ threadId, status: "missing" });
-      });
-    return () => {
-      active = false;
-    };
-  }, [history.isLoading, listed, project.id, threadId]);
-
-  if (history.isLoading || (!listed && verified === "checking"))
-    return (
-      <p className="p-8" lang="ja">
-        プロジェクトのチャットを読み込み中…
-      </p>
-    );
-  if (!listed && verified !== "found") {
-    return (
-      <main className="p-8" lang="ja">
-        <p role="alert">このプロジェクトの会話を開けませんでした。</p>
-        <Link to="/projects">プロジェクト一覧に戻る</Link>
-      </main>
-    );
-  }
-
-  return (
-    <ChatThreadRouteContent
-      routeThreadId={routeThreadId}
-      resolvedThreadId={threadId}
-      navigate={navigate}
-    />
-  );
-}
-
-function ChatThreadRouteContent({
-  routeThreadId,
+export function ChatThreadRouteContent({
   resolvedThreadId,
   navigate,
+  projectId,
+  compact = false,
 }: {
-  routeThreadId?: string;
   resolvedThreadId: string;
   navigate: ReturnType<typeof useNavigate>;
+  projectId: string;
+  compact?: boolean;
 }) {
   const t = useT();
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
@@ -197,6 +86,7 @@ function ChatThreadRouteContent({
     <div
       className="relative flex h-full min-h-0 overflow-hidden bg-background"
       data-agent-chat-workspace-state={workspaceOpen ? "open" : "closed"}
+      data-agent-chat-compact={compact ? "true" : "false"}
     >
       <div
         className={`agent-kit-chat-canvas-body min-w-0 flex-none ${
@@ -218,7 +108,7 @@ function ChatThreadRouteContent({
             }}
             slots={{
               emptyState: ChatEmptyState,
-              messageSupplement: ChatMcpConnectionSuggestion,
+              messageSupplement: ChatMessageSupplement,
               connectionRequest: ChatMcpConnectionRequest,
               footer: ChatAgentFooter,
             }}
@@ -231,6 +121,8 @@ function ChatThreadRouteContent({
             <ChatCanvas
               workspaceOpen={workspaceOpen}
               setWorkspaceOpen={setWorkspaceOpen}
+              projectId={projectId}
+              compact={compact}
             />
           </AgentKitRoot>
         </CoreComposerRuntimeProvider>
@@ -469,6 +361,53 @@ function ChatMcpConnectionSuggestion({
   );
 }
 
+function ChatMessageSupplement(props: AgentKitRenderProps<AgentMessage>) {
+  const location = useLocation();
+  const projectId = new URLSearchParams(location.search).get("project") ?? "";
+  const thread = useAgentThread(props.threadId);
+  const proposalId =
+    props.value.role === "assistant"
+      ? proposalForMessage(thread.events, props.value.id, projectId)
+      : null;
+  const proposal = useActionQuery(
+    "spec-proposal-load",
+    {
+      projectId,
+      proposalId: proposalId ?? "",
+    },
+    { enabled: Boolean(projectId && proposalId) },
+  );
+  return (
+    <>
+      <ChatMcpConnectionSuggestion {...props} />
+      {proposalId && proposal.data && (
+        <div
+          className="rounded-lg border border-border bg-card p-3 text-sm"
+          lang="ja"
+        >
+          <div className="font-medium">仕様案 · {proposal.data.summary}</div>
+          <div className="text-muted-foreground">
+            {proposal.data.status === "approved"
+              ? "適用済み"
+              : proposal.data.status === "rejected"
+                ? "却下"
+                : proposal.data.stale
+                  ? "基準版が更新済み · 再提案が必要"
+                  : "確認待ち"}
+          </div>
+          <Button asChild variant="outline" size="sm" className="mt-2">
+            <Link
+              to={`/spec-proposals?project=${encodeURIComponent(projectId)}&proposal=${encodeURIComponent(proposalId)}`}
+            >
+              仕様案を確認
+            </Link>
+          </Button>
+        </div>
+      )}
+    </>
+  );
+}
+
 function ChatEmptyState() {
   return (
     <div className="agentkit-chat-empty-copy">
@@ -493,13 +432,15 @@ function ChatEmptyState() {
 function ChatCanvas({
   workspaceOpen,
   setWorkspaceOpen,
+  projectId,
+  compact,
 }: {
   workspaceOpen: boolean;
   setWorkspaceOpen: (value: boolean | ((current: boolean) => boolean)) => void;
+  projectId: string;
+  compact: boolean;
 }) {
   const t = useT();
-  const location = useLocation();
-  const projectId = new URLSearchParams(location.search).get("project");
   const thread = useAgentThread();
   const hasConversation = thread.messages.length > 0;
 
@@ -529,7 +470,7 @@ function ChatCanvas({
 
   return (
     <div className="flex h-full flex-col">
-      {projectId && (
+      {projectId && !compact && (
         <div className="flex items-center justify-between border-b px-4 py-2 text-sm">
           <Link to="/projects">プロジェクト一覧</Link>
           <Link to={`/spec?project=${encodeURIComponent(projectId)}`}>
@@ -543,7 +484,7 @@ function ChatCanvas({
       <AgentKitChat
         className="min-h-0 flex-1"
         title={thread.thread?.title ?? APP_TITLE}
-        toolbar={toolbar}
+        toolbar={compact ? undefined : toolbar}
         emptyComposerPlacement="center"
         composerProps={{
           queueWhileRunning: true,

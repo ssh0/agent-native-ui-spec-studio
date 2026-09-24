@@ -263,3 +263,20 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.34);
 }
+
+.agent-kit-persistent-pane {
+  width: min(420px, 40vw);
+  flex: none;
+}
+.agent-kit-persistent-chat [data-agent-chat-compact="true"] .agent-kit-workspace-panel {
+  display: none;
+}
+@media (max-width: 900px) {
+  .agent-kit-persistent-pane {
+    position: fixed;
+    inset: 0 0 0 auto;
+    z-index: 50;
+    width: min(100vw, 440px);
+    box-shadow: -12px 0 32px hsl(var(--foreground) / 0.16);
+  }
+}

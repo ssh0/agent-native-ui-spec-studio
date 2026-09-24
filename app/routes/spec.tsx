@@ -283,9 +283,9 @@ export default function SpecPage() {
                 : "読込中"}
           </span>
           <Link to={`/spec-review?project=${encodeURIComponent(projectId)}`}>版別レビュー</Link>
-          <Link to={`/projects/${encodeURIComponent(projectId)}`}>
+          <Button type="button" variant="outline" size="sm" aria-label="エージェントチャットを開く" onClick={() => window.dispatchEvent(new Event("spec-chat:open"))}>
             エージェントチャット
-          </Link>
+          </Button>
           <Button
             size="sm"
             onClick={() => void saveSpec()}
