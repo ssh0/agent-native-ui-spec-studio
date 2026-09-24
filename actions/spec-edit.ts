@@ -13,14 +13,14 @@ import { saveSpecVersion } from "../server/lib/spec-version-store.js";
 export default defineAction({
   description:
     "Edit screens/components/transitions or replace domain/flows/useCases with set_section. Validates all references; use spec-update for full YAML drafts.",
-  mcpTool: true,
+  agentTool: false,
+  toolCallable: false,
   schema: EditOperationSchema.extend({
     projectId: z
       .string()
       .optional()
       .describe("Selected project ID; defaults to current navigation"),
   }),
-  publicAgent: { expose: true, readOnly: false, requiresAuth: true },
   run: async (input) => {
     const project = await resolveSpecProject(input.projectId);
     const db = getDb();

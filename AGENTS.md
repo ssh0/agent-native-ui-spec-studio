@@ -56,11 +56,16 @@ Core's `ui-spec-project` scope. A project's URL carries `?project=<id>` and
 to every spec action; all spec actions verify ownership. Use the chat composer
 `+` to attach reference files through Core's upload mechanism. Begin new
 projects by discussing the product in chat, then save a valid rough 2.0 YAML
-with `spec-update` before sending the user to the editor.
+with `spec-bootstrap` as an unapproved proposal, then send the user to
+`/spec-proposals` to inspect and apply it before opening the editor. For later AI-authored
+changes, use `spec-proposal-create` against the current saved version with
+traceable chat/attachment sources; the user applies or rejects proposals in
+`/spec-proposals`. Proposal decisions are separate from spec review. See
+`docs/spec-format.md` for the proposal contract.
 
 The `/spec` workspace follows data → flows → use cases (including branches and exceptions) → screens/state flows → component actions. Use the versioned 2.0/2.1 structure in `docs/spec-format.md`; empty arrays represent unfinished stages, including screens. Existing 2.0 documents remain readable and move to 2.1 only through explicit `spec-migrate`. That document owns the reference rules and review-history semantics. Keep decisions in stage `notes`.
 
-Use `spec-load`, `spec-update`, `spec-validate`, `spec-render-wireframe`, `spec-render-flow`, and `spec-review` for the shared workflow. `spec-migrate` explicitly converts saved, valid 2.0 YAML to 2.1 with stable transition IDs; use `spec-generated-lists` to read screen and item/action lists derived from saved YAML. For saved valid history, use `spec-version-list`, `spec-version-load`, and `spec-version-compare`; `spec-element-review` records feedback against an exact version and stable target without changing whole-document approval. The read-only `/spec-review` view uses those actions. `spec-edit` supports focused CRUD and `set_section` for domain/flows/useCases; 2.1 transition edits use `transitionId`. `spec-render-flow` accepts flows/screens/useCases/states. Business steps use typed participant references from `domain.actors` / `domain.externalSystems`; see `docs/spec-format.md` for lane semantics. Navigation exposes stage, selected ID and editing mode. Preserve notes and existing stages during edits; review only saved, valid content.
+Use `spec-load`, `spec-validate`, `spec-render-wireframe`, `spec-render-flow`, and `spec-review` for the shared workflow. Direct `spec-update`, `spec-edit`, and `spec-migrate` writes are reserved for the human editor; AI changes use proposals. `spec-migrate` explicitly converts saved, valid 2.0 YAML to 2.1 with stable transition IDs; use `spec-generated-lists` to read screen and item/action lists derived from saved YAML. For saved valid history, use `spec-version-list`, `spec-version-load`, and `spec-version-compare`; `spec-element-review` records feedback against an exact version and stable target without changing whole-document approval. The read-only `/spec-review` view uses those actions. `spec-edit` supports focused CRUD and `set_section` for domain/flows/useCases; 2.1 transition edits use `transitionId`. `spec-render-flow` accepts flows/screens/useCases/states. Business steps use typed participant references from `domain.actors` / `domain.externalSystems`; see `docs/spec-format.md` for lane semantics. Navigation exposes stage, selected ID and editing mode. Preserve notes and existing stages during edits; review only saved, valid content.
 
 ## Application State
 

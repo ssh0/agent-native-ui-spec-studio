@@ -957,3 +957,14 @@
 .spec-version-feedback li { border-top: 1px solid #e1e7e2; padding-top: .75rem; font-size: .85rem; }
 .spec-version-feedback em { display: block; color: #925b32; }
 @media (max-width: 900px) { .spec-version-grid { grid-template-columns: 1fr; } .spec-version-nav { max-height: 18rem; } }
+.spec-proposal-page > p { margin: 1rem 0; }
+.spec-proposal-select { display: grid; gap: .4rem; max-width: 48rem; margin: 1rem 0; }
+.spec-proposal-select select { padding: .55rem; border: 1px solid #bac8bf; border-radius: .35rem; background: white; }
+.spec-proposal-body { display: grid; grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr); gap: 1rem; align-items: start; }
+.spec-proposal-body h3 { font-weight: 650; margin-top: 1.25rem; }
+.spec-proposal-change { border-top: 1px solid #e1e7e2; padding: .7rem 0; }
+.spec-proposal-change summary { cursor: pointer; }
+.spec-proposal-change small { color: #64756b; margin-left: .5rem; }
+.spec-proposal-body blockquote { border-left: 3px solid #bac8bf; padding-left: .7rem; white-space: pre-wrap; }
+.spec-proposal-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+@media (max-width: 900px) { .spec-proposal-body { grid-template-columns: 1fr; } }

@@ -12,12 +12,12 @@ import { saveSpecVersion } from "../server/lib/spec-version-store.js";
 
 export default defineAction({
   description: "Explicitly migrate a saved, valid UI specification from 2.0 to 2.1. Assign stable IDs to screen and state transitions. Existing review entries and hashes are preserved.",
-  mcpTool: true,
+  agentTool: false,
+  toolCallable: false,
   schema: z.object({
     projectId: z.string().optional().describe("Selected project ID; defaults to current navigation"),
     expectedUpdatedAt: z.string().describe("Timestamp from spec-load; rejects concurrent edits"),
   }),
-  publicAgent: { expose: true, readOnly: false, requiresAuth: true },
   run: async ({ projectId, expectedUpdatedAt }) => {
     const project = await resolveSpecProject(projectId);
     const db = getDb();

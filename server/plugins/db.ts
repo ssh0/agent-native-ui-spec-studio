@@ -51,6 +51,18 @@ export default runMigrations(
         );
         CREATE INDEX IF NOT EXISTS spec_element_reviews_version_idx ON spec_element_reviews (project_id, version_id)`,
     },
+    {
+      version: 6,
+      name: "spec-proposals",
+      sql: `CREATE TABLE IF NOT EXISTS spec_proposals (
+        id TEXT PRIMARY KEY, project_id TEXT NOT NULL, owner_email TEXT NOT NULL,
+        base_version_id TEXT, yaml TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'proposed',
+        summary TEXT NOT NULL, impact_summary TEXT NOT NULL,
+        sources JSONB NOT NULL, assumptions JSONB NOT NULL, questions JSONB NOT NULL,
+        created_at TEXT NOT NULL, decided_at TEXT, decided_by TEXT, applied_version_id TEXT
+      );
+      CREATE INDEX IF NOT EXISTS spec_proposals_project_idx ON spec_proposals (project_id, created_at)`,
+    },
   ],
   { table: "ui_spec_studio_migrations" },
 );

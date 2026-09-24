@@ -8,7 +8,8 @@ import { resolveSpecProject } from "../server/lib/spec-project.js";
 export default defineAction({
   description:
     "Save the selected project's UI specification YAML. Saving resets the review status to draft.",
-  mcpTool: true,
+  agentTool: false,
+  toolCallable: false,
   schema: z.object({
     projectId: z
       .string()
@@ -20,7 +21,6 @@ export default defineAction({
       .describe("Last loaded timestamp; reject concurrent edits when provided"),
     yaml: z.string().min(1).describe("Complete UI specification YAML document"),
   }),
-  publicAgent: { expose: true, readOnly: false, requiresAuth: true },
   run: async ({ yaml, expectedUpdatedAt, projectId }) => {
     const project = await resolveSpecProject(projectId);
     const parsed = parseSpecYaml(yaml);

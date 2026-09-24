@@ -53,3 +53,34 @@ export const specElementReviews = pgTable("spec_element_reviews", {
   comment: text("comment").notNull(),
   createdAt: text("created_at").notNull(),
 });
+
+export type ProposalSource = {
+  kind: "chat" | "attachment";
+  threadId: string;
+  messageId: string;
+  attachmentId?: string;
+  attachmentName?: string;
+  attachmentUrl?: string;
+  locator: string;
+  evidence: string;
+  evidenceVerified: boolean;
+  targetKeys: string[];
+};
+
+export const specProposals = pgTable("spec_proposals", {
+  id: text("id").primaryKey(),
+  ownerEmail: text("owner_email").notNull(),
+  projectId: text("project_id").notNull(),
+  baseVersionId: text("base_version_id"),
+  yaml: text("yaml").notNull(),
+  status: text("status").notNull().default("proposed"),
+  summary: text("summary").notNull(),
+  impactSummary: text("impact_summary").notNull(),
+  sources: jsonb("sources").$type<ProposalSource[]>().notNull(),
+  assumptions: jsonb("assumptions").$type<string[]>().notNull(),
+  questions: jsonb("questions").$type<string[]>().notNull(),
+  createdAt: text("created_at").notNull(),
+  decidedAt: text("decided_at"),
+  decidedBy: text("decided_by"),
+  appliedVersionId: text("applied_version_id"),
+});

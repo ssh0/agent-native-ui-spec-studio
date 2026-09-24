@@ -452,7 +452,7 @@ function ChatEmptyState() {
       <h1>作りたいプロダクトから始めましょう</h1>
       <p>
         目的、利用者、主な操作を話してください。会話をもとに UI
-        仕様の骨格を保存します。
+        仕様の骨格を提案します。確認して適用できます。
       </p>
       <p>
         参考資料は入力欄の ＋ から添付します。画像、PDF、テキスト、Office
@@ -511,6 +511,9 @@ function ChatCanvas({
           <Link to="/projects">プロジェクト一覧</Link>
           <Link to={`/spec?project=${encodeURIComponent(projectId)}`}>
             仕様を開く
+          </Link>
+          <Link to={`/spec-proposals?project=${encodeURIComponent(projectId)}`}>
+            AI 仕様案
           </Link>
         </div>
       )}
