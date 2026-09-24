@@ -13,8 +13,23 @@ This guide is for development-mode agents editing this app's source code. For ap
 ## Commands
 
 - **Dev:** `pnpm dev` (Vite dev server with both React Router + Nitro plugins)
+- **Typecheck:** `pnpm typecheck` (React Router route type generation in development mode, then `tsc --noEmit`)
 - **Build:** `pnpm build` (React Router build — client + SSR + Nitro server)
 - **Start:** `node .output/server/index.mjs` (production)
+
+## Verification Policy
+
+Run `pnpm typecheck` for every implementation task. Its package script runs
+`NODE_ENV=development react-router typegen --mode development && tsc --noEmit`,
+so local type checking does not run production runtime-config diagnostics and
+does not require production authentication secrets or a persistent database URL.
+
+Keep fixing type errors, test failures, and other issues that local development
+checks can detect. Run the relevant tests and guarded checks for the change.
+Until the production environment is ready, production runtime-config validation
+and `pnpm build` are not implementation completion requirements. If deploy
+configuration is not ready, report those deployment checks as deferred. The
+existing `pnpm build` remains the production build command used by deployment.
 
 ## Directory Structure
 

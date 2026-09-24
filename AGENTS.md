@@ -79,6 +79,9 @@ Use `spec-load`, `spec-update`, `spec-validate`, `spec-render-wireframe`, `spec-
 Before building common workspace or agent UI, read `agent-native-toolkit`; read
 `customizing-agent-native` before adapting shared UI.
 
+- For implementation tasks, `pnpm typecheck` is required. The exact local-only
+  verification policy and the production-check boundary are in
+  `DEVELOPING.md`.
 - Guarded verification: run `pnpm agent-native:doctor`; fix findings before done.
 - `server/agent/provider-safe-engine.ts` keeps OpenAI-compatible tool names valid
   when replaying older thread history; retain it when action names change.

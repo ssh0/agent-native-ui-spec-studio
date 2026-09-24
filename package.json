@@ -9,7 +9,7 @@
     "dev": "agent-native dev --open",
     "build": "agent-native build",
     "start": "agent-native start",
-    "typecheck": "agent-native typecheck",
+    "typecheck": "NODE_ENV=development react-router typegen --mode development && tsc --noEmit",
     "action": "agent-native action",
     "script": "agent-native script",
     "test": "vitest --run --passWithNoTests",
