@@ -50,6 +50,7 @@ import {
 } from "@/components/ui/tooltip";
 import { APP_TITLE } from "@/lib/app-config";
 import { consumeChatHomeThreadId } from "@/lib/chat-home-thread";
+import { projectThreadExists } from "@/lib/project-chat";
 import { TAB_ID } from "@/lib/tab-id";
 
 function chatThreadPath(threadId: string | null) {
@@ -118,21 +119,43 @@ function ProjectChatRouteContent({
     restoreActiveThread: false,
     isolateHistoryByScope: Boolean(scope),
   });
-  if (history.isLoading)
+  const listed = history.threads.some(
+    (thread) =>
+      thread.id === threadId &&
+      (scope
+        ? thread.scope?.type === scope.type && thread.scope.id === scope.id
+        : !thread.scope),
+  );
+  const [verification, setVerification] = useState<{
+    threadId: string;
+    status: "found" | "missing";
+  } | null>(null);
+  const verified =
+    verification?.threadId === threadId ? verification.status : "checking";
+
+  useEffect(() => {
+    if (history.isLoading || listed) return;
+    let active = true;
+    void projectThreadExists(threadId, project.id)
+      .then((exists) => {
+        if (active)
+          setVerification({ threadId, status: exists ? "found" : "missing" });
+      })
+      .catch(() => {
+        if (active) setVerification({ threadId, status: "missing" });
+      });
+    return () => {
+      active = false;
+    };
+  }, [history.isLoading, listed, project.id, threadId]);
+
+  if (history.isLoading || (!listed && verified === "checking"))
     return (
       <p className="p-8" lang="ja">
         プロジェクトのチャットを読み込み中…
       </p>
     );
-  if (
-    !history.threads.some(
-      (thread) =>
-        thread.id === threadId &&
-        (scope
-          ? thread.scope?.type === scope.type && thread.scope.id === scope.id
-          : !thread.scope),
-    )
-  ) {
+  if (!listed && verified !== "found") {
     return (
       <main className="p-8" lang="ja">
         <p role="alert">このプロジェクトの会話を開けませんでした。</p>

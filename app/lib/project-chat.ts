@@ -26,3 +26,29 @@ export async function createProjectThread(
       "会話を作成できませんでした。接続を確認して再試行してください。",
     );
 }
+
+/** Empty chats are omitted from the thread list, so verify an explicit route by id. */
+export async function projectThreadExists(
+  threadId: string,
+  projectId: string,
+): Promise<boolean> {
+  const params = new URLSearchParams();
+  if (projectId !== "default") {
+    params.set("scopeType", "ui-spec-project");
+    params.set("scopeId", projectId);
+  }
+  const response = await fetch(
+    agentNativePath(
+      `/_agent-native/agent-chat/threads/${encodeURIComponent(threadId)}${params.size ? `?${params}` : ""}`,
+    ),
+  );
+  if (!response.ok) return false;
+  const thread = await response.json();
+  return (
+    thread?.id === threadId &&
+    (projectId === "default"
+      ? !thread.scope
+      : thread.scope?.type === "ui-spec-project" &&
+        thread.scope.id === projectId)
+  );
+}
