@@ -19,6 +19,7 @@ import { Link, useSearchParams } from "react-router";
 import { parse, stringify } from "yaml";
 
 import { Field, SourceEditor } from "@/components/spec-studio/spec-editor-ui";
+import { GeneratedLists } from "@/components/spec-studio/generated-lists";
 import {
   StageContent,
   sectionValue,
@@ -52,6 +53,8 @@ export default function SpecPage() {
   const save = useActionMutation("spec-update");
   const review = useActionMutation("spec-review");
   const validate = useActionMutation("spec-validate");
+  const migrate = useActionMutation("spec-migrate");
+  const generated = useActionQuery("spec-generated-lists", { projectId });
   const stage = stages.includes(params.get("stage") as SpecStage)
     ? (params.get("stage") as SpecStage)
     : "domain";
@@ -61,7 +64,7 @@ export default function SpecPage() {
     ? (params.get("section") as DomainSection)
     : "entities";
   const selectedId = params.get("selected") ?? "";
-  const mode = params.get("mode") === "yaml" ? "yaml" : "builder";
+  const mode = params.get("mode") === "yaml" ? "yaml" : params.get("mode") === "lists" ? "lists" : "builder";
   const [yaml, setYaml] = useState("");
   // Retain the structured draft while a required field is temporarily empty.
   // The YAML still owns validation, saving and the review gate.
@@ -162,10 +165,25 @@ export default function SpecPage() {
           ? "下書きを保存しました。検証エラーがあります。"
           : "保存しました。",
       );
+      await generated.refetch();
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "保存できませんでした。",
       );
+    }
+  }
+  async function migrateSpec() {
+    setMessage("2.1 に移行中…");
+    try {
+      const result = await migrate.mutateAsync({ projectId, expectedUpdatedAt: base.updatedAt });
+      setYaml(result.yaml);
+      setBase({ yaml: result.yaml, updatedAt: result.updatedAt });
+      setBuilderDraft(null);
+      setMessage("2.1 に移行しました。旧版のレビュー履歴とハッシュは保持されています。");
+      await loaded.refetch();
+      await generated.refetch();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "移行できませんでした。");
     }
   }
   async function decide(status: "approved" | "changes_requested") {
@@ -274,6 +292,7 @@ export default function SpecPage() {
           >
             {save.isPending ? "保存中…" : "仕様を保存"}
           </Button>
+          {spec?.version === "2.0" && <Button variant="outline" size="sm" disabled={dirty || hasUnapplied || pending || migrate.isPending || !!parsed.issues.length} onClick={() => void migrateSpec()}>{migrate.isPending ? "移行中…" : "2.1 に移行"}</Button>}
         </div>
       </header>
       <div className="spec-workspace">
@@ -299,13 +318,12 @@ export default function SpecPage() {
           ))}
           <div className="spec-nav-footer">
             <span>仕様形式 {spec?.version ?? "—"}</span>
+            <Button variant="outline" size="sm" disabled={hasUnapplied} onClick={() => navigate({ mode: mode === "lists" ? "builder" : "lists" })}>{mode === "lists" ? "編集に戻る" : "画面・項目一覧"}</Button>
             <Button
               variant="outline"
               size="sm"
               disabled={hasUnapplied}
-              onClick={() =>
-                navigate({ mode: mode === "yaml" ? "builder" : "yaml" })
-              }
+              onClick={() => navigate({ mode: mode === "yaml" ? "builder" : "yaml" })}
             >
               {mode === "yaml" ? "構造ビューに戻る" : "YAMLを直接編集"}
             </Button>
@@ -313,7 +331,7 @@ export default function SpecPage() {
         </nav>
         <section className="spec-center" aria-label="仕様の編集領域">
           <div className="spec-stage-toolbar">
-            <h1>{mode === "yaml" ? "仕様YAML" : stageLabels[stage]}</h1>
+            <h1>{mode === "yaml" ? "仕様YAML" : mode === "lists" ? "保存済み仕様の一覧" : stageLabels[stage]}</h1>
             <div>
               {mode === "builder" && spec && !hasUnapplied && (
                 <Button
@@ -370,6 +388,8 @@ export default function SpecPage() {
               <div />
               <div />
             </div>
+          ) : mode === "lists" ? (
+            generated.isError ? <div className="spec-errors" role="alert">保存済みの仕様を検証できません。仕様を確認して保存してください。</div> : generated.data ? <><GeneratedLists lists={generated.data} />{dirty && <p className="spec-muted">未保存の変更は一覧に反映されません。</p>}</> : <div className="spec-skeleton" aria-busy="true"><div /><div /></div>
           ) : mode === "yaml" ? (
             <SourceEditor
               value={yaml}

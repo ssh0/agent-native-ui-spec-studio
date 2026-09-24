@@ -21,7 +21,7 @@ UIとエージェントは同じSQL上のYAMLを共有アクションで読み�
 
 画面では参照先の名称を主に表示し、短いIDを補助に添える。同名の参照先がある場合は、候補を区別できる長さまでIDを表示する。参照先を解決できない場合は「未解決」とIDを表示する。YAMLと保存データの参照値はIDのまま保持し、ID入力欄やエラー診断ではIDを直接表示する。
 
-## 必須構造（version 2.0）
+## 必須構造（version 2.0 / 2.1）
 
 ```yaml
 version: "2.0"
@@ -39,7 +39,8 @@ screens: []
 transitions: []
 ```
 
-- `version: "2.0"`, `title`, `domain`, `flows`, `useCases`, `screens`, `transitions` はすべて必須。
+- `version: "2.0"` または `"2.1"`、`title`, `domain`, `flows`, `useCases`, `screens`, `transitions` はすべて必須。
+- 既存の 2.0 はそのまま読める。2.1 では画面間・画面内のすべての遷移に `id` が必須。2.0 の遷移には `id` を指定しない。
 - 文書構造はこの1形式に固定し、省略時の旧version補完や旧形式の自動変換は行わない。
 - 各段階の未検討内容は空配列で明示する。画面を1件も作らずデータやユースケースの検討を開始できる。
 - 以下で配列として定義する構造（エンティティの `fields`、フローの `steps`、ユースケースの条件・系列・分岐、画面の参照・部品・状態遷移）は省略せず、未定義なら `[]` を書く。
@@ -144,7 +145,7 @@ stateFlow:
 
 `stateFlow` は `initial`, `states`, `transitions` を必ず持つ。未検討時は `{ initial: null, states: [], transitions: [] }`。
 状態を1件以上定義した場合、`initial` にはその中の状態IDを指定する。
-状態は `id`, `title`, 任意 `notes`。遷移は `from`, `to`, `trigger`, 任意 `component`, `notes`。
+状態は `id`, `title`, 任意 `notes`。遷移は 2.1 では `id`, `from`, `to`, `trigger`、任意 `component`, `notes`。2.0 では遷移の `id` はない。
 状態IDは画面内スコープ、`component` はその画面内の部品ID。状態・遷移配列の省略は不可。
 
 ## 部品・アクション `screens[].components[]`
@@ -164,7 +165,7 @@ stateFlow:
 
 ## 画面間遷移 `transitions[]`
 
-`from`, `to` は画面ID、`trigger` は空でないイベント名、`notes` は任意。
+`from`, `to` は画面ID、`trigger` は空でないイベント名、`notes` は任意。2.1 では各遷移の `id` も必須。
 `trigger` はユーザー操作・外部イベントを表す自由記述。部品との対応はユースケースの `action` や画面内状態遷移の `component` で結び付ける。
 
 ## 検証・共有アクション
@@ -174,6 +175,7 @@ stateFlow:
   任意 `expectedUpdatedAt` を指定すると別編集の上書きを拒否。
 - `spec-validate`: YAML構文・型、各スコープのID重複、全明示参照の整合を検査。
 - `spec-edit`: 画面／部品／遷移のCRUD。`set_section` + `section: domain | flows | useCases` + `value` で段階を置換し、集合式・階層・関連・アクター参照を編集できる。
+  画面間遷移の更新・削除は 2.1 の `transitionId` で指定し、追加する遷移にも `id` が必要。2.0 の遷移編集は移行後に行う。
   `update_screen` の `screen` パッチで `stateFlow` などを変更可能。保存前に全参照検証。
   画面の改名は参照を追従。参照を壊す削除は拒否（画面間遷移は画面削除時に除去）。複数段階同時編集には `spec-update`。
 - `spec-render-wireframe`: 文字をエスケープしたHTMLフラグメント。
@@ -181,8 +183,10 @@ stateFlow:
   Mermaid文字列の `format` / `mermaid` 戻り値は維持。対象が空なら空文字。
 - `spec-review`: `approved` / `changes_requested` と任意コメント、`stage`（既定 `screens`）、任意 `expectedUpdatedAt`。
   承認は保存済み文書全体に対する決定。`stage` は検討の焦点。形式・参照が無効な仕様はレビュー不可。
+- `spec-migrate`: 保存済みで検証済みの 2.0 を明示的に 2.1 へ移行。`expectedUpdatedAt` が必要。同じ遷移内容から決定的な ID を作る。完全に同じ遷移や生成 ID の衝突は位置付きエラーとして報告し、内容の明確化を求める。通常の読込では移行しない。
+- `spec-generated-lists`: 保存済み YAML から画面一覧と項目・操作一覧を読み取り専用で生成する。未定義の値は補完せず、別データとして保存しない。
 
-ID重複はアクター・外部システム・エンティティ・関連・用語・フロー・ユースケース・画面、およびそれぞれのフィールド／手順／分岐／部品／状態スコープで検出する。
+ID重複はアクター・外部システム・エンティティ・関連・用語・フロー・ユースケース・画面、およびそれぞれのフィールド／手順／分岐／部品／状態スコープで検出する。2.1 では画面間遷移と各画面の状態遷移スコープも検出する。
 参照の存在を検証し、網羅性（例: 全例外の検討済み）を推定したり承認したりはしない。
 
 ## 検討過程・レビュー履歴
@@ -190,6 +194,7 @@ ID重複はアクター・外部システム・エンティティ・関連・用
 `notes` はYAMLとともに編集・保持する。レビュー履歴は同じSQLレコードの `review_history` に追記し、
 `id`, `stage`, `status`, `comment`, `createdAt`, `documentHash`（保存YAMLのSHA-256）を保持する。
 保存し直しても履歴は消さない。`reviewStatus` / `reviewComment` は最新の判断を表す。
+2.1 への移行は新しい保存スナップショットとして現在の判断を下書きに戻す。過去のレビュー履歴と `documentHash` は変更せず、その時点の旧 YAML に対する判断として残す。
 レビューは追記専用だが、仕様の全版復元・差分監査・レビュー者の証明までは提供しない。
 
 スタジオのMermaidソース編集は一時的な描画確認。YAMLへの逆変換・保存は行わない。

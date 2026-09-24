@@ -162,6 +162,18 @@
   flex-direction: column;
   overflow: hidden;
 }
+.spec-generated-lists {
+  overflow: auto;
+  padding: 20px 24px 40px;
+}
+.spec-generated-lists h2 {
+  margin: 22px 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.spec-generated-lists .spec-table {
+  min-width: 760px;
+}
 .spec-stage-toolbar {
   display: flex;
   min-height: 68px;

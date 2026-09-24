@@ -190,6 +190,7 @@ export const ScreenSchema = Named.extend({
     states: z.array(Named),
     transitions: z.array(
       z.strictObject({
+        id: id.optional(),
         from: id,
         to: id,
         trigger: id,
@@ -200,13 +201,14 @@ export const ScreenSchema = Named.extend({
   }),
 });
 export const TransitionSchema = z.strictObject({
+  id: id.optional(),
   from: id,
   to: id,
   trigger: id,
   notes,
 });
 export const SpecSchema = z.strictObject({
-  version: z.literal("2.0"),
+  version: z.enum(["2.0", "2.1"]),
   title: id,
   notes,
   domain: DomainSchema,
@@ -214,6 +216,16 @@ export const SpecSchema = z.strictObject({
   useCases: z.array(UseCaseSchema),
   screens: z.array(ScreenSchema),
   transitions: z.array(TransitionSchema),
+}).superRefine((spec, context) => {
+  const check = (items: { id?: string }[], path: (string | number)[]) =>
+    items.forEach((item, index) => {
+      if (spec.version === "2.1" && !item.id)
+        context.addIssue({ code: "custom", path: [...path, index, "id"], message: "2.1 の遷移には ID が必要です。" });
+      if (spec.version === "2.0" && item.id !== undefined)
+        context.addIssue({ code: "custom", path: [...path, index, "id"], message: "2.0 の遷移に ID は指定できません。明示的に移行してください。" });
+    });
+  check(spec.transitions, ["transitions"]);
+  spec.screens.forEach((screen, index) => check(screen.stateFlow.transitions, ["screens", index, "stateFlow", "transitions"]));
 });
 export type UiSpec = z.infer<typeof SpecSchema>;
 export type UiComponent = z.infer<typeof ComponentSchema>;
@@ -482,6 +494,7 @@ export function validateSpecRelations(spec: UiSpec): ValidationIssue[] {
       many(c.useCases, cases, `${path}.components[${j}].useCases`),
     );
     if (screen.stateFlow) {
+      if (spec.version === "2.1") unique(screen.stateFlow.transitions as { id: string }[], `${path}.stateFlow.transitions`);
       const states = unique(
         screen.stateFlow.states,
         `${path}.stateFlow.states`,
@@ -513,6 +526,7 @@ export function validateSpecRelations(spec: UiSpec): ValidationIssue[] {
     ref(t.from, screenIds, `transitions[${i}].from`);
     ref(t.to, screenIds, `transitions[${i}].to`);
   });
+  if (spec.version === "2.1") unique(spec.transitions as { id: string }[], "transitions");
   return issues;
 }
 export function formatZodIssues(error: z.ZodError): ValidationIssue[] {
@@ -533,6 +547,8 @@ export function formatZodIssues(error: z.ZodError): ValidationIssue[] {
       message = `未定義の項目です: ${issue.keys.join("、")}`;
     } else if (issue.code === "too_small") {
       message = `${issue.minimum}${issue.origin === "array" ? "件" : "文字"}以上を指定してください。`;
+    } else if (issue.code === "custom") {
+      message = issue.message;
     }
     return { path: issue.path.length ? issue.path.join(".") : "spec", message };
   });

@@ -386,12 +386,14 @@ export function ScreenBuilder({
                   <Button
                     variant="outline"
                     size="sm"
+                    disabled={spec.version === "2.0"}
                     onClick={() =>
                       update({
                         ...spec,
                         transitions: [
                           ...spec.transitions,
                           {
+                            id: newId("transition"),
                             from: selected.id,
                             to:
                               spec.screens.find((s) => s.id !== selected.id)
@@ -405,18 +407,20 @@ export function ScreenBuilder({
                     遷移を追加
                   </Button>
                 </div>
-                {spec.transitions.map((t, index) =>
+                {spec.version === "2.0" && <p className="spec-muted">遷移の編集には 2.1 への移行が必要です。</p>}
+                {spec.transitions.map((t) =>
                   t.from !== selected.id ? null : (
-                    <div className="spec-transition" key={index}>
+                    <div className="spec-transition" key={t.id ?? `${t.from}:${t.to}:${t.trigger}`}>
                       <span>→</span>
                       <select
                         aria-label="遷移先"
+                        disabled={spec.version === "2.0"}
                         value={t.to}
                         onChange={(e) =>
                           update({
                             ...spec,
-                            transitions: spec.transitions.map((v, i) =>
-                              i === index ? { ...v, to: e.target.value } : v,
+                            transitions: spec.transitions.map((v) =>
+                              v.id === t.id ? { ...v, to: e.target.value } : v,
                             ),
                           })
                         }
@@ -425,12 +429,13 @@ export function ScreenBuilder({
                       </select>
                       <Input
                         aria-label="遷移のきっかけ"
+                        disabled={spec.version === "2.0"}
                         value={t.trigger}
                         onChange={(e) =>
                           update({
                             ...spec,
-                            transitions: spec.transitions.map((v, i) =>
-                              i === index
+                            transitions: spec.transitions.map((v) =>
+                              v.id === t.id
                                 ? { ...v, trigger: e.target.value }
                                 : v,
                             ),
@@ -440,12 +445,11 @@ export function ScreenBuilder({
                       <Button
                         variant="ghost"
                         size="sm"
+                        disabled={spec.version === "2.0"}
                         onClick={() =>
                           update({
                             ...spec,
-                            transitions: spec.transitions.filter(
-                              (_, i) => i !== index,
-                            ),
+                            transitions: spec.transitions.filter((v) => v.id !== t.id),
                           })
                         }
                       >

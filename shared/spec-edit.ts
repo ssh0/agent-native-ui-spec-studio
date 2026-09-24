@@ -40,7 +40,7 @@ export const EditOperationSchema = z.object({
     .describe("Screen patch including entities, useCases, stateFlow or notes"),
   componentId: z.string().optional(),
   component: z.record(z.string(), z.unknown()).optional(),
-  transitionIndex: z.number().int().nonnegative().optional(),
+  transitionId: z.string().optional().describe("Stable transition ID in specification 2.1"),
   transition: z.record(z.string(), z.unknown()).optional(),
 });
 export function renameScreen(spec: UiSpec, from: string, to: string): UiSpec {
@@ -95,9 +95,12 @@ export function editSpec(
       components: [],
     });
   } else if (input.kind.includes("transition")) {
-    const i = input.transitionIndex ?? -1;
+    if (spec.version !== "2.1") throw new Error("遷移を編集する前に仕様を 2.1 に移行してください。");
+    const i = spec.transitions.findIndex((transition) => transition.id === input.transitionId);
     if (input.kind === "add_transition") {
       if (!input.transition) throw new Error("transition が必要です。");
+      if (typeof input.transition.id !== "string" || !input.transition.id)
+        throw new Error("遷移の id が必要です。");
       spec.transitions.push(input.transition as UiSpec["transitions"][number]);
     } else {
       if (!spec.transitions[i]) throw new Error("遷移が見つかりません。");
