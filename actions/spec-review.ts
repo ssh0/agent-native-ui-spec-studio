@@ -9,6 +9,7 @@ import { z } from "zod";
 import { getDb } from "../server/db/index.js";
 import { uiSpecs } from "../server/db/schema.js";
 import { resolveSpecProject } from "../server/lib/spec-project.js";
+import { ensureCurrentVersion } from "../server/lib/spec-version-store.js";
 
 export default defineAction({
   description:
@@ -36,10 +37,7 @@ export default defineAction({
   run: async ({ status, comment, stage, expectedUpdatedAt, projectId }) => {
     const project = await resolveSpecProject(projectId);
     const db = getDb();
-    const [row] = await db
-      .select()
-      .from(uiSpecs)
-      .where(eq(uiSpecs.id, project.id));
+    const row = await ensureCurrentVersion(project.id);
     if (!row) fail("仕様が保存されていません。", { statusCode: 404 });
     if (expectedUpdatedAt && row.updatedAt !== expectedUpdatedAt)
       fail("仕様が更新されています。読み直してからレビューしてください。", {
@@ -54,6 +52,7 @@ export default defineAction({
       stage,
       createdAt: new Date().toISOString(),
       documentHash: createHash("sha256").update(row.yaml).digest("hex"),
+      versionId: row.currentVersionId ?? undefined,
     };
     const [updated] = await db
       .update(uiSpecs)

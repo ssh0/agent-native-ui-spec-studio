@@ -237,6 +237,7 @@ export type ReviewEntry = {
   stage: SpecStage;
   createdAt: string;
   documentHash: string;
+  versionId?: string;
 };
 
 export function validateSpecRelations(spec: UiSpec): ValidationIssue[] {

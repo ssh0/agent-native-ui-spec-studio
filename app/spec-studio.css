@@ -934,3 +934,26 @@
     gap: 8px;
   }
 }
+
+.spec-version-page { min-height: 100vh; padding: 1.5rem; background: #f7f8f6; color: #26332e; }
+.spec-version-header { display: flex; align-items: baseline; gap: 1.5rem; border-bottom: 1px solid #dce3dd; padding-bottom: 1rem; }
+.spec-version-header h1 { font-size: 1.5rem; font-weight: 650; }
+.spec-version-controls { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; padding: 1rem 0; }
+.spec-version-controls label, .spec-version-feedback label { display: grid; gap: .35rem; font-size: .85rem; }
+.spec-version-controls select, .spec-version-feedback select, .spec-version-feedback textarea { background: white; border: 1px solid #bac8bf; border-radius: .35rem; padding: .45rem .6rem; }
+.spec-version-grid { display: grid; grid-template-columns: minmax(12rem, 15rem) minmax(20rem, 1fr) minmax(15rem, 20rem); gap: 1rem; align-items: start; }
+.spec-version-nav, .spec-version-content, .spec-version-feedback { min-width: 0; background: white; border: 1px solid #dce3dd; border-radius: .5rem; padding: 1rem; }
+.spec-version-nav { max-height: calc(100vh - 11rem); overflow: auto; }
+.spec-version-nav h2, .spec-version-feedback h2 { font-size: .9rem; font-weight: 650; margin: .5rem 0; }
+.spec-version-nav button { display: block; width: 100%; text-align: left; border-radius: .3rem; padding: .5rem; font-size: .85rem; }
+.spec-version-nav button:hover, .spec-version-nav button.is-active { background: #e9f3ed; }
+.spec-version-nav small, .spec-version-feedback small { display: block; color: #64756b; font-size: .75rem; }
+.spec-version-content h2 { font-size: 1.25rem; font-weight: 650; margin-top: 1.5rem; }
+.spec-version-meta { display: flex; flex-wrap: wrap; gap: .65rem; color: #64756b; font-size: .8rem; }
+.spec-version-yaml { white-space: pre-wrap; overflow-wrap: anywhere; background: #f3f6f3; padding: 1rem; margin: 1rem 0; max-height: 60vh; overflow: auto; font-size: .8rem; }
+.spec-version-feedback { display: grid; gap: .75rem; }
+.spec-version-feedback textarea { min-height: 5rem; }
+.spec-version-feedback ol { display: grid; gap: .75rem; }
+.spec-version-feedback li { border-top: 1px solid #e1e7e2; padding-top: .75rem; font-size: .85rem; }
+.spec-version-feedback em { display: block; color: #925b32; }
+@media (max-width: 900px) { .spec-version-grid { grid-template-columns: 1fr; } .spec-version-nav { max-height: 18rem; } }

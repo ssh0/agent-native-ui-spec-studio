@@ -1,10 +1,8 @@
 import { defineAction, fail } from "@agent-native/core/action";
 import { parseSpecYaml } from "@shared/spec-utils";
-import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { getDb } from "../server/db/index.js";
-import * as schema from "../server/db/schema.js";
+import { saveSpecVersion } from "../server/lib/spec-version-store.js";
 import { resolveSpecProject } from "../server/lib/spec-project.js";
 
 export default defineAction({
@@ -33,34 +31,7 @@ export default defineAction({
           .join("\n"),
         { statusCode: 400 },
       );
-    const db = getDb();
-    const values = {
-      ownerEmail: project.ownerEmail,
-      yaml,
-      reviewStatus: "draft",
-      reviewComment: null,
-      updatedAt: new Date().toISOString(),
-    };
-    const [row] = expectedUpdatedAt
-      ? await db
-          .update(schema.uiSpecs)
-          .set(values)
-          .where(
-            and(
-              eq(schema.uiSpecs.id, project.id),
-              eq(schema.uiSpecs.updatedAt, expectedUpdatedAt),
-            ),
-          )
-          .returning()
-      : await db
-          .insert(schema.uiSpecs)
-          .values({ id: project.id, ...values })
-          .onConflictDoUpdate({ target: schema.uiSpecs.id, set: values })
-          .returning();
-    if (!row)
-      fail("別の編集が保存されました。仕様を読み直してください。", {
-        statusCode: 409,
-      });
+    const row = await saveSpecVersion(project.id, project.ownerEmail, yaml, expectedUpdatedAt);
     return {
       id: row.id,
       yaml: row.yaml,

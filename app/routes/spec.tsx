@@ -282,6 +282,7 @@ export default function SpecPage() {
                 ? "保存済み"
                 : "読込中"}
           </span>
+          <Link to={`/spec-review?project=${encodeURIComponent(projectId)}`}>版別レビュー</Link>
           <Link to={`/projects/${encodeURIComponent(projectId)}`}>
             エージェントチャット
           </Link>
@@ -559,6 +560,7 @@ export default function SpecPage() {
                     </div>
                     <span>{stageLabels[entry.stage]}</span>
                     {entry.comment && <p>{entry.comment}</p>}
+                    {entry.versionId && <Link to={`/spec-review?project=${encodeURIComponent(projectId)}&version=${encodeURIComponent(entry.versionId)}`}>対象の保存版を見る</Link>}
                     <details>
                       <summary>対象の仕様</summary>
                       <code>{entry.documentHash}</code>

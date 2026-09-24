@@ -1,13 +1,14 @@
 import { defineAction, fail } from "@agent-native/core/action";
 import { EditOperationSchema, editSpec } from "@shared/spec-edit";
 import { SpecSchema } from "@shared/spec-schema";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { parse, stringify } from "yaml";
 import { z } from "zod";
 
 import { getDb } from "../server/db/index.js";
 import { uiSpecs } from "../server/db/schema.js";
 import { resolveSpecProject } from "../server/lib/spec-project.js";
+import { saveSpecVersion } from "../server/lib/spec-version-store.js";
 
 export default defineAction({
   description:
@@ -29,22 +30,7 @@ export default defineAction({
       .where(eq(uiSpecs.id, project.id));
     if (!row) fail("仕様が保存されていません。", { statusCode: 404 });
     const yaml = stringify(editSpec(SpecSchema.parse(parse(row.yaml)), input));
-    const [updated] = await db
-      .update(uiSpecs)
-      .set({
-        yaml,
-        reviewStatus: "draft",
-        reviewComment: null,
-        updatedAt: new Date().toISOString(),
-      })
-      .where(
-        and(eq(uiSpecs.id, project.id), eq(uiSpecs.updatedAt, row.updatedAt)),
-      )
-      .returning();
-    if (!updated)
-      fail("別の編集が保存されました。仕様を読み直してください。", {
-        statusCode: 409,
-      });
+    const updated = await saveSpecVersion(project.id, project.ownerEmail, yaml, row.updatedAt);
     return {
       yaml: updated.yaml,
       reviewStatus: updated.reviewStatus,

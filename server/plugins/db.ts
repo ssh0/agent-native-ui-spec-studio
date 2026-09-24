@@ -34,6 +34,23 @@ export default runMigrations(
       name: "ui-spec-owner",
       sql: `ALTER TABLE ui_specs ADD COLUMN IF NOT EXISTS owner_email TEXT`,
     },
+    {
+      version: 5,
+      name: "spec-versioned-review",
+      sql: `ALTER TABLE ui_specs ADD COLUMN IF NOT EXISTS current_version_id TEXT;
+        CREATE TABLE IF NOT EXISTS spec_versions (
+          id TEXT PRIMARY KEY, project_id TEXT NOT NULL, owner_email TEXT NOT NULL, yaml TEXT NOT NULL,
+          document_hash TEXT NOT NULL, created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS spec_versions_project_idx ON spec_versions (project_id, created_at);
+        CREATE TABLE IF NOT EXISTS spec_element_reviews (
+          id TEXT PRIMARY KEY, project_id TEXT NOT NULL, owner_email TEXT NOT NULL, version_id TEXT NOT NULL,
+          target_key TEXT NOT NULL, target_kind TEXT NOT NULL, target_title TEXT NOT NULL,
+          reviewer_email TEXT NOT NULL, decision TEXT NOT NULL, comment TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS spec_element_reviews_version_idx ON spec_element_reviews (project_id, version_id)`,
+    },
   ],
   { table: "ui_spec_studio_migrations" },
 );

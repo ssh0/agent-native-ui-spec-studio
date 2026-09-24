@@ -13,6 +13,8 @@ export interface NavigationState {
   section?: string;
   selectedId?: string;
   mode?: string;
+  versionId?: string;
+  targetKey?: string;
 }
 
 export function useNavigationState() {
@@ -29,6 +31,7 @@ export function useNavigationState() {
         ...(searchParams.get("project")
           ? { projectId: searchParams.get("project")! }
           : {}),
+        ...(pathname === "/spec-review" ? { versionId: searchParams.get("version") ?? "", targetKey: searchParams.get("target") ?? "" } : {}),
         ...(pathname === "/spec"
           ? {
               stage,
@@ -64,6 +67,7 @@ function threadIdFromPath(pathname: string): string | null {
 
 function viewForPath(pathname: string): string {
   if (pathname.startsWith("/projects")) return "projects";
+  if (pathname === "/spec-review") return "spec-review";
   if (pathname === "/spec") return "spec";
   if (isChatPath(pathname)) return "chat";
   if (pathname.startsWith("/database")) return "database";
@@ -87,6 +91,8 @@ function pathForView(view?: string): string {
       return "/home";
     case "spec":
       return "/spec";
+    case "spec-review":
+      return "/spec-review";
     case "database":
       return "/database";
     case "extensions":
@@ -108,7 +114,7 @@ function pathForCommand(command: any): string {
   const path = pathForView(command?.view);
   const projectId =
     typeof command?.projectId === "string" ? command.projectId.trim() : "";
-  if (path === "/spec" && projectId)
+  if ((path === "/spec" || path === "/spec-review") && projectId)
     return `/spec?project=${encodeURIComponent(projectId)}`;
   if (path === "/projects" && projectId)
     return `/projects/${encodeURIComponent(projectId)}`;
