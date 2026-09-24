@@ -19,7 +19,7 @@
   "dependencies": {
     "@agent-native/agentkit": "^0.2.4",
     "@agent-native/core": "0.182.1",
-    "@agent-native/toolkit": "^0.20.4",
+    "@agent-native/toolkit": "^0.20.5",
     "@ai-sdk/anthropic": "^3.0.71",
     "@ai-sdk/cohere": "^3.0.39",
     "@ai-sdk/google": "^3.0.64",
