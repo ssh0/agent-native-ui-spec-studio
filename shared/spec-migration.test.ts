@@ -4,7 +4,7 @@ import { stringify } from "yaml";
 import { DEFAULT_SPEC_YAML } from "./default-spec";
 import { migrateSpecTo21 } from "./spec-migration";
 import { generateSpecLists } from "./spec-lists";
-import { parseSpecYaml } from "./spec-utils";
+import { parseSpecYaml, transitionRowKey } from "./spec-utils";
 
 const legacy = () => structuredClone(parseSpecYaml(DEFAULT_SPEC_YAML).spec!);
 
@@ -29,8 +29,11 @@ describe("explicit 2.0 to 2.1 migration", () => {
   it("reports ambiguous duplicates, duplicate IDs and broken references", () => {
     const duplicate = legacy();
     duplicate.transitions.push({ ...duplicate.transitions[0] });
+    expect(new Set(duplicate.transitions.map(transitionRowKey)).size).toBe(duplicate.transitions.length);
     expect(migrateSpecTo21(duplicate).issues[0].path).toBe("transitions[2]");
     const migrated = migrateSpecTo21(legacy()).spec!;
+    const stableKeys = migrated.transitions.map(transitionRowKey);
+    expect([...migrated.transitions].reverse().map(transitionRowKey)).toEqual([...stableKeys].reverse());
     migrated.transitions[1].id = migrated.transitions[0].id;
     expect(parseSpecYaml(stringify(migrated)).issues).toEqual(expect.arrayContaining([expect.objectContaining({ path: "transitions[1].id" })]));
     migrated.transitions[1].id = "other";

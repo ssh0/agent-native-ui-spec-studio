@@ -5,7 +5,7 @@ import {
   type UiComponent,
   type UiSpec,
 } from "@shared/spec-schema";
-import { renderFlow, renderWireframe } from "@shared/spec-utils";
+import { renderFlow, renderWireframe, transitionRowKey } from "@shared/spec-utils";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -408,9 +408,9 @@ export function ScreenBuilder({
                   </Button>
                 </div>
                 {spec.version === "2.0" && <p className="spec-muted">遷移の編集には 2.1 への移行が必要です。</p>}
-                {spec.transitions.map((t) =>
+                {spec.transitions.map((t, index) =>
                   t.from !== selected.id ? null : (
-                    <div className="spec-transition" key={t.id ?? `${t.from}:${t.to}:${t.trigger}`}>
+                    <div className="spec-transition" key={transitionRowKey(t, index)}>
                       <span>→</span>
                       <select
                         aria-label="遷移先"

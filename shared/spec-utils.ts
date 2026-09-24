@@ -14,6 +14,13 @@ export type NamedReference = {
   title?: string;
 };
 
+export function transitionRowKey(
+  transition: UiSpec["transitions"][number],
+  index: number,
+): string {
+  return transition.id ? `id:${transition.id}` : `legacy:${index}`;
+}
+
 export function resolveNamedReference(
   items: readonly { id: string; title: string }[],
   id: string,
