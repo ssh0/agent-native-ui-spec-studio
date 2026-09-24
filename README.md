@@ -6,10 +6,10 @@ The public landing page is `/`. Sign in to create a project at `/projects`. A pr
 
 ## Local development
 
-Requirements: Node.js 22.22 or later, Corepack, and pnpm 12.6.0 (declared in `package.json`).
+Requirements: Node.js 22.22 or later and pnpm 12.6.0 (declared in `package.json`).
 
 ```sh
-corepack enable
+npm install --global --ignore-scripts pnpm@12.6.0
 pnpm install --frozen-lockfile
 cp .env.example .env
 # For local development only, set AUTH_DISABLED=true in .env.
