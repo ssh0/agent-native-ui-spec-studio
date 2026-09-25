@@ -337,12 +337,6 @@ describe("Core composer model adapter", () => {
           models: ["builder-default"],
         },
         {
-          engine: "ai-sdk:google",
-          label: "Google",
-          configured: true,
-          models: ["gemini-3-flash-preview"],
-        },
-        {
           engine: "anthropic",
           label: "Anthropic",
           configured: true,
@@ -383,6 +377,12 @@ describe("Core composer model adapter", () => {
       }),
     );
     dispatchSelectionChange(selectionKey);
+    state.base.availableModels.push({
+      engine: "ai-sdk:google",
+      label: "Google",
+      configured: true,
+      models: ["gemini-3-flash-preview"],
+    });
     state.base.selectedModel = "gemini-3-flash-preview";
     state.base.selectedEngine = "ai-sdk:google";
     state.base.selectedEffort = "high";
@@ -520,10 +520,11 @@ describe("Core composer model adapter", () => {
       effort: "medium",
     };
     storage.set(selectionKey, JSON.stringify(newerSelection));
+    dispatchSelectionChange(selectionKey);
+    expect(renderScopedChatModels().selectedModel).toBe("gpt-5");
     state.base.selectedModel = newerSelection.model;
     state.base.selectedEngine = newerSelection.engine;
     state.base.selectedEffort = newerSelection.effort;
-    dispatchSelectionChange(selectionKey);
     state.base.isLoading = false;
 
     const result = renderScopedChatModels();
@@ -531,5 +532,44 @@ describe("Core composer model adapter", () => {
     expect(result.selectedEngine).toBe("anthropic");
     expect(result.selectedEffort).toBe("medium");
     expect(state.change).not.toHaveBeenCalled();
+  });
+  it("keeps a same-tab effort update while Core still has the old effort", async () => {
+    await saveModelScope("openai", ["gpt-5"]);
+    const providers = (await listModelScopes()).providers;
+    state.scopes = { data: { providers } };
+    const selectionKey = "test-chat-model-selection";
+    storage.set(
+      selectionKey,
+      JSON.stringify({
+        model: "gpt-5",
+        engine: "ai-sdk:openai",
+        effort: "high",
+      }),
+    );
+    state.base = {
+      selectedEngine: "ai-sdk:openai",
+      selectedModel: "gpt-5",
+      selectedEffort: "high",
+      isLoading: true,
+      availableModels: [],
+      onModelChange: state.change,
+      onEffortChange: vi.fn(),
+    };
+    renderScopedChatModels();
+
+    const newerSelection = {
+      model: "gpt-5",
+      engine: "ai-sdk:openai",
+      effort: "xhigh",
+    };
+    storage.set(selectionKey, JSON.stringify(newerSelection));
+    dispatchSelectionChange(selectionKey);
+    expect(renderScopedChatModels().selectedEffort).toBe("high");
+    state.base.selectedEffort = "xhigh";
+    state.base.isLoading = false;
+
+    const result = renderScopedChatModels();
+    expect(result.selectedEffort).toBe("xhigh");
+    expect(JSON.parse(storage.get(selectionKey)!)).toEqual(newerSelection);
   });
 });

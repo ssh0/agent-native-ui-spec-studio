@@ -111,19 +111,33 @@ export function useScopedChatModels({
   );
   useEffect(() => {
     const previous = retained.lastCore;
+    const externalSelectionPending = retained.externalSelection;
     const coreSelectionChanged =
       previous.model !== base.selectedModel ||
       previous.engine !== base.selectedEngine ||
       previous.effort !== base.selectedEffort;
+    if (externalSelectionPending) {
+      const selection = readPersistedSelection(selectionStorageKey);
+      const coreMatchesSelection =
+        selection &&
+        base.selectedModel === selection.model &&
+        base.selectedEngine === selection.engine &&
+        (!selection.effort || base.selectedEffort === selection.effort);
+      if (!coreMatchesSelection) {
+        retained.fallbackReady = false;
+        retained.recovering = false;
+        return;
+      }
+      retained.externalSelection = false;
+    }
     if (
-      !retained.externalSelection &&
+      !externalSelectionPending &&
       previous.isLoading &&
       !base.isLoading &&
       coreSelectionChanged
     ) {
       retained.fallbackReady = true;
     }
-    retained.externalSelection = false;
     retained.lastCore = {
       model: base.selectedModel,
       engine: base.selectedEngine,
@@ -223,7 +237,7 @@ export function useScopedChatModels({
           : null;
       retained.fallbackReady = false;
       retained.recovering = false;
-      retained.externalSelection = true;
+      retained.externalSelection = selection !== null;
     };
     const syncSameTabSelection = (event: Event) => {
       const detail = (event as CustomEvent<{ key?: string }>).detail;
@@ -236,7 +250,12 @@ export function useScopedChatModels({
         base.selectedEngine === retained.selection.engine &&
         selection &&
         (selection.model !== base.selectedModel ||
-          selection.engine !== base.selectedEngine)
+          selection.engine !== base.selectedEngine) &&
+        !groups.some(
+          (group) =>
+            group.engine === selection.engine &&
+            group.models.includes(selection.model),
+        )
       ) {
         return;
       }
@@ -262,6 +281,7 @@ export function useScopedChatModels({
     base.isLoading,
     base.selectedEngine,
     base.selectedModel,
+    groups,
     retained,
     scopes.data,
     selectionStorageKey,
