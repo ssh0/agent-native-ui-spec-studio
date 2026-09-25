@@ -66,15 +66,14 @@ const pageSchema = z.object({
 });
 export function parseCatalogPage(
   provider: RemoteCatalogProvider,
-  payload: unknown,
-  rankOffset = 0,
+  payload: unknown
 ) {
   const page = pageSchema.parse(payload);
   const rows =
     provider === "google" || provider === "cohere" ? page.models : page.data;
   if (!rows) throw new Error("Invalid model catalog response.");
   const models: CatalogModel[] = [];
-  for (const [index, row] of rows.entries()) {
+  for (const row of rows) {
     const id = (
       provider === "google" || provider === "cohere" ? row.name : row.id
     )?.replace(/^models\//, "");
@@ -110,9 +109,6 @@ export function parseCatalogPage(
         row.displayName ??
         row.model ??
         (provider === "google" ? id : (row.name ?? id)),
-      ...(provider === "openrouter" && rankOffset + index < 5
-        ? { weeklyRank: rankOffset + index + 1 }
-        : {}),
       ...(Number.isFinite(timestamp) &&
       timestamp > 0 &&
       timestamp <= 8640000000000000
@@ -160,8 +156,6 @@ export async function fetchProviderModels(
     url.searchParams.set("page_size", "1000");
     url.searchParams.set("endpoint", "chat");
   }
-  // Official server-side ranking by tokens processed in the last week.
-  if (provider === "openrouter") url.searchParams.set("sort", "top-weekly");
   const models = new Map<string, CatalogModel>();
   const cursors = new Set<string>();
   const signal = AbortSignal.timeout(20000);
@@ -176,7 +170,7 @@ export async function fetchProviderModels(
       models: entries,
       page,
       rowCount,
-    } = parseCatalogPage(provider, await response.json(), offset);
+    } = parseCatalogPage(provider, await response.json());
     for (const model of entries) models.set(model.id, model);
     if (models.size > 10000)
       throw new Error("Model catalog exceeds the supported size.");

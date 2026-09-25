@@ -258,7 +258,7 @@ export function ProviderModelSettings() {
       )}
 
       {catalogProviders.includes(provider as (typeof catalogProviders)[number]) && <ProviderModelScope
-        key={`${provider}:${status}`}
+        key={provider}
         provider={provider as (typeof catalogProviders)[number]}
         currentModel={currentProvider === provider ? engineList?.current?.model : undefined}
         ready={ready}
@@ -283,7 +283,7 @@ export function ProviderModelSettings() {
       <div className="space-y-2 border-t border-border pt-5">
         <h3 className="font-medium">Ollama (local)</h3>
         <ProviderModelScope
-          key={`ollama:${ollamaEngine?.configured ?? false}`}
+          key="ollama"
           provider="ollama"
           currentModel={currentProvider === "ollama" ? engineList?.current?.model : undefined}
           ready={Boolean(ollamaEngine?.configured && ollamaEngine.packageInstalled !== false)}

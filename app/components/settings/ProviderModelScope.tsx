@@ -263,9 +263,6 @@ export function ProviderModelScope({ provider, currentModel, ready }: Props) {
                 </span>
               )}
               <span className="block text-xs text-muted-foreground">
-                {item.weeklyRank
-                  ? `OpenRouter weekly #${item.weeklyRank} · `
-                  : ""}
                 {item.id === currentModel
                   ? selected === null || selected.includes(item.id)
                     ? "Current selection · "
@@ -287,9 +284,7 @@ export function ProviderModelScope({ provider, currentModel, ready }: Props) {
         )}
       </div>
       <p className="text-xs text-muted-foreground">
-        Catalog dates are provider metadata, not quality scores. OpenRouter
-        weekly ranks use provider-reported token traffic; other providers do not
-        supply popularity rankings.
+        Catalog dates are provider metadata, not quality scores.
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <Button

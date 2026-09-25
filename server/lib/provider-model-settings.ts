@@ -29,7 +29,6 @@ const cacheSchema = z.object({
       id: z.string(),
       name: z.string(),
       createdAt: z.string().optional(),
-      weeklyRank: z.number().int().min(1).max(5).optional(),
     }),
   ),
   fetchedAt: z.string(),

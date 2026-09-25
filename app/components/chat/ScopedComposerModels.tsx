@@ -15,6 +15,9 @@ import {
   type ModelScopeList,
 } from "../../../shared/provider-models";
 
+const CHAT_MODEL_SELECTION_CHANGED_EVENT =
+  "agent-native:chat-model-selection-changed";
+
 type ReasoningEffort = ReturnType<typeof useChatModels>["selectedEffort"];
 type PersistedSelection = {
   model: string;
@@ -206,8 +209,7 @@ export function useScopedChatModels({
   ]);
   useEffect(() => {
     if (!selectionStorageKey || typeof window === "undefined") return;
-    const syncExternalSelection = (event: StorageEvent) => {
-      if (event.key !== selectionStorageKey) return;
+    const acceptExternalSelection = () => {
       const selection = readPersistedSelection(selectionStorageKey);
       retained.selection =
         selection &&
@@ -223,9 +225,47 @@ export function useScopedChatModels({
       retained.recovering = false;
       retained.externalSelection = true;
     };
-    window.addEventListener("storage", syncExternalSelection);
-    return () => window.removeEventListener("storage", syncExternalSelection);
-  }, [retained, scopes.data, selectionStorageKey]);
+    const syncSameTabSelection = (event: Event) => {
+      const detail = (event as CustomEvent<{ key?: string }>).detail;
+      if (detail?.key && detail.key !== selectionStorageKey) return;
+      const selection = readPersistedSelection(selectionStorageKey);
+      if (
+        base.isLoading &&
+        retained.selection &&
+        base.selectedModel === retained.selection.model &&
+        base.selectedEngine === retained.selection.engine &&
+        selection &&
+        (selection.model !== base.selectedModel ||
+          selection.engine !== base.selectedEngine)
+      ) {
+        return;
+      }
+      acceptExternalSelection();
+    };
+    const syncCrossTabSelection = (event: StorageEvent) => {
+      if (event.key !== selectionStorageKey) return;
+      acceptExternalSelection();
+    };
+    window.addEventListener(
+      CHAT_MODEL_SELECTION_CHANGED_EVENT,
+      syncSameTabSelection,
+    );
+    window.addEventListener("storage", syncCrossTabSelection);
+    return () => {
+      window.removeEventListener(
+        CHAT_MODEL_SELECTION_CHANGED_EVENT,
+        syncSameTabSelection,
+      );
+      window.removeEventListener("storage", syncCrossTabSelection);
+    };
+  }, [
+    base.isLoading,
+    base.selectedEngine,
+    base.selectedModel,
+    retained,
+    scopes.data,
+    selectionStorageKey,
+  ]);
   const selection = retained.selection;
   const recoveredSelection =
     selection &&

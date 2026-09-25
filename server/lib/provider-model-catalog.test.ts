@@ -218,37 +218,26 @@ describe("official model catalogs", () => {
       }).models,
     ).toEqual([]);
   });
-  it("preserves OpenRouter API positions before filtering chat-incompatible models", () => {
-    const parsed = parseCatalogPage("openrouter", {
-      data: [
-        { id: "example-image", architecture: { output_modalities: ["image"] } },
-        { id: "example-chat", architecture: { output_modalities: ["text"] } },
-      ],
-    });
-    expect(parsed.models).toEqual([
-      { id: "example-chat", name: "example-chat", weeklyRank: 2 },
-    ]);
-  });
-  it("shows only authoritative OpenRouter weekly top-five ranks", async () => {
+  it("orders OpenRouter models newest-first without popularity sorting", async () => {
     let requested = "";
     const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url) => {
       requested = String(url);
       return response({
-        data: Array.from({ length: 6 }, (_, i) => ({
+        data: Array.from({ length: 3 }, (_, i) => ({
           id: `example-${i}`,
           created: i + 1,
         })),
       });
     });
     const result = await fetchProviderModels("openrouter", "example", fetcher);
-    expect(new URL(requested).searchParams.get("sort")).toBe("top-weekly");
-    expect(result.find((item) => item.id === "example-0")?.weeklyRank).toBe(1);
-    expect(result.find((item) => item.id === "example-4")?.weeklyRank).toBe(5);
-    expect(
-      result.find((item) => item.id === "example-5")?.weeklyRank,
-    ).toBeUndefined();
+    expect(new URL(requested).searchParams.has("sort")).toBe(false);
+    expect(result.map((item) => item.id)).toEqual([
+      "example-2",
+      "example-1",
+      "example-0",
+    ]);
   });
-  it("parses installed Ollama models without inventing release dates or ranks", () => {
+  it("parses installed Ollama models without inventing release dates", () => {
     expect(
       parseOllamaCatalog({
         models: [

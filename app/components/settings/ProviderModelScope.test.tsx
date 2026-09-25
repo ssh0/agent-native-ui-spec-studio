@@ -30,7 +30,6 @@ const catalog = {
       id: "example-chat",
       name: "Example chat",
       createdAt: "2026-09-01T00:00:00Z",
-      weeklyRank: 1,
     },
   ],
   fetchedAt: "2026-09-01T01:00:00Z",
@@ -64,11 +63,11 @@ describe("provider model settings rendered states", () => {
     state.discovery = { isPending: false };
     state.save = { isPending: false };
   });
-  it("renders checkboxes, attributed ranking, dates and retained missing selection", () => {
+  it("renders checkboxes, dates and retained missing selection", () => {
     const html = render();
     expect(html).toContain('type="checkbox"');
     expect(html).toContain('checked=""');
-    expect(html).toContain("OpenRouter weekly #1");
+    expect(html).not.toContain("weekly #");
     expect(html).toContain("Newest catalog entry");
     expect(html).toContain("Not in the catalog");
     expect(html).toContain("example-retired");

@@ -14,7 +14,6 @@ export type CatalogModel = {
   id: string;
   name: string;
   createdAt?: string;
-  weeklyRank?: number;
 };
 
 function modelVersion(id: string) {

@@ -55,18 +55,15 @@ Catalog APIs inspected for this implementation:
 | ---------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Anthropic  | https://platform.claude.com/docs/en/api/models/list            | `id`, `display_name`, `created_at`; `after_id` pagination. API documents newest releases first.                                                                                                                                              |
 | OpenAI     | https://platform.openai.com/docs/api-reference/models/object   | `id`, `created`; no general chat-capability flag. Known non-chat families are excluded, not silently presented as chat models.                                                                                                               |
-| OpenRouter | https://openrouter.ai/docs/api/api-reference/models/get-models | `id`, `name`, `created`, output modalities; `sort=top-weekly` is documented as tokens processed in the last week. The first five API positions retain their provider ranks after non-chat models are filtered; no usage counts are invented. |
-| Google     | https://ai.google.dev/api/models                               | `name`, `displayName`, `supportedGenerationMethods`; filter `generateContent`, follow `nextPageToken`. No release date or popularity rank is inferred from model IDs.                                                                        |
+| OpenRouter | https://openrouter.ai/docs/api/api-reference/models/get-models | `id`, `name`, `created`, output modalities.                                                                                                                                                                                                   |
+| Google     | https://ai.google.dev/api/models                               | `name`, `displayName`, `supportedGenerationMethods`; filter `generateContent`, follow `nextPageToken`. No release date is inferred from model IDs.                                                                                            |
 | Groq       | https://console.groq.com/docs/api-reference#models             | `id`, `created`, `active`; known audio-only families excluded.                                                                                                                                                                               |
 | Mistral    | https://docs.mistral.ai/api/endpoint/models                    | `id`, `name`, `created`, `capabilities.completion_chat`.                                                                                                                                                                                     |
 | Cohere     | https://docs.cohere.com/reference/list-models                  | `name`; request `endpoint=chat`, follow `next_page_token`.                                                                                                                                                                                   |
-| Ollama     | https://docs.ollama.com/api/tags                               | Chat-compatible `models[].name` entries from the configured endpoint's installed local models. `modified_at` describes local model metadata time, not the model's release date; no popularity rank is inferred.                              |
+| Ollama     | https://docs.ollama.com/api/tags                               | Chat-compatible `models[].name` entries from the configured endpoint's installed local models. `modified_at` describes local model metadata time, not the model's release date.                                                                |
 
 “Newest catalog entry” means the largest actual creation/release timestamp in
-the returned catalog, not a recommendation or a quality claim. OpenRouter's
-weekly rank is traffic-based and attributed to OpenRouter. Other providers do
-not supply comparable popularity ranking in the inspected catalog responses;
-no “popular” or “featured” label is invented for them.
+the returned catalog, not a recommendation or a quality claim.
 
 Run `pnpm test`, `pnpm typecheck`, and `pnpm agent-native:doctor`. Tests use
 fabricated catalog responses and credentials only; live account availability

@@ -94,6 +94,12 @@ const testWindow = {
   },
 };
 
+function dispatchSelectionChange(key: string) {
+  const event = new Event("agent-native:chat-model-selection-changed");
+  Object.defineProperty(event, "detail", { value: { key } });
+  window.dispatchEvent(event);
+}
+
 function renderScopedChatModels() {
   let result: ReturnType<typeof useScopedChatModels> | undefined;
   for (let pass = 0; pass < 3; pass++) {
@@ -368,10 +374,6 @@ describe("Core composer model adapter", () => {
     expect(reload.selectedModel).toBe("gpt-5");
     expect(reload.selectedEffort).toBe("xhigh");
 
-    state.base.selectedModel = "gemini-3-flash-preview";
-    state.base.selectedEngine = "ai-sdk:google";
-    state.base.selectedEffort = "high";
-    state.base.isLoading = false;
     storage.set(
       selectionKey,
       JSON.stringify({
@@ -380,6 +382,11 @@ describe("Core composer model adapter", () => {
         effort: "high",
       }),
     );
+    dispatchSelectionChange(selectionKey);
+    state.base.selectedModel = "gemini-3-flash-preview";
+    state.base.selectedEngine = "ai-sdk:google";
+    state.base.selectedEffort = "high";
+    state.base.isLoading = false;
     const reconciled = renderScopedChatModels();
     expect(reconciled.selectedModel).toBe("gpt-5");
     expect(reconciled.selectedEngine).toBe("ai-sdk:openai");
@@ -459,6 +466,65 @@ describe("Core composer model adapter", () => {
     const storageEvent = new Event("storage");
     Object.defineProperty(storageEvent, "key", { value: selectionKey });
     window.dispatchEvent(storageEvent);
+
+    const result = renderScopedChatModels();
+    expect(result.selectedModel).toBe("example-new");
+    expect(result.selectedEngine).toBe("anthropic");
+    expect(result.selectedEffort).toBe("medium");
+    expect(state.change).not.toHaveBeenCalled();
+  });
+  it("keeps a newer same-tab sidebar selection during Core refresh", async () => {
+    await saveModelScope("openai", ["gpt-5"]);
+    const providers = (await listModelScopes()).providers.map((provider) =>
+      provider.provider === "anthropic"
+        ? {
+            ...provider,
+            configured: true,
+            models: [{ id: "example-new", name: "New" }],
+            fetchedAt: "2026-09-01T00:00:00Z",
+            scopedModels: null,
+          }
+        : provider,
+    );
+    state.scopes = { data: { providers } };
+    const selectionKey = "test-chat-model-selection";
+    storage.set(
+      selectionKey,
+      JSON.stringify({
+        model: "gpt-5",
+        engine: "ai-sdk:openai",
+        effort: "xhigh",
+      }),
+    );
+    state.base = {
+      selectedEngine: "ai-sdk:openai",
+      selectedModel: "gpt-5",
+      selectedEffort: "xhigh",
+      isLoading: true,
+      availableModels: [
+        {
+          engine: "anthropic",
+          label: "Anthropic",
+          configured: true,
+          models: ["example-new"],
+        },
+      ],
+      onModelChange: state.change,
+      onEffortChange: vi.fn(),
+    };
+    renderScopedChatModels();
+
+    const newerSelection = {
+      model: "example-new",
+      engine: "anthropic",
+      effort: "medium",
+    };
+    storage.set(selectionKey, JSON.stringify(newerSelection));
+    state.base.selectedModel = newerSelection.model;
+    state.base.selectedEngine = newerSelection.engine;
+    state.base.selectedEffort = newerSelection.effort;
+    dispatchSelectionChange(selectionKey);
+    state.base.isLoading = false;
 
     const result = renderScopedChatModels();
     expect(result.selectedModel).toBe("example-new");
