@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { scopedModelGroups, type ProviderModels } from "./provider-models";
+import {
+  catalogProviderForEngine,
+  scopedModelGroups,
+  type ProviderModels,
+} from "./provider-models";
 
 const groups = [
   {
@@ -36,13 +40,13 @@ describe("scoped chat picker", () => {
     expect(groups[0].models).toEqual(["example-old"]);
     expect(result[0].models).toEqual([]);
   });
-  it("hides Builder models while preserving the deferred Copilot group", () => {
+  it("hides Builder-backed chat choices while preserving the deferred Copilot group", () => {
     const result = scopedModelGroups(
       [
         ...groups,
         {
           engine: "builder",
-          label: "Builder",
+          label: "OpenAI",
           configured: true,
           models: ["builder-standard"],
         },
@@ -56,8 +60,17 @@ describe("scoped chat picker", () => {
       [],
     );
     expect(result.some((group) => group.engine === "builder")).toBe(false);
+    expect(result.flatMap((group) => group.models)).not.toContain(
+      "builder-standard",
+    );
     expect(result.find((group) => group.engine === "github-copilot")?.models)
       .toEqual(["copilot-model"]);
+  });
+  it("maps chat engines back to their provider settings IDs", () => {
+    expect(catalogProviderForEngine("anthropic")).toBe("anthropic");
+    expect(catalogProviderForEngine("ai-sdk:anthropic")).toBe("anthropic");
+    expect(catalogProviderForEngine("ai-sdk:openrouter")).toBe("openrouter");
+    expect(catalogProviderForEngine("builder")).toBeNull();
   });
   it("applies Anthropic scopes to the legacy ai-sdk engine alias too", () => {
     const result = scopedModelGroups(

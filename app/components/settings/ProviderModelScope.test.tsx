@@ -4,8 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   addCustomModelId,
+  clearModelScope,
   ProviderModelScope,
   normalizeCustomModelId,
+  selectAllModelScope,
   toggleModelScope,
 } from "./ProviderModelScope";
 
@@ -74,8 +76,9 @@ describe("provider model settings rendered states", () => {
     expect(html).not.toContain("example-fallback");
     expect(html).not.toContain("Refresh catalog");
     expect(html).not.toContain("Filter models");
+    expect(html).toContain("Select all");
+    expect(html).toContain("Deselect all");
     expect(html).toContain("Allow all models");
-    expect(html).not.toContain("Clear selection");
   });
   it("shows a saved current selection outside the scope without offering it", () => {
     state.query = {
@@ -176,6 +179,12 @@ describe("provider model settings rendered states", () => {
     expect(
       toggleModelScope([], ["custom-model"], "custom-model", true),
     ).toEqual(["custom-model"]);
+  });
+  it("selects every visible catalog and custom row once, or clears the scope", () => {
+    expect(
+      selectAllModelScope(["catalog-model", "custom-model", "catalog-model"]),
+    ).toEqual(["catalog-model", "custom-model"]);
+    expect(clearModelScope()).toEqual([]);
   });
   it("trims custom IDs and rejects blank or duplicate entries", () => {
     expect(normalizeCustomModelId("  custom-model  ", [])).toBe("custom-model");

@@ -7,6 +7,7 @@ import {
   type AgentProviderId,
 } from "@agent-native/core/client/settings";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useLocation } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +45,14 @@ function errorMessage(error: unknown): string {
 }
 
 export function ProviderModelSettings() {
-  const [provider, setProvider] = useState<AgentProviderId>("anthropic");
+  const location = useLocation();
+  const requestedProviderId = new URLSearchParams(location.search).get("provider");
+  const requestedProvider = providers.find(
+    (item) => item.id === requestedProviderId,
+  );
+  const [provider, setProvider] = useState<AgentProviderId>(
+    () => requestedProvider?.id ?? "anthropic",
+  );
   const [engineList, setEngineList] = useState<EngineList | null>(null);
   const [modelDefault, setModelDefault] = useState<ModelDefault | null>(null);
   const [statuses, setStatuses] = useState<Record<string, KeyStatus>>({});
@@ -95,7 +103,11 @@ export function ProviderModelSettings() {
     const effectiveProvider = providerIdForEngine(engineData.current?.engine ?? "");
     if (!initialProviderSet.current) {
       initialProviderSet.current = true;
-      if (effectiveProvider && providers.some((item) => item.id === effectiveProvider)) {
+      if (
+        !requestedProvider &&
+        effectiveProvider &&
+        providers.some((item) => item.id === effectiveProvider)
+      ) {
         setProvider(effectiveProvider);
       }
     }
@@ -115,6 +127,10 @@ export function ProviderModelSettings() {
     });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (requestedProvider) setProvider(requestedProvider.id);
+  }, [requestedProvider?.id]);
 
   useEffect(() => {
     const selected = currentProvider === provider ? engineList?.current?.model : undefined;
