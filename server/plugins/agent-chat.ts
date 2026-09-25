@@ -5,6 +5,7 @@ import {
 } from "@agent-native/core/server";
 
 import actionsRegistry from "../../.generated/actions-registry.js";
+import { installGoogleModelOptions } from "../agent/google-model-options.js";
 import { installProviderSafeEngines } from "../agent/provider-safe-engine.js";
 
 const INITIAL_TOOL_NAMES = [
@@ -47,5 +48,6 @@ Use actions as the source of truth. Start by inspecting the current screen when 
 
 export default (nitroApp: Parameters<typeof agentChatPlugin>[0]) => {
   installProviderSafeEngines();
+  installGoogleModelOptions();
   agentChatPlugin(nitroApp);
 };
