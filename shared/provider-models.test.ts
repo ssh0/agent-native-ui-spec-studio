@@ -29,86 +29,46 @@ function catalog(scope: string[] | null): ProviderModels {
   };
 }
 describe("scoped chat picker", () => {
-  it("does not mutate fallback groups when pinning a custom selection", () => {
-    const result = scopedModelGroups(
-      groups,
-      [{ ...catalog(null), fetchedAt: null }],
-      "anthropic",
-      "example-custom",
-    );
+  it("does not mutate fallback groups", () => {
+    const result = scopedModelGroups(groups, [
+      { ...catalog(null), fetchedAt: null },
+    ]);
     expect(groups[0].models).toEqual(["example-old"]);
-    expect(result[0].models).toEqual(["example-custom", "example-old"]);
-    expect(result[0].statusLabel).toContain("not in catalog");
+    expect(result[0].models).toEqual(["example-old"]);
   });
   it("applies Anthropic scopes to the legacy ai-sdk engine alias too", () => {
     const result = scopedModelGroups(
       [{ ...groups[0], engine: "ai-sdk:anthropic" }],
       [{ ...catalog([]), configured: true }],
-      "ai-sdk:anthropic",
-      "example-current",
     );
     expect(result).toHaveLength(1);
-    expect(result[0].models).toEqual(["example-current"]);
+    expect(result[0].models).toEqual([]);
   });
   it("uses live catalogs and scopes only the selected provider", () => {
-    const result = scopedModelGroups(
-      groups,
-      [catalog(["example-new"])],
-      "ai-sdk:openai",
-      "example-other",
-    );
+    const result = scopedModelGroups(groups, [catalog(["example-new"])]);
     expect(result[0].models).toEqual(["example-new"]);
     expect(result[1]).toEqual(groups[1]);
     expect(groups[0].models).toEqual(["example-old"]);
   });
-  it("null allows new discoveries while an empty scope hides every non-current model", () => {
+  it("null allows new discoveries while an empty scope hides every model", () => {
     expect(
-      scopedModelGroups(
-        groups,
-        [catalog(null)],
-        "ai-sdk:openai",
-        "example-other",
-      )[0].models,
+      scopedModelGroups(groups, [catalog(null)])[0].models,
     ).toEqual(["example-new", "example-older"]);
-    expect(
-      scopedModelGroups(groups, [catalog([])], "anthropic", "example-old")[0]
-        .models,
-    ).toEqual(["example-old"]);
-    expect(
-      scopedModelGroups(
-        groups,
-        [catalog([])],
-        "ai-sdk:openai",
-        "example-other",
-      )[0].models,
-    ).toEqual([]);
+    expect(scopedModelGroups(groups, [catalog([])])[0].models).toEqual([]);
   });
-  it("retains a missing current ID without silently adding removed non-current IDs", () => {
+  it("does not add removed IDs outside the saved scope", () => {
     expect(
-      scopedModelGroups(
-        groups,
-        [catalog(["example-removed", "example-new"])],
-        "anthropic",
-        "example-custom",
-      )[0].models,
-    ).toEqual(["example-custom", "example-new"]);
+      scopedModelGroups(groups, [catalog(["example-removed", "example-new"])])[0]
+        .models,
+    ).toEqual(["example-new"]);
   });
   it("uses built-in suggestions only before a successful fetch, not after an empty response", () => {
     expect(
-      scopedModelGroups(
-        groups,
-        [{ ...catalog(null), fetchedAt: null }],
-        "ai-sdk:openai",
-        "example-other",
-      )[0].models,
+      scopedModelGroups(groups, [{ ...catalog(null), fetchedAt: null }])[0]
+        .models,
     ).toEqual(["example-old"]);
     expect(
-      scopedModelGroups(
-        groups,
-        [{ ...catalog(null), models: [] }],
-        "ai-sdk:openai",
-        "example-other",
-      )[0].models,
+      scopedModelGroups(groups, [{ ...catalog(null), models: [] }])[0].models,
     ).toEqual([]);
   });
   it("makes discovered configured providers visible even if Core curates them out", () => {
@@ -119,17 +79,12 @@ describe("scoped chat picker", () => {
       configured: true,
     };
     expect(
-      scopedModelGroups(groups, [item], "anthropic", "example-old").find(
+      scopedModelGroups(groups, [item]).find(
         (group) => group.engine === "ai-sdk:groq",
       )?.models,
     ).toEqual(["example-new", "example-older"]);
     expect(
-      scopedModelGroups(
-        groups,
-        [{ ...item, configured: false }],
-        "anthropic",
-        "example-old",
-      ),
+      scopedModelGroups(groups, [{ ...item, configured: false }]),
     ).toHaveLength(2);
   });
 });

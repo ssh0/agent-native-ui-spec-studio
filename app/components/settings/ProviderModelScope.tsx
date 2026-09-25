@@ -42,7 +42,7 @@ export function ProviderModelScope({
   const [draft, setDraft] = useState<string[] | null | undefined>(undefined);
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState("");
-  const [order, setOrder] = useState<"newest" | "weekly" | "name">("newest");
+  const [order, setOrder] = useState<"newest" | "weekly">("newest");
   const cached = scopes.data?.providers.find(
     (item) => item.provider === provider,
   );
@@ -78,23 +78,18 @@ export function ProviderModelScope({
         "",
       )
     : "";
+  const hasCatalogDates = catalogModels.some((item) => item.createdAt);
   const visible = rows
     .filter((item) =>
       `${item.id} ${item.name}`.toLowerCase().includes(search.toLowerCase()),
     )
-    .sort((a, b) => {
-      if (order === "weekly")
-        return (
-          (a.weeklyRank ?? Infinity) - (b.weeklyRank ?? Infinity) ||
+    .sort((a, b) =>
+      order === "weekly"
+        ? (a.weeklyRank ?? Infinity) - (b.weeklyRank ?? Infinity) ||
           a.name.localeCompare(b.name)
-        );
-      if (order === "newest")
-        return (
-          (b.createdAt ?? "").localeCompare(a.createdAt ?? "") ||
-          a.name.localeCompare(b.name)
-        );
-      return a.name.localeCompare(b.name);
-    });
+        : (b.createdAt ?? "").localeCompare(a.createdAt ?? "") ||
+          a.name.localeCompare(b.name),
+    );
 
   useEffect(() => {
     if (ready && !started.current) {
@@ -172,11 +167,14 @@ export function ProviderModelScope({
           value={order}
           onChange={(event) => setOrder(event.target.value as typeof order)}
         >
-          <option value="newest">Newest catalog entries</option>
+          <option value="newest">
+            {hasCatalogDates
+              ? "Newest catalog entries"
+              : "Name order (no catalog dates)"}
+          </option>
           {provider === "openrouter" && (
             <option value="weekly">Popular this week · OpenRouter</option>
           )}
-          <option value="name">Name</option>
         </select>
       </label>
       <Input

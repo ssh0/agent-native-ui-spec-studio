@@ -22,7 +22,7 @@ export type ProviderModels = {
   fetchedAt: string | null;
   stale: boolean;
   error?: string;
-  // null = unrestricted; [] = hide this provider's models (except current).
+  // null = unrestricted; [] = hide this provider's models.
   scopedModels: string[] | null;
 };
 export type ModelScopeList = { providers: ProviderModels[] };
@@ -44,11 +44,8 @@ export function scopedModelGroups(
     models: string[];
     label: string;
     configured: boolean;
-    statusLabel?: string;
   }[],
   catalogs: ProviderModels[],
-  currentEngine: string,
-  currentModel: string,
 ) {
   const combined = [...groups];
   for (const catalog of catalogs) {
@@ -78,21 +75,6 @@ export function scopedModelGroups(
       catalog.scopedModels === null
         ? [...available]
         : available.filter((id) => catalog.scopedModels!.includes(id));
-    // A missing/custom/out-of-scope current selection remains visible, not replaced.
-    if (
-      group.engine === currentEngine &&
-      currentModel &&
-      !models.includes(currentModel)
-    )
-      models.unshift(currentModel);
-    const retained =
-      group.engine === currentEngine &&
-      currentModel &&
-      !available.includes(currentModel);
-    return {
-      ...group,
-      models,
-      ...(retained ? { statusLabel: "Current model not in catalog" } : {}),
-    };
+    return { ...group, models };
   });
 }

@@ -25,19 +25,8 @@ export function useScopedChatModels({
     { enabled, staleTime: 30000 },
   );
   const groups = scopes.data
-    ? scopedModelGroups(
-        base.availableModels,
-        scopes.data.providers,
-        base.selectedEngine,
-        base.selectedModel,
-      )
-    : base.availableModels.map((group) => ({
-        ...group,
-        models:
-          group.engine === base.selectedEngine && base.selectedModel
-            ? [base.selectedModel]
-            : [],
-      }));
+    ? scopedModelGroups(base.availableModels, scopes.data.providers)
+    : base.availableModels.map((group) => ({ ...group, models: [] }));
   return {
     ...base,
     availableModels: groups,

@@ -46,22 +46,20 @@ describe("Core composer model adapter", () => {
       },
     };
   });
-  it("exposes only scoped models and current selection through the real adapter", () => {
+  it("exposes only scoped models through the real adapter", () => {
     const result = useScopedChatModels({ enabled: true });
-    expect(result.availableModels[0].models).toEqual([
-      "example-current",
-      "example-new",
-    ]);
+    expect(result.availableModels[0].models).toEqual(["example-new"]);
     expect(result.selectedModel).toBe("example-current");
     result.onModelChange("example-hidden", "anthropic");
+    result.onModelChange("example-current", "anthropic");
     expect(state.change).not.toHaveBeenCalled();
     result.onModelChange("example-new", "anthropic");
     expect(state.change).toHaveBeenCalledWith("example-new", "anthropic");
   });
-  it("fails closed to the current selection while scope loading fails", () => {
+  it("exposes no models while scope loading fails", () => {
     state.scopes = { isLoading: false, isError: true };
     const result = useScopedChatModels({ enabled: true });
-    expect(result.availableModels[0].models).toEqual(["example-current"]);
+    expect(result.availableModels[0].models).toEqual([]);
     result.onModelChange("example-hidden", "anthropic");
     expect(state.change).not.toHaveBeenCalled();
   });

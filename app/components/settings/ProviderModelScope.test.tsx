@@ -56,6 +56,22 @@ describe("provider model settings rendered states", () => {
     expect(html).toContain("example-retired");
     expect(html).not.toContain("example-fallback");
   });
+  it("labels date-free catalog ordering as name order", () => {
+    state.query = {
+      data: {
+        providers: [
+          {
+            ...catalog,
+            models: [{ id: "example-chat", name: "Example chat" }],
+          },
+        ],
+      },
+    };
+    const html = render();
+    expect(html).toContain("Name order (no catalog dates)");
+    expect(html).not.toContain("Newest catalog entries");
+    expect(html).not.toContain(">Name</option>");
+  });
   it("shows pending and actionable catalog failure without erasing rows", () => {
     state.discovery = {
       isPending: true,
