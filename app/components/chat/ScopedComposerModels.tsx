@@ -15,15 +15,48 @@ import {
   type ModelScopeList,
 } from "../../../shared/provider-models";
 
-type PersistedSelection = { model: string; engine: string };
+type ReasoningEffort = ReturnType<typeof useChatModels>["selectedEffort"];
+type PersistedSelection = {
+  model: string;
+  engine: string;
+  effort?: ReasoningEffort;
+};
+type RetainedSelection = {
+  storageKey: string | null;
+  selection: PersistedSelection | null;
+  lastCore: {
+    model: string;
+    engine: string;
+    effort: ReasoningEffort;
+    isLoading: boolean;
+  };
+  fallbackReady: boolean;
+  recovering: boolean;
+  externalSelection: boolean;
+};
+const reasoningEfforts: readonly ReasoningEffort[] = [
+  "auto",
+  "none",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+];
 
 function readPersistedSelection(storageKey: string | null) {
   if (!storageKey || typeof window === "undefined") return null;
   try {
     const value = JSON.parse(window.localStorage.getItem(storageKey) ?? "null");
+    const effort = reasoningEfforts.find((option) => option === value?.effort);
     return typeof value?.model === "string" &&
       typeof value?.engine === "string"
-      ? { model: value.model, engine: value.engine }
+      ? {
+          model: value.model,
+          engine: value.engine,
+          ...(effort ? { effort } : {}),
+        }
       : null;
   } catch {
     return null;
@@ -40,17 +73,24 @@ export function useScopedChatModels({
   const base = useChatModels({ enabled, storageKey });
   const selectionStorageKey =
     storageKey === undefined ? chatModelSelectionStorageKey() : storageKey;
-  const retainedSelection = useRef<{
-    storageKey: string | null;
-    selection: PersistedSelection | null;
-  } | null>(null);
+  const retainedSelection = useRef<RetainedSelection | null>(null);
   if (
     retainedSelection.current === null ||
     retainedSelection.current.storageKey !== selectionStorageKey
   ) {
+    const selection = readPersistedSelection(selectionStorageKey);
     retainedSelection.current = {
       storageKey: selectionStorageKey,
-      selection: readPersistedSelection(selectionStorageKey),
+      selection,
+      lastCore: {
+        model: base.selectedModel,
+        engine: base.selectedEngine,
+        effort: base.selectedEffort,
+        isLoading: base.isLoading,
+      },
+      fallbackReady: false,
+      recovering: false,
+      externalSelection: false,
     };
   }
   const retained = retainedSelection.current!;
@@ -67,37 +107,125 @@ export function useScopedChatModels({
     [base.availableModels, scopes.data],
   );
   useEffect(() => {
+    const previous = retained.lastCore;
+    const coreSelectionChanged =
+      previous.model !== base.selectedModel ||
+      previous.engine !== base.selectedEngine ||
+      previous.effort !== base.selectedEffort;
+    if (
+      !retained.externalSelection &&
+      previous.isLoading &&
+      !base.isLoading &&
+      coreSelectionChanged
+    ) {
+      retained.fallbackReady = true;
+    }
+    retained.externalSelection = false;
+    retained.lastCore = {
+      model: base.selectedModel,
+      engine: base.selectedEngine,
+      effort: base.selectedEffort,
+      isLoading: base.isLoading,
+    };
+    if (!scopes.data) return;
     const selection = retained.selection;
-    if (!selection || !scopes.data) return;
+    if (!selection) {
+      retained.recovering = false;
+      retained.fallbackReady = false;
+      return;
+    }
     if (
       !isScopedCustomOpenAIModel(
         scopes.data.providers,
         selection.model,
         selection.engine,
-      )
-    ) {
-      retained.selection = null;
-      return;
-    }
-    if (
-      groups.some(
+      ) ||
+      !groups.some(
         (group) =>
           group.engine === selection.engine &&
           group.models.includes(selection.model),
-      ) &&
-      (base.selectedModel !== selection.model ||
-        base.selectedEngine !== selection.engine)
+      )
     ) {
-      base.onModelChange(selection.model, selection.engine);
+      retained.selection = null;
+      retained.fallbackReady = false;
+      retained.recovering = false;
+      return;
+    }
+
+    const selectedByCore =
+      base.selectedModel === selection.model &&
+      base.selectedEngine === selection.engine;
+    if (retained.recovering && selectedByCore) {
+      if (selection.effort && base.selectedEffort !== selection.effort) {
+        base.onEffortChange(selection.effort);
+        return;
+      }
+      retained.recovering = false;
+      retained.fallbackReady = false;
+      return;
+    }
+    retained.recovering = false;
+    if (!selectedByCore) {
+      if (retained.fallbackReady && !base.isLoading) {
+        retained.fallbackReady = false;
+        retained.recovering = true;
+        base.onModelChange(selection.model, selection.engine);
+        return;
+      }
+      retained.selection =
+        isScopedCustomOpenAIModel(
+          scopes.data.providers,
+          base.selectedModel,
+          base.selectedEngine,
+        ) &&
+        groups.some(
+          (group) =>
+            group.engine === base.selectedEngine &&
+            group.models.includes(base.selectedModel),
+        )
+          ? {
+              model: base.selectedModel,
+              engine: base.selectedEngine,
+              effort: base.selectedEffort,
+            }
+          : null;
+    } else if (base.selectedEffort !== selection.effort) {
+      retained.selection = { ...selection, effort: base.selectedEffort };
+      retained.fallbackReady = false;
     }
   }, [
     base.onModelChange,
+    base.onEffortChange,
+    base.isLoading,
     base.selectedEngine,
+    base.selectedEffort,
     base.selectedModel,
     groups,
     retained,
     scopes.data,
   ]);
+  useEffect(() => {
+    if (!selectionStorageKey || typeof window === "undefined") return;
+    const syncExternalSelection = (event: StorageEvent) => {
+      if (event.key !== selectionStorageKey) return;
+      const selection = readPersistedSelection(selectionStorageKey);
+      retained.selection =
+        selection &&
+        (!scopes.data ||
+          isScopedCustomOpenAIModel(
+            scopes.data.providers,
+            selection.model,
+            selection.engine,
+          ))
+          ? selection
+          : null;
+      retained.fallbackReady = false;
+      retained.recovering = false;
+      retained.externalSelection = true;
+    };
+    window.addEventListener("storage", syncExternalSelection);
+    return () => window.removeEventListener("storage", syncExternalSelection);
+  }, [retained, scopes.data, selectionStorageKey]);
   const selection = retained.selection;
   const recoveredSelection =
     selection &&
@@ -111,13 +239,21 @@ export function useScopedChatModels({
       (group) =>
         group.engine === selection.engine &&
         group.models.includes(selection.model),
-    )
+    ) &&
+    (retained.fallbackReady ||
+      retained.recovering ||
+      (base.selectedModel === selection.model &&
+        base.selectedEngine === selection.engine))
       ? selection
       : null;
   return {
     ...base,
     selectedModel: recoveredSelection?.model ?? base.selectedModel,
     selectedEngine: recoveredSelection?.engine ?? base.selectedEngine,
+    selectedEffort:
+      recoveredSelection && (retained.fallbackReady || retained.recovering)
+        ? (recoveredSelection.effort ?? base.selectedEffort)
+        : base.selectedEffort,
     availableModels: groups,
     isLoading: base.isLoading || scopes.isLoading,
     onModelChange: (model: string, engine: string) => {
@@ -129,8 +265,11 @@ export function useScopedChatModels({
         retained.selection =
           scopes.data &&
           isScopedCustomOpenAIModel(scopes.data.providers, model, engine)
-            ? { model, engine }
+            ? { model, engine, effort: base.selectedEffort }
             : null;
+        retained.fallbackReady = false;
+        retained.recovering = false;
+        retained.externalSelection = false;
         base.onModelChange(model, engine);
       }
     },

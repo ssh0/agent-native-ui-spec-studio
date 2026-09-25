@@ -112,6 +112,7 @@ describe("official model catalogs", () => {
           "gemini-2.5-flash",
           "gemini-3.8-flash",
           "gemini-3.10-flash",
+          "gemini-3-flash-preview",
         ].map((name) => ({
           name: `models/${name}`,
           supportedGenerationMethods: ["generateContent"],
@@ -125,6 +126,7 @@ describe("official model catalogs", () => {
     ).toEqual([
       "gemini-3.10-flash",
       "gemini-3.8-flash",
+      "gemini-3-flash-preview",
       "gemini-2.5-flash",
     ]);
   });

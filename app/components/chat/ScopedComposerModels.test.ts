@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
   refs: [] as { current: unknown }[],
   refIndex: 0,
   effects: [] as Array<() => void>,
+  windowListeners: new Map<string, Set<EventListener>>(),
 }));
 vi.mock("react", async (importOriginal) => {
   const react = await importOriginal<typeof import("react")>();
@@ -74,6 +75,24 @@ const storageAdapter = {
   getItem: (key: string) => storage.get(key) ?? null,
   setItem: (key: string, value: string) => storage.set(key, value),
 };
+const testWindow = {
+  localStorage: storageAdapter,
+  addEventListener: (type: string, listener: EventListener) => {
+    const listeners =
+      state.windowListeners.get(type) ?? new Set<EventListener>();
+    listeners.add(listener);
+    state.windowListeners.set(type, listeners);
+  },
+  removeEventListener: (type: string, listener: EventListener) => {
+    state.windowListeners.get(type)?.delete(listener);
+  },
+  dispatchEvent: (event: Event) => {
+    state.windowListeners
+      .get(event.type)
+      ?.forEach((listener) => listener(event));
+    return true;
+  },
+};
 
 function renderScopedChatModels() {
   let result: ReturnType<typeof useScopedChatModels> | undefined;
@@ -98,7 +117,8 @@ describe("Core composer model adapter", () => {
     state.refs = [];
     state.refIndex = 0;
     state.effects = [];
-    vi.stubGlobal("window", { localStorage: storageAdapter } as unknown as Window);
+    state.windowListeners.clear();
+    vi.stubGlobal("window", testWindow as unknown as Window);
     state.change.mockReset();
     state.base = {
       selectedEngine: "anthropic",
@@ -153,6 +173,7 @@ describe("Core composer model adapter", () => {
             "gemini-2.5-flash",
             "gemini-3.8-flash",
             "gemini-3.10-flash",
+            "gemini-3-flash-preview",
           ],
         },
       ],
@@ -166,6 +187,7 @@ describe("Core composer model adapter", () => {
               { id: "gemini-2.5-flash", name: "Gemini 2.5" },
               { id: "gemini-3.8-flash", name: "Gemini 3.8" },
               { id: "gemini-3.10-flash", name: "Gemini 3.10" },
+              { id: "gemini-3-flash-preview", name: "Gemini 3 preview" },
             ],
             fetchedAt: "2026-09-01T00:00:00Z",
             scopedModels: null,
@@ -177,6 +199,7 @@ describe("Core composer model adapter", () => {
     expect(renderScopedChatModels().availableModels[0].models).toEqual([
       "gemini-3.10-flash",
       "gemini-3.8-flash",
+      "gemini-3-flash-preview",
       "gemini-2.5-flash",
     ]);
   });
@@ -242,41 +265,63 @@ describe("Core composer model adapter", () => {
       "ai-sdk:openai",
     );
   });
-  it("adds, saves, selects, and restores a gateway model after Core reload reconciliation", async () => {
-    const addition = addCustomModelId("gateway-only-model", [], []);
+  it("restores a persisted custom model and effort after Core fallback", async () => {
+    const addition = addCustomModelId("gpt-5", [], []);
     expect(addition).toEqual({
-      id: "gateway-only-model",
-      scope: ["gateway-only-model"],
+      id: "gpt-5",
+      scope: ["gpt-5"],
     });
     await saveModelScope("openai", addition!.scope);
     const savedScopes = await listModelScopes();
     expect(
       savedScopes.providers.find((provider) => provider.provider === "openai")
         ?.scopedModels,
-    ).toEqual(["gateway-only-model"]);
+    ).toEqual(["gpt-5"]);
     const selectionKey = "test-chat-model-selection";
     const savedSelection = {
-      model: "gateway-only-model",
+      model: "gpt-5",
       engine: "ai-sdk:openai",
-      effort: "auto",
+      effort: "xhigh",
     };
+    storage.set(selectionKey, JSON.stringify(savedSelection));
     const persistSelection = (model: string, engine: string) => {
       state.change(model, engine);
       state.base.selectedModel = model;
       state.base.selectedEngine = engine;
       storage.set(
         selectionKey,
-        JSON.stringify({ ...savedSelection, model, engine }),
+        JSON.stringify({
+          model,
+          engine,
+          effort: state.base.selectedEffort,
+        }),
       );
+    };
+    const persistEffort = (effort: string) => {
+      state.base.selectedEffort = effort;
+      storage.set(selectionKey, JSON.stringify({ ...savedSelection, effort }));
     };
     state.scopes = {
       isLoading: false,
-      data: savedScopes,
+      data: {
+        ...savedScopes,
+        providers: savedScopes.providers.map((provider) =>
+          provider.provider === "anthropic"
+            ? {
+                ...provider,
+                configured: true,
+                models: [{ id: "example-new", name: "New" }],
+                fetchedAt: "2026-09-01T00:00:00Z",
+                scopedModels: null,
+              }
+            : provider,
+        ),
+      },
     };
     state.base = {
-      selectedEngine: "builder",
-      selectedModel: "builder-default",
-      selectedEffort: "auto",
+      selectedEngine: "anthropic",
+      selectedModel: "example-new",
+      selectedEffort: "xhigh",
       isLoading: false,
       availableModels: [
         {
@@ -285,57 +330,140 @@ describe("Core composer model adapter", () => {
           configured: true,
           models: ["builder-default"],
         },
+        {
+          engine: "ai-sdk:google",
+          label: "Google",
+          configured: true,
+          models: ["gemini-3-flash-preview"],
+        },
+        {
+          engine: "anthropic",
+          label: "Anthropic",
+          configured: true,
+          models: ["example-new"],
+        },
       ],
       onModelChange: persistSelection,
+      onEffortChange: persistEffort,
     };
 
     const firstLoad = renderScopedChatModels();
     expect(firstLoad.availableModels).toContainEqual(
       expect.objectContaining({
         engine: "ai-sdk:openai",
-        models: ["gateway-only-model"],
+        models: ["gpt-5"],
       }),
     );
-    firstLoad.onModelChange("gateway-only-model", "ai-sdk:openai");
-    expect(state.change).toHaveBeenCalledWith(
-      "gateway-only-model",
-      "ai-sdk:openai",
-    );
-
-    state.base.selectedModel = "builder-default";
-    state.base.selectedEngine = "builder";
-    storage.set(
-      selectionKey,
-      JSON.stringify({ model: "builder-default", engine: "builder" }),
-    );
-    const reconciled = renderScopedChatModels();
-    expect(reconciled.selectedModel).toBe("gateway-only-model");
-    expect(reconciled.selectedEngine).toBe("ai-sdk:openai");
+    expect(firstLoad.selectedModel).toBe("example-new");
+    firstLoad.onModelChange("gpt-5", "ai-sdk:openai");
+    expect(state.change).toHaveBeenCalledWith("gpt-5", "ai-sdk:openai");
     expect(JSON.parse(storage.get(selectionKey)!)).toMatchObject(savedSelection);
 
     state.refs = [];
-    state.base.selectedModel = "gateway-only-model";
+    state.windowListeners.clear();
+    state.base.selectedModel = "gpt-5";
     state.base.selectedEngine = "ai-sdk:openai";
-    const reloaded = renderScopedChatModels();
-    state.base.selectedModel = "builder-default";
-    state.base.selectedEngine = "builder";
+    state.base.isLoading = true;
+    const reload = renderScopedChatModels();
+    expect(reload.selectedModel).toBe("gpt-5");
+    expect(reload.selectedEffort).toBe("xhigh");
+
+    state.base.selectedModel = "gemini-3-flash-preview";
+    state.base.selectedEngine = "ai-sdk:google";
+    state.base.selectedEffort = "high";
+    state.base.isLoading = false;
     storage.set(
       selectionKey,
-      JSON.stringify({ model: "builder-default", engine: "builder" }),
-    );
-    const reloadedAfterCoreReconciliation = renderScopedChatModels();
-    expect(reloaded.availableModels).toContainEqual(
-      expect.objectContaining({
-        engine: "ai-sdk:openai",
-        models: ["gateway-only-model"],
+      JSON.stringify({
+        model: "gemini-3-flash-preview",
+        engine: "ai-sdk:google",
+        effort: "high",
       }),
     );
-    expect(reloadedAfterCoreReconciliation.selectedModel).toBe(
-      "gateway-only-model",
-    );
-    expect(reloadedAfterCoreReconciliation.selectedEngine).toBe(
-      "ai-sdk:openai",
-    );
+    const reconciled = renderScopedChatModels();
+    expect(reconciled.selectedModel).toBe("gpt-5");
+    expect(reconciled.selectedEngine).toBe("ai-sdk:openai");
+    expect(reconciled.selectedEffort).toBe("xhigh");
     expect(JSON.parse(storage.get(selectionKey)!)).toMatchObject(savedSelection);
+    expect(state.change).toHaveBeenCalledTimes(2);
+    expect(state.change).toHaveBeenLastCalledWith("gpt-5", "ai-sdk:openai");
+
+    state.base.selectedModel = "example-new";
+    state.base.selectedEngine = "anthropic";
+    state.base.selectedEffort = "medium";
+    storage.set(
+      selectionKey,
+      JSON.stringify({
+        model: "example-new",
+        engine: "anthropic",
+        effort: "medium",
+      }),
+    );
+    const afterSidebarSelection = renderScopedChatModels();
+    expect(afterSidebarSelection.selectedModel).toBe("example-new");
+    expect(afterSidebarSelection.selectedEngine).toBe("anthropic");
+    expect(afterSidebarSelection.selectedEffort).toBe("medium");
+    expect(state.change).toHaveBeenCalledTimes(2);
+  });
+  it("keeps a newer cross-tab model selection over pending custom recovery", async () => {
+    await saveModelScope("openai", ["gpt-5"]);
+    const providers = (await listModelScopes()).providers.map((provider) =>
+      provider.provider === "anthropic"
+        ? {
+            ...provider,
+            configured: true,
+            models: [{ id: "example-new", name: "New" }],
+            fetchedAt: "2026-09-01T00:00:00Z",
+            scopedModels: null,
+          }
+        : provider,
+    );
+    state.scopes = { data: { providers } };
+    const selectionKey = "test-chat-model-selection";
+    storage.set(
+      selectionKey,
+      JSON.stringify({
+        model: "gpt-5",
+        engine: "ai-sdk:openai",
+        effort: "xhigh",
+      }),
+    );
+    state.base = {
+      selectedEngine: "ai-sdk:openai",
+      selectedModel: "gpt-5",
+      selectedEffort: "xhigh",
+      isLoading: true,
+      availableModels: [
+        {
+          engine: "anthropic",
+          label: "Anthropic",
+          configured: true,
+          models: ["example-new"],
+        },
+      ],
+      onModelChange: state.change,
+      onEffortChange: vi.fn(),
+    };
+    renderScopedChatModels();
+
+    const newerSelection = {
+      model: "example-new",
+      engine: "anthropic",
+      effort: "medium",
+    };
+    storage.set(selectionKey, JSON.stringify(newerSelection));
+    state.base.selectedModel = newerSelection.model;
+    state.base.selectedEngine = newerSelection.engine;
+    state.base.selectedEffort = newerSelection.effort;
+    state.base.isLoading = false;
+    const storageEvent = new Event("storage");
+    Object.defineProperty(storageEvent, "key", { value: selectionKey });
+    window.dispatchEvent(storageEvent);
+
+    const result = renderScopedChatModels();
+    expect(result.selectedModel).toBe("example-new");
+    expect(result.selectedEngine).toBe("anthropic");
+    expect(result.selectedEffort).toBe("medium");
+    expect(state.change).not.toHaveBeenCalled();
   });
 });

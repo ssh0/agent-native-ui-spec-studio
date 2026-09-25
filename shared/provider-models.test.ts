@@ -89,6 +89,7 @@ describe("scoped chat picker", () => {
         "gemini-2.5-flash",
         "gemini-3.8-flash",
         "gemini-3.10-flash",
+        "gemini-3-flash-preview",
         "gemini-dated-older",
         "gemini-current",
       ],
@@ -99,6 +100,7 @@ describe("scoped chat picker", () => {
         { id: "gemini-2.5-flash", name: "2.5" },
         { id: "gemini-3.8-flash", name: "3.8" },
         { id: "gemini-3.10-flash", name: "3.10" },
+        { id: "gemini-3-flash-preview", name: "3 preview" },
         {
           id: "gemini-dated-older",
           name: "Older dated",
@@ -121,6 +123,7 @@ describe("scoped chat picker", () => {
       "gemini-dated-older",
       "gemini-3.10-flash",
       "gemini-3.8-flash",
+      "gemini-3-flash-preview",
       "gemini-2.5-flash",
     ]);
   });

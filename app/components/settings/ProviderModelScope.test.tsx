@@ -100,6 +100,7 @@ describe("provider model settings rendered states", () => {
               { id: "gemini-2.5-flash", name: "Gemini 2.5" },
               { id: "gemini-3.8-flash", name: "Gemini 3.8" },
               { id: "gemini-3.10-flash", name: "Gemini 3.10" },
+              { id: "gemini-3-flash-preview", name: "Gemini 3 preview" },
             ],
           },
         ],
@@ -110,6 +111,9 @@ describe("provider model settings rendered states", () => {
       html.indexOf("Gemini 3.8"),
     );
     expect(html.indexOf("Gemini 3.8")).toBeLessThan(
+      html.indexOf("Gemini 3 preview"),
+    );
+    expect(html.indexOf("Gemini 3 preview")).toBeLessThan(
       html.indexOf("Gemini 2.5"),
     );
     expect(html).not.toContain('aria-label="Sort models"');

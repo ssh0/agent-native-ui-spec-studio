@@ -19,7 +19,7 @@ export type CatalogModel = {
 
 function modelVersion(id: string) {
   const version = id.match(
-    /(?:^|[^0-9])v?(\d+(?:[.-]\d+)+)(?=$|[^0-9])/i,
+    /(?:^|[^0-9])v?(\d+(?:[.-]\d+)*)(?=$|[^0-9])/i,
   )?.[1];
   return version?.split(/[.-]/).map(Number);
 }
