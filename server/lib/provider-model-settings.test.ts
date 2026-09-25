@@ -5,6 +5,7 @@ const state = vi.hoisted(() => ({
   store: new Map<string, Record<string, unknown>>(),
   secret: "example-credential" as string | null,
   endpoint: null as string | null,
+  ollamaEndpoint: "http://localhost:11434" as string | null,
   fetchModels: vi.fn(),
 }));
 vi.mock("@agent-native/core/settings", () => ({
@@ -20,7 +21,11 @@ vi.mock("@agent-native/core/settings", () => ({
 }));
 vi.mock("@agent-native/core/server", () => ({
   resolveSecret: async (key: string) =>
-    key === "OPENAI_BASE_URL" ? state.endpoint : state.secret,
+    key === "OPENAI_BASE_URL"
+      ? state.endpoint
+      : key === "OLLAMA_BASE_URL"
+        ? state.ollamaEndpoint
+        : state.secret,
 }));
 vi.mock("@agent-native/core/server/request-context", () => ({
   getRequestOrgId: () => state.org,
@@ -41,6 +46,7 @@ vi.mock("./spec-project.js", () => ({
 vi.mock("./provider-model-catalog.js", () => ({
   catalogKeys: { anthropic: "ANTHROPIC_API_KEY", openai: "OPENAI_API_KEY" },
   fetchProviderModels: state.fetchModels,
+  fetchOllamaModels: state.fetchModels,
 }));
 import {
   CATALOG_TTL_MS,
@@ -58,33 +64,35 @@ describe("scoped model persistence and caching", () => {
     state.org = "example-org";
     state.secret = "example-credential";
     state.endpoint = null;
+    state.ollamaEndpoint = "http://localhost:11434";
     state.fetchModels
       .mockReset()
       .mockResolvedValue([{ id: "example-chat", name: "Example" }]);
   });
-  it("fetches once within the TTL, refreshes explicitly, and re-fetches after expiration", async () => {
+  it("fetches once within the TTL and re-fetches after expiration", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-01T00:00:00Z"));
     expect((await loadProviderModels("anthropic")).models).toHaveLength(1);
     await loadProviderModels("anthropic");
     expect(state.fetchModels).toHaveBeenCalledTimes(1);
-    await loadProviderModels("anthropic", true);
-    expect(state.fetchModels).toHaveBeenCalledTimes(2);
     vi.advanceTimersByTime(CATALOG_TTL_MS + 1);
     await loadProviderModels("anthropic");
-    expect(state.fetchModels).toHaveBeenCalledTimes(3);
+    expect(state.fetchModels).toHaveBeenCalledTimes(2);
   });
   it("keeps catalog and selected missing IDs on failure, without echoing provider errors", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-01T00:00:00Z"));
     await loadProviderModels("anthropic");
     await saveModelScope("anthropic", [
       "example-retired",
       "example-chat",
       "example-chat",
     ]);
+    vi.advanceTimersByTime(CATALOG_TTL_MS + 1);
     state.fetchModels.mockRejectedValue(
       new Error("private diagnostic example"),
     );
-    const result = await loadProviderModels("anthropic", true);
+    const result = await loadProviderModels("anthropic");
     expect(result.stale).toBe(true);
     expect(result.models).toHaveLength(1);
     expect(result.scopedModels).toEqual(["example-retired", "example-chat"]);
@@ -119,6 +127,21 @@ describe("scoped model persistence and caching", () => {
     await expect(saveModelScope("anthropic", [])).rejects.toThrow("Sign in");
     await expect(loadProviderModels("anthropic")).rejects.toThrow("Sign in");
     expect(state.store.size).toBe(0);
+    expect(state.fetchModels).not.toHaveBeenCalled();
+  });
+  it("caches official Ollama installed-model lists without a bearer key", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-01T00:00:00Z"));
+    expect((await loadProviderModels("ollama")).models).toHaveLength(1);
+    await loadProviderModels("ollama");
+    expect(state.fetchModels).toHaveBeenCalledTimes(1);
+  });
+  it("does not fetch Ollama without its configured endpoint", async () => {
+    state.ollamaEndpoint = null;
+    expect(await loadProviderModels("ollama")).toMatchObject({
+      stale: true,
+      error: expect.stringContaining("Configure an Ollama endpoint"),
+    });
     expect(state.fetchModels).not.toHaveBeenCalled();
   });
   it("does not send a custom gateway's key to the official OpenAI API", async () => {

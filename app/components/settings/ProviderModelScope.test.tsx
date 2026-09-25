@@ -1,3 +1,4 @@
+import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -5,6 +6,10 @@ const state = vi.hoisted(() => ({
   query: {} as Record<string, unknown>,
   discovery: {} as Record<string, unknown>,
   save: {} as Record<string, unknown>,
+}));
+vi.mock("@/components/ui/checkbox", () => ({
+  Checkbox: ({ checked }: { checked: boolean }) =>
+    React.createElement("input", { type: "checkbox", checked, readOnly: true }),
 }));
 vi.mock("@agent-native/core/client/hooks", () => ({
   useActionQuery: () => state.query,
@@ -30,7 +35,6 @@ const render = () =>
   renderToStaticMarkup(
     <ProviderModelScope
       provider="openrouter"
-      fallbackModels={["example-fallback"]}
       currentModel="example-retired"
       ready
     />,
@@ -48,13 +52,29 @@ describe("provider model settings rendered states", () => {
   });
   it("renders checkboxes, attributed ranking, dates and retained missing selection", () => {
     const html = render();
-    expect(html).toContain('role="checkbox"');
-    expect(html).toContain('aria-checked="true"');
+    expect(html).toContain('type="checkbox"');
+    expect(html).toContain('checked=""');
     expect(html).toContain("OpenRouter weekly #1");
     expect(html).toContain("Newest catalog entry");
     expect(html).toContain("Not in the catalog");
     expect(html).toContain("example-retired");
     expect(html).not.toContain("example-fallback");
+    expect(html).not.toContain("Refresh catalog");
+    expect(html).not.toContain("Filter models");
+    expect(html).not.toContain("Allow all models");
+    expect(html).not.toContain("Clear selection");
+  });
+  it("shows a saved current selection outside the scope without offering it", () => {
+    state.query = {
+      data: { providers: [{ ...catalog, scopedModels: ["example-chat"] }] },
+    };
+    const html = render();
+    expect(html).toContain("Current selection · Outside scope");
+    const currentRow = html.slice(
+      html.indexOf("example-retired") - 300,
+      html.indexOf("example-retired") + 200,
+    );
+    expect(currentRow).not.toContain("checked=");
   });
   it("labels date-free catalog ordering as name order", () => {
     state.query = {
@@ -78,30 +98,27 @@ describe("provider model settings rendered states", () => {
       data: { ...catalog, error: "Retry catalog refresh", stale: true },
     };
     const html = render();
-    expect(html).toContain("Refreshing");
+    expect(html).toContain("Loading the provider’s model catalog");
     expect(html).toContain('aria-busy="true"');
     expect(html).toContain('role="alert"');
     expect(html).toContain("Example chat");
   });
-  it("distinguishes an empty live catalog from fallback suggestions", () => {
+  it("distinguishes an empty live catalog from an unverified fallback", () => {
     state.query = {
       data: { providers: [{ ...catalog, models: [], scopedModels: [] }] },
     };
     const html = renderToStaticMarkup(
-      <ProviderModelScope
-        provider="openrouter"
-        fallbackModels={["example-fallback"]}
-        ready
-      />,
+      <ProviderModelScope provider="openrouter" ready />,
     );
     expect(html).toContain("No chat models returned");
     expect(html).not.toContain("example-fallback");
   });
-  it("labels suggestions when the catalog has never loaded and shows scope-read retry", () => {
+  it("shows an unloaded catalog and scope-read retry without fallback candidates", () => {
     state.query = { isError: true, isLoading: false };
     const html = render();
-    expect(html).toContain("Showing built-in suggestions");
-    expect(html).toContain("example-fallback");
+    expect(html).toContain("Model catalog has not been loaded yet.");
+    expect(html).not.toContain("example-fallback");
+    expect(html).not.toContain('type="checkbox"');
     expect(html).toContain("Saved scope could not be loaded");
     expect(html).toContain("Retry");
   });

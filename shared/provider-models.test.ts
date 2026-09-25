@@ -29,12 +29,12 @@ function catalog(scope: string[] | null): ProviderModels {
   };
 }
 describe("scoped chat picker", () => {
-  it("does not mutate fallback groups", () => {
+  it("does not offer built-in models before a verified catalog is loaded", () => {
     const result = scopedModelGroups(groups, [
       { ...catalog(null), fetchedAt: null },
     ]);
     expect(groups[0].models).toEqual(["example-old"]);
-    expect(result[0].models).toEqual(["example-old"]);
+    expect(result[0].models).toEqual([]);
   });
   it("applies Anthropic scopes to the legacy ai-sdk engine alias too", () => {
     const result = scopedModelGroups(
@@ -51,25 +51,48 @@ describe("scoped chat picker", () => {
     expect(groups[0].models).toEqual(["example-old"]);
   });
   it("null allows new discoveries while an empty scope hides every model", () => {
-    expect(
-      scopedModelGroups(groups, [catalog(null)])[0].models,
-    ).toEqual(["example-new", "example-older"]);
+    expect(scopedModelGroups(groups, [catalog(null)])[0].models).toEqual([
+      "example-new",
+      "example-older",
+    ]);
     expect(scopedModelGroups(groups, [catalog([])])[0].models).toEqual([]);
   });
   it("does not add removed IDs outside the saved scope", () => {
     expect(
-      scopedModelGroups(groups, [catalog(["example-removed", "example-new"])])[0]
-        .models,
+      scopedModelGroups(groups, [
+        catalog(["example-removed", "example-new"]),
+      ])[0].models,
     ).toEqual(["example-new"]);
   });
-  it("uses built-in suggestions only before a successful fetch, not after an empty response", () => {
+  it("offers no models before loading or after an empty catalog response", () => {
     expect(
       scopedModelGroups(groups, [{ ...catalog(null), fetchedAt: null }])[0]
         .models,
-    ).toEqual(["example-old"]);
+    ).toEqual([]);
     expect(
       scopedModelGroups(groups, [{ ...catalog(null), models: [] }])[0].models,
     ).toEqual([]);
+  });
+  it("filters Ollama with its own checked scope", () => {
+    const result = scopedModelGroups(
+      [
+        {
+          engine: "ai-sdk:ollama",
+          label: "Ollama",
+          configured: true,
+          models: ["example-default"],
+        },
+      ],
+      [
+        {
+          ...catalog(["example-local"]),
+          provider: "ollama",
+          configured: true,
+          models: [{ id: "example-local", name: "Local" }],
+        },
+      ],
+    );
+    expect(result[0].models).toEqual(["example-local"]);
   });
   it("makes discovered configured providers visible even if Core curates them out", () => {
     const item = {

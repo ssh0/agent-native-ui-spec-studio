@@ -5,8 +5,9 @@ import { saveModelScope } from "../server/lib/provider-model-settings.js";
 import { catalogProviders } from "../shared/provider-models.js";
 
 export default defineAction({
+  agentTool: false,
   description:
-    "Set personal scoped models for one provider's chat picker. null restores all models; [] hides all except the current selection. Does not change the conversation model or shared default.",
+    "Save the Settings UI user's scoped model IDs for one provider. null allows all discovered models; [] allows none. This UI-only operation does not change the conversation model or shared default.",
   schema: z.object({
     provider: z
       .enum(catalogProviders)
@@ -16,7 +17,7 @@ export default defineAction({
       .max(10000)
       .nullable()
       .describe(
-        "Allowed model IDs, including custom IDs. null = unrestricted; [] = none except current selection.",
+        "Allowed model IDs, including custom IDs. null = unrestricted; [] = none.",
       ),
   }),
   run: ({ provider, models }) => saveModelScope(provider, models),

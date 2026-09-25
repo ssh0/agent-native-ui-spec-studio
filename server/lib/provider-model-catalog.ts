@@ -1,11 +1,12 @@
+import { ssrfSafeFetch } from "@agent-native/core/extensions/url-safety";
 import { z } from "zod";
 
 import type {
   CatalogModel,
-  CatalogProvider,
+  RemoteCatalogProvider,
 } from "../../shared/provider-models.js";
 
-export const catalogEndpoints: Record<CatalogProvider, string> = {
+export const catalogEndpoints: Record<RemoteCatalogProvider, string> = {
   anthropic: "https://api.anthropic.com/v1/models",
   openai: "https://api.openai.com/v1/models",
   openrouter: "https://openrouter.ai/api/v1/models",
@@ -14,7 +15,7 @@ export const catalogEndpoints: Record<CatalogProvider, string> = {
   mistral: "https://api.mistral.ai/v1/models",
   cohere: "https://api.cohere.com/v1/models",
 };
-export const catalogKeys: Record<CatalogProvider, string> = {
+export const catalogKeys: Record<RemoteCatalogProvider, string> = {
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
   openrouter: "OPENROUTER_API_KEY",
@@ -30,6 +31,8 @@ const rowSchema = z.object({
   displayName: z.string().max(300).nullish(),
   created: z.number().nullish(),
   created_at: z.string().nullish(),
+  model: z.string().max(300).optional(),
+  modified_at: z.string().nullish(),
   active: z.boolean().optional(),
   supportedGenerationMethods: z.array(z.string()).optional(),
   capabilities: z
@@ -39,6 +42,17 @@ const rowSchema = z.object({
   architecture: z
     .object({ output_modalities: z.array(z.string()).optional() })
     .optional(),
+});
+const ollamaPageSchema = z.object({
+  models: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(300),
+        model: z.string().max(300).optional(),
+        modified_at: z.string().optional(),
+      }),
+    )
+    .max(10000),
 });
 const pageSchema = z.object({
   data: z.array(rowSchema).max(10000).optional(),
@@ -50,13 +64,17 @@ const pageSchema = z.object({
   total_count: z.number().optional(),
 });
 
-export function parseCatalogPage(provider: CatalogProvider, payload: unknown) {
+export function parseCatalogPage(
+  provider: RemoteCatalogProvider,
+  payload: unknown,
+  rankOffset = 0,
+) {
   const page = pageSchema.parse(payload);
   const rows =
     provider === "google" || provider === "cohere" ? page.models : page.data;
   if (!rows) throw new Error("Invalid model catalog response.");
   const models: CatalogModel[] = [];
-  for (const row of rows) {
+  for (const [index, row] of rows.entries()) {
     const id = (
       provider === "google" || provider === "cohere" ? row.name : row.id
     )?.replace(/^models\//, "");
@@ -87,7 +105,10 @@ export function parseCatalogPage(provider: CatalogProvider, payload: unknown) {
       : (row.created ?? 0) * 1000;
     models.push({
       id,
-      name: row.display_name ?? row.displayName ?? row.name ?? id,
+      name: row.display_name ?? row.displayName ?? row.model ?? row.name ?? id,
+      ...(provider === "openrouter" && rankOffset + index < 5
+        ? { weeklyRank: rankOffset + index + 1 }
+        : {}),
       ...(Number.isFinite(timestamp) &&
       timestamp > 0 &&
       timestamp <= 8640000000000000
@@ -98,9 +119,17 @@ export function parseCatalogPage(provider: CatalogProvider, payload: unknown) {
   return { models, page, rowCount: rows.length };
 }
 
+/** Ollama returns the models installed on the configured local Ollama instance. */
+export function parseOllamaCatalog(payload: unknown): CatalogModel[] {
+  return ollamaPageSchema.parse(payload).models.map((model) => ({
+    id: model.name,
+    name: model.model && model.model !== model.name ? model.model : model.name,
+  }));
+}
+
 /** Fixed official origins only; redirects and provider error bodies never escape. */
 export async function fetchProviderModels(
-  provider: CatalogProvider,
+  provider: RemoteCatalogProvider,
   key: string,
   fetcher: typeof fetch = fetch,
 ): Promise<CatalogModel[]> {
@@ -133,7 +162,7 @@ export async function fetchProviderModels(
       models: entries,
       page,
       rowCount,
-    } = parseCatalogPage(provider, await response.json());
+    } = parseCatalogPage(provider, await response.json(), offset);
     for (const model of entries) models.set(model.id, model);
     if (models.size > 10000)
       throw new Error("Model catalog exceeds the supported size.");
@@ -162,20 +191,59 @@ export async function fetchProviderModels(
       parameter = "offset";
     }
     if (!cursor)
-      return [...models.values()]
-        .map((model, rank) =>
-          provider === "openrouter" && rank < 5
-            ? { ...model, weeklyRank: rank + 1 }
-            : model,
-        )
-        .sort(
-          (a, b) =>
-            (b.createdAt ?? "").localeCompare(a.createdAt ?? "") ||
-            a.id.localeCompare(b.id),
-        );
+      return [...models.values()].sort(
+        (a, b) =>
+          (b.createdAt ?? "").localeCompare(a.createdAt ?? "") ||
+          a.id.localeCompare(b.id),
+      );
     if (cursors.has(cursor)) throw new Error("Invalid catalog pagination.");
     cursors.add(cursor);
     url.searchParams.set(parameter, cursor);
   }
   throw new Error("Catalog pagination limit reached. Try again later.");
+}
+
+/** Fetch Ollama's official local tags endpoint with SSRF and redirect protection. */
+export async function fetchOllamaModels(
+  baseUrl: string,
+  fetcher: typeof ssrfSafeFetch = ssrfSafeFetch,
+): Promise<CatalogModel[]> {
+  const base = new URL(baseUrl);
+  if (
+    !["http:", "https:"].includes(base.protocol) ||
+    base.username ||
+    base.password ||
+    base.search ||
+    base.hash
+  ) {
+    throw new Error("Invalid Ollama endpoint.");
+  }
+  const loopback = ["localhost", "127.0.0.1", "[::1]", "::1"].includes(
+    base.hostname.toLowerCase(),
+  );
+  if (base.protocol !== "https:" && !loopback) {
+    throw new Error("Ollama remote endpoints must use HTTPS.");
+  }
+  const origin = base.origin;
+  const url = new URL(`${base.toString().replace(/\/+$/, "")}/api/tags`);
+  const response = await fetcher(
+    url.toString(),
+    {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      redirect: "error",
+      signal: AbortSignal.timeout(20000),
+    },
+    {
+      followRedirects: false,
+      httpsOnly: !loopback,
+      ...(loopback ? { allowedPrivateOrigins: [origin] } : {}),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(
+      `Ollama catalog request failed (HTTP ${response.status}). Check the local Ollama connection and retry.`,
+    );
+  }
+  return parseOllamaCatalog(await response.json());
 }

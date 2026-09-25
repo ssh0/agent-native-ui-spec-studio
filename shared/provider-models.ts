@@ -6,8 +6,10 @@ export const catalogProviders = [
   "groq",
   "mistral",
   "cohere",
+  "ollama",
 ] as const;
 export type CatalogProvider = (typeof catalogProviders)[number];
+export type RemoteCatalogProvider = Exclude<CatalogProvider, "ollama">;
 export type CatalogModel = {
   id: string;
   name: string;
@@ -70,7 +72,7 @@ export function scopedModelGroups(
     if (!catalog) return group;
     const available = catalog.fetchedAt
       ? catalog.models.map((item) => item.id)
-      : group.models;
+      : [];
     const models =
       catalog.scopedModels === null
         ? [...available]

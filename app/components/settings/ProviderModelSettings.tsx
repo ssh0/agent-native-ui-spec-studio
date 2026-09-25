@@ -59,6 +59,7 @@ export function ProviderModelSettings() {
   const initialProviderSet = useRef(false);
   const option = providers.find((item) => item.id === provider)!;
   const engine = engineList?.engines.find((item) => item.name === option.engine);
+  const ollamaEngine = engineList?.engines.find((item) => item.name === "ai-sdk:ollama");
   const status = statuses[provider] ?? "unknown";
   const available = Boolean(engine && engine.packageInstalled !== false);
   const ready = available && status === "set" && engine?.configured !== false;
@@ -259,7 +260,6 @@ export function ProviderModelSettings() {
       {catalogProviders.includes(provider as (typeof catalogProviders)[number]) && <ProviderModelScope
         key={`${provider}:${status}`}
         provider={provider as (typeof catalogProviders)[number]}
-        fallbackModels={models}
         currentModel={currentProvider === provider ? engineList?.current?.model : undefined}
         ready={ready}
       />}
@@ -280,6 +280,15 @@ export function ProviderModelSettings() {
         )}
         <Button type="submit" disabled={!ready || !modelDefault?.canUpdate || busy !== null}>{busy === "model" ? "Selecting…" : "Use this model"}</Button>
       </form>
+      <div className="space-y-2 border-t border-border pt-5">
+        <h3 className="font-medium">Ollama (local)</h3>
+        <ProviderModelScope
+          key={`ollama:${ollamaEngine?.configured ?? false}`}
+          provider="ollama"
+          currentModel={currentProvider === "ollama" ? engineList?.current?.model : undefined}
+          ready={Boolean(ollamaEngine?.configured && ollamaEngine.packageInstalled !== false)}
+        />
+      </div>
       {error && <div role="alert" className="flex items-center justify-between gap-3 text-sm text-destructive">
         <span>{error}</span>
         {!engineList && <Button type="button" variant="outline" onClick={() => void retryStatus()}>Retry</Button>}

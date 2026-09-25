@@ -6,17 +6,11 @@ import { catalogProviders } from "../shared/provider-models.js";
 
 export default defineAction({
   description:
-    "Discover one provider's chat model catalog using its existing connection; cached for one hour. Refresh keeps saved scopes and current selections.",
+    "Load one provider's official model catalog using its existing connection; successful results are cached for one hour and scopes are unchanged.",
   schema: z.object({
     provider: z
       .enum(catalogProviders)
       .describe("Provider whose official model catalog to load."),
-    refresh: z
-      .boolean()
-      .default(false)
-      .describe(
-        "Force a provider refresh instead of using the one-hour cache; defaults to false.",
-      ),
   }),
-  run: ({ provider, refresh }) => loadProviderModels(provider, refresh),
+  run: ({ provider }) => loadProviderModels(provider),
 });

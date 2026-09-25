@@ -6,7 +6,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 
 import type {
   CatalogModel,
@@ -17,22 +16,16 @@ import type {
 
 type Props = {
   provider: CatalogProvider;
-  fallbackModels: readonly string[];
   currentModel?: string;
   ready: boolean;
 };
 
 /** Remount by provider so an in-flight response cannot overwrite another tab. */
-export function ProviderModelScope({
-  provider,
-  fallbackModels,
-  currentModel,
-  ready,
-}: Props) {
+export function ProviderModelScope({ provider, currentModel, ready }: Props) {
   const scopes = useActionQuery<ModelScopeList>("model-scope-list", {});
   const discovery = useActionMutation<
     ProviderModels,
-    { provider: CatalogProvider; refresh: boolean }
+    { provider: CatalogProvider }
   >("provider-model-catalog");
   const save = useActionMutation<
     ProviderModels,
@@ -40,7 +33,6 @@ export function ProviderModelScope({
   >("model-scope-update");
   const started = useRef(false);
   const [draft, setDraft] = useState<string[] | null | undefined>(undefined);
-  const [search, setSearch] = useState("");
   const [notice, setNotice] = useState("");
   const [order, setOrder] = useState<"newest" | "weekly">("newest");
   const cached = scopes.data?.providers.find(
@@ -56,7 +48,7 @@ export function ProviderModelScope({
   const dirty = draft !== undefined;
   const catalogModels: CatalogModel[] = catalog?.fetchedAt
     ? catalog.models
-    : fallbackModels.map((id) => ({ id, name: id, createdAt: undefined }));
+    : [];
   const rows = useMemo(() => {
     const models = [...catalogModels].map((item) => ({
       ...item,
@@ -64,13 +56,13 @@ export function ProviderModelScope({
     }));
     for (const id of [
       ...(selected ?? []),
-      ...(currentModel ? [currentModel] : []),
+      ...(catalog?.fetchedAt && currentModel ? [currentModel] : []),
     ]) {
       if (!models.some((item) => item.id === id))
         models.push({ id, name: id, missing: true });
     }
     return models;
-  }, [catalogModels, selected, currentModel]);
+  }, [catalogModels, selected, currentModel, catalog?.fetchedAt]);
   const newest = catalog?.fetchedAt
     ? catalog.models.reduce(
         (value, item) =>
@@ -79,22 +71,18 @@ export function ProviderModelScope({
       )
     : "";
   const hasCatalogDates = catalogModels.some((item) => item.createdAt);
-  const visible = rows
-    .filter((item) =>
-      `${item.id} ${item.name}`.toLowerCase().includes(search.toLowerCase()),
-    )
-    .sort((a, b) =>
-      order === "weekly"
-        ? (a.weeklyRank ?? Infinity) - (b.weeklyRank ?? Infinity) ||
-          a.name.localeCompare(b.name)
-        : (b.createdAt ?? "").localeCompare(a.createdAt ?? "") ||
-          a.name.localeCompare(b.name),
-    );
+  const visible = rows.sort((a, b) =>
+    order === "weekly"
+      ? (a.weeklyRank ?? Infinity) - (b.weeklyRank ?? Infinity) ||
+        a.name.localeCompare(b.name)
+      : (b.createdAt ?? "").localeCompare(a.createdAt ?? "") ||
+        a.name.localeCompare(b.name),
+  );
 
   useEffect(() => {
     if (ready && !started.current) {
       started.current = true;
-      discovery.mutate({ provider, refresh: false });
+      discovery.mutate({ provider });
     }
   }, [ready, provider, discovery.mutate]);
 
@@ -118,18 +106,10 @@ export function ProviderModelScope({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Models in your chat picker</h3>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={!ready || discovery.isPending || save.isPending}
-          onClick={() => discovery.mutate({ provider, refresh: true })}
-        >
-          {discovery.isPending ? "Refreshing…" : "Refresh catalog"}
-        </Button>
       </div>
       <p className="text-sm text-muted-foreground">
-        Personal selection. Your current chat model stays selected even if
-        removed from this list.
+        Personal selection for chat. A model outside this scope is not offered
+        in the picker.
       </p>
       {catalog?.fetchedAt && (
         <p className="text-xs text-muted-foreground">
@@ -145,44 +125,46 @@ export function ProviderModelScope({
       )}
       {!ready && (
         <p className="text-sm text-muted-foreground">
-          Connect this provider to discover available models.
+          {provider === "ollama"
+            ? "Configure the Ollama endpoint to discover installed local models."
+            : "Connect this provider to discover available models."}
         </p>
       )}
       {(catalog?.error || discovery.error) && (
         <p role="alert" className="text-sm text-destructive">
           {catalog?.error ??
-            "Catalog request failed. Retry with Refresh catalog."}
+            "Catalog request failed. Reopen settings to retry."}
         </p>
       )}
-      {!catalog?.fetchedAt && (
-        <p className="text-xs text-muted-foreground">
-          Showing built-in suggestions, not a verified live catalog.
-        </p>
+      {!catalog?.fetchedAt &&
+        !discovery.isPending &&
+        ready &&
+        !catalog?.error &&
+        !discovery.error && (
+          <p role="status" className="text-xs text-muted-foreground">
+            Model catalog has not been loaded yet.
+          </p>
+        )}
+      {catalog?.fetchedAt && (
+        <label className="flex items-center gap-2 text-sm">
+          Sort
+          <select
+            aria-label="Sort models"
+            className="h-9 rounded-md border border-input bg-background px-2"
+            value={order}
+            onChange={(event) => setOrder(event.target.value as typeof order)}
+          >
+            <option value="newest">
+              {hasCatalogDates
+                ? "Newest catalog entries"
+                : "Name order (no catalog dates)"}
+            </option>
+            {provider === "openrouter" && (
+              <option value="weekly">Popular this week · OpenRouter</option>
+            )}
+          </select>
+        </label>
       )}
-      <label className="flex items-center gap-2 text-sm">
-        Sort
-        <select
-          aria-label="Sort models"
-          className="h-9 rounded-md border border-input bg-background px-2"
-          value={order}
-          onChange={(event) => setOrder(event.target.value as typeof order)}
-        >
-          <option value="newest">
-            {hasCatalogDates
-              ? "Newest catalog entries"
-              : "Name order (no catalog dates)"}
-          </option>
-          {provider === "openrouter" && (
-            <option value="weekly">Popular this week · OpenRouter</option>
-          )}
-        </select>
-      </label>
-      <Input
-        aria-label="Filter models"
-        placeholder="Filter by name or model ID"
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-      />
       <div
         className="max-h-72 overflow-y-auto rounded-md border border-border"
         aria-busy={discovery.isPending}
@@ -217,7 +199,11 @@ export function ProviderModelScope({
                 {item.weeklyRank
                   ? `OpenRouter weekly #${item.weeklyRank} · `
                   : ""}
-                {item.id === currentModel ? "Current selection · " : ""}
+                {item.id === currentModel
+                  ? selected === null || selected.includes(item.id)
+                    ? "Current selection · "
+                    : "Current selection · Outside scope · "
+                  : ""}
                 {item.missing
                   ? "Not in the catalog — selection retained"
                   : item.createdAt
@@ -227,11 +213,9 @@ export function ProviderModelScope({
             </span>
           </label>
         ))}
-        {!visible.length && (
+        {!visible.length && catalog?.fetchedAt && (
           <p className="p-3 text-sm text-muted-foreground">
-            {search
-              ? "No matching models."
-              : "No chat models returned. Refresh or check the provider connection."}
+            No chat models returned by this provider.
           </p>
         )}
       </div>
@@ -247,28 +231,6 @@ export function ProviderModelScope({
           onClick={() => void persist(selected)}
         >
           {save.isPending ? "Saving…" : "Save model scope"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={save.isPending || scopes.isLoading || scopes.isError}
-          onClick={() => {
-            setDraft(null);
-            setNotice("");
-          }}
-        >
-          Allow all models
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          disabled={save.isPending || scopes.isLoading || scopes.isError}
-          onClick={() => {
-            setDraft([]);
-            setNotice("");
-          }}
-        >
-          Clear selection
         </Button>
         <span className="text-xs text-muted-foreground">
           {selected === null ? "All models" : `${selected.length} selected`}

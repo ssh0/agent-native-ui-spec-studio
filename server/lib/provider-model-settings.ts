@@ -14,7 +14,11 @@ import {
   type CatalogProvider,
   type ProviderModels,
 } from "../../shared/provider-models.js";
-import { catalogKeys, fetchProviderModels } from "./provider-model-catalog.js";
+import {
+  catalogKeys,
+  fetchOllamaModels,
+  fetchProviderModels,
+} from "./provider-model-catalog.js";
 import { currentUserEmail } from "./spec-project.js";
 
 export const CATALOG_TTL_MS = 60 * 60 * 1000;
@@ -89,37 +93,51 @@ export async function listModelScopes() {
 
 export async function loadProviderModels(
   provider: CatalogProvider,
-  force = false,
 ): Promise<ProviderModels> {
   const previous = await readProviderModels(provider);
   try {
-    // Same request-scoped resolver as Core's engine registry; no new connection
-    // records, key copies, or per-provider credential transport.
-    const key = await resolveSecret(catalogKeys[provider]);
-    if (!key)
-      return {
-        ...previous,
-        stale: true,
-        error: "Connect this provider to load its model catalog.",
-      };
-    if (provider === "openai") {
-      const endpoint = await resolveSecret("OPENAI_BASE_URL");
-      if (
-        endpoint &&
-        endpoint.replace(/\/+$/, "") !== "https://api.openai.com/v1"
-      ) {
+    let models: ProviderModels["models"];
+    if (provider === "ollama") {
+      const endpoint = await resolveSecret("OLLAMA_BASE_URL");
+      if (!endpoint)
         return {
           ...previous,
-          models: [],
-          fetchedAt: null,
           stale: true,
           error:
-            "Automatic discovery is unavailable for custom OpenAI gateways. Existing model IDs are preserved.",
+            "Configure an Ollama endpoint to discover installed local models.",
         };
+      if (!previous.stale) return previous;
+      models = await fetchOllamaModels(endpoint);
+    } else {
+      // Same request-scoped resolver as Core's engine registry; no new connection
+      // records, key copies, or per-provider credential transport.
+      const keyName = catalogKeys[provider];
+      const key = keyName ? await resolveSecret(keyName) : null;
+      if (!key)
+        return {
+          ...previous,
+          stale: true,
+          error: "Connect this provider to load its model catalog.",
+        };
+      if (provider === "openai") {
+        const endpoint = await resolveSecret("OPENAI_BASE_URL");
+        if (
+          endpoint &&
+          endpoint.replace(/\/+$/, "") !== "https://api.openai.com/v1"
+        ) {
+          return {
+            ...previous,
+            models: [],
+            fetchedAt: null,
+            stale: true,
+            error:
+              "Automatic discovery is unavailable for custom OpenAI gateways. Existing model IDs are preserved.",
+          };
+        }
       }
+      if (!previous.stale) return previous;
+      models = await fetchProviderModels(provider, key);
     }
-    if (!force && !previous.stale) return previous;
-    const models = await fetchProviderModels(provider, key);
     const { email, prefix } = await context();
     await putUserSetting(email, `${prefix}catalog:${provider}`, {
       models,

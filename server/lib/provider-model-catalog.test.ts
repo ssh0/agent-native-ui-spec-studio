@@ -1,15 +1,25 @@
+import { ssrfSafeFetch } from "@agent-native/core/extensions/url-safety";
 import { describe, expect, it, vi } from "vitest";
 
-import { catalogProviders } from "../../shared/provider-models";
+import {
+  catalogProviders,
+  type RemoteCatalogProvider,
+} from "../../shared/provider-models";
 import {
   catalogEndpoints,
+  fetchOllamaModels,
   fetchProviderModels,
   parseCatalogPage,
+  parseOllamaCatalog,
 } from "./provider-model-catalog";
 
 const response = (value: unknown) => new Response(JSON.stringify(value));
 describe("official model catalogs", () => {
-  it.each(catalogProviders)(
+  it.each(
+    catalogProviders.filter(
+      (provider): provider is RemoteCatalogProvider => provider !== "ollama",
+    ),
+  )(
     "uses the official %s origin and never follows redirects",
     async (provider) => {
       const payload =
@@ -96,15 +106,13 @@ describe("official model catalogs", () => {
     },
   );
   it("rejects repeated pagination instead of caching a partial result", async () => {
-    const fetcher = vi
-      .fn<typeof fetch>()
-      .mockImplementation(async () =>
-        response({
-          data: [{ id: "example" }],
-          has_more: true,
-          last_id: "example",
-        }),
-      );
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async () =>
+      response({
+        data: [{ id: "example" }],
+        has_more: true,
+        last_id: "example",
+      }),
+    );
     await expect(
       fetchProviderModels("anthropic", "example", fetcher),
     ).rejects.toThrow("pagination");
@@ -173,6 +181,17 @@ describe("official model catalogs", () => {
       }).models,
     ).toEqual([]);
   });
+  it("preserves OpenRouter API positions before filtering chat-incompatible models", () => {
+    const parsed = parseCatalogPage("openrouter", {
+      data: [
+        { id: "example-image", architecture: { output_modalities: ["image"] } },
+        { id: "example-chat", architecture: { output_modalities: ["text"] } },
+      ],
+    });
+    expect(parsed.models).toEqual([
+      { id: "example-chat", name: "example-chat", weeklyRank: 2 },
+    ]);
+  });
   it("shows only authoritative OpenRouter weekly top-five ranks", async () => {
     let requested = "";
     const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url) => {
@@ -191,6 +210,49 @@ describe("official model catalogs", () => {
     expect(
       result.find((item) => item.id === "example-5")?.weeklyRank,
     ).toBeUndefined();
+  });
+  it("parses installed Ollama models without inventing release dates or ranks", () => {
+    expect(
+      parseOllamaCatalog({
+        models: [
+          {
+            name: "gemma4:latest",
+            model: "gemma4:latest",
+            modified_at: "2026-09-01T00:00:00Z",
+          },
+          {
+            name: "llama3:8b",
+            model: "llama3:8b",
+            modified_at: "2026-08-01T00:00:00Z",
+          },
+        ],
+      }),
+    ).toEqual([
+      { id: "gemma4:latest", name: "gemma4:latest" },
+      { id: "llama3:8b", name: "llama3:8b" },
+    ]);
+  });
+  it("calls the official Ollama tags endpoint only at safe configured origins", async () => {
+    const fetcher = vi
+      .fn<typeof ssrfSafeFetch>()
+      .mockResolvedValue(response({ models: [{ name: "example-chat" }] }));
+    expect(await fetchOllamaModels("http://localhost:11434", fetcher)).toEqual([
+      { id: "example-chat", name: "example-chat" },
+    ]);
+    const [url, init, options] = fetcher.mock.calls[0];
+    expect(url).toBe("http://localhost:11434/api/tags");
+    expect(init?.method).toBe("GET");
+    expect(init?.headers).toEqual({ Accept: "application/json" });
+    expect(options?.allowedPrivateOrigins).toEqual(["http://localhost:11434"]);
+    expect(options?.followRedirects).toBe(false);
+    expect(options?.httpsOnly).toBe(false);
+    await expect(
+      fetchOllamaModels("http://127.0.0.2:11434", fetcher),
+    ).rejects.toThrow("HTTPS");
+    await expect(
+      fetchOllamaModels("http://192.0.2.10:11434", fetcher),
+    ).rejects.toThrow("HTTPS");
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
   it("rejects malformed responses but accepts a truly empty catalog", () => {
     expect(() => parseCatalogPage("openai", {})).toThrow();
