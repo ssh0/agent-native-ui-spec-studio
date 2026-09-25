@@ -15,6 +15,9 @@ export default defineAction({
     models: z
       .array(z.string().trim().min(1).max(300))
       .max(10000)
+      .refine((models) => new Set(models).size === models.length, {
+        message: "Model IDs must be unique.",
+      })
       .nullable()
       .describe(
         "Allowed model IDs, including custom IDs. null = unrestricted; [] = none.",

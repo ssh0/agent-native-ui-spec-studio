@@ -156,6 +156,13 @@ describe("scoped model persistence and caching", () => {
       models: [
         { id: "example-chat", name: "Example chat" },
         { id: "nomic-embed-text:latest", name: "nomic-embed-text:latest" },
+        { id: "bge-m3:latest", name: "bge-m3:latest" },
+        { id: "bge-m3-q4_0", name: "bge-m3-q4_0" },
+        { id: "all-minilm:l6-v2", name: "all-minilm:l6-v2" },
+        {
+          id: "sentence-transformers/all-MiniLM-L6-v2",
+          name: "sentence-transformers/all-MiniLM-L6-v2",
+        },
       ],
     });
     expect(

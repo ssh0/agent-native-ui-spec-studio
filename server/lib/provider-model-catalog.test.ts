@@ -229,6 +229,13 @@ describe("official model catalogs", () => {
             name: "nomic-embed-text:latest",
             model: "nomic-embed-text:latest",
           },
+          { name: "bge-m3:latest", model: "bge-m3:latest" },
+          { name: "bge-m3-q4_0", model: "bge-m3-q4_0" },
+          { name: "all-minilm:l6-v2", model: "all-minilm:l6-v2" },
+          {
+            name: "sentence-transformers/all-MiniLM-L6-v2",
+            model: "sentence-transformers/all-MiniLM-L6-v2",
+          },
         ],
       }),
     ).toEqual([

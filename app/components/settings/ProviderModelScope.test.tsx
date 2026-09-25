@@ -2,6 +2,13 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  addCustomModelId,
+  ProviderModelScope,
+  normalizeCustomModelId,
+  toggleModelScope,
+} from "./ProviderModelScope";
+
 const state = vi.hoisted(() => ({
   query: {} as Record<string, unknown>,
   discovery: {} as Record<string, unknown>,
@@ -16,7 +23,6 @@ vi.mock("@agent-native/core/client/hooks", () => ({
   useActionMutation: (name: string) =>
     name === "provider-model-catalog" ? state.discovery : state.save,
 }));
-import { ProviderModelScope } from "./ProviderModelScope";
 const catalog = {
   provider: "openrouter",
   models: [
@@ -36,6 +42,14 @@ const render = () =>
     <ProviderModelScope
       provider="openrouter"
       currentModel="example-retired"
+      ready
+    />,
+  );
+const renderCustomOpenAi = () =>
+  renderToStaticMarkup(
+    <ProviderModelScope
+      provider="openai"
+      currentModel="custom-current-model"
       ready
     />,
   );
@@ -61,7 +75,7 @@ describe("provider model settings rendered states", () => {
     expect(html).not.toContain("example-fallback");
     expect(html).not.toContain("Refresh catalog");
     expect(html).not.toContain("Filter models");
-    expect(html).not.toContain("Allow all models");
+    expect(html).toContain("Allow all models");
     expect(html).not.toContain("Clear selection");
   });
   it("shows a saved current selection outside the scope without offering it", () => {
@@ -121,5 +135,51 @@ describe("provider model settings rendered states", () => {
     expect(html).not.toContain('type="checkbox"');
     expect(html).toContain("Saved scope could not be loaded");
     expect(html).toContain("Retry");
+  });
+  it("offers a custom OpenAI ID and keeps the current gateway model visible", () => {
+    state.query = {
+      data: {
+        providers: [
+          {
+            provider: "openai",
+            models: [],
+            fetchedAt: null,
+            stale: true,
+            preserveEngineModels: true,
+            scopedModels: [],
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+    };
+    const html = renderCustomOpenAi();
+    expect(html).toContain('aria-label="Custom OpenAI model ID"');
+    expect(html).toContain("Add model ID");
+    expect(html).toContain("custom-current-model");
+  });
+  it("preserves unrestricted scope until a checkbox is changed", () => {
+    expect(
+      toggleModelScope(null, ["model-a", "model-b"], "model-a", false),
+    ).toEqual(["model-b"]);
+    expect(
+      toggleModelScope([], ["custom-model"], "custom-model", true),
+    ).toEqual(["custom-model"]);
+  });
+  it("trims custom IDs and rejects blank or duplicate entries", () => {
+    expect(normalizeCustomModelId("  custom-model  ", [])).toBe("custom-model");
+    expect(normalizeCustomModelId("  ", [])).toBeNull();
+    expect(normalizeCustomModelId("custom-model", ["custom-model"])).toBeNull();
+  });
+  it("adds custom IDs to a restricted scope without narrowing an unrestricted scope", () => {
+    expect(addCustomModelId(" custom-model ", [], [])).toEqual({
+      id: "custom-model",
+      scope: ["custom-model"],
+    });
+    expect(addCustomModelId(" custom-model ", [], null)).toEqual({
+      id: "custom-model",
+      scope: null,
+    });
+    expect(addCustomModelId("custom-model", ["custom-model"], [])).toBeNull();
   });
 });

@@ -2,10 +2,11 @@ import {
   useActionMutation,
   useActionQuery,
 } from "@agent-native/core/client/hooks";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 
 import type {
   CatalogModel,
@@ -20,6 +21,36 @@ type Props = {
   ready: boolean;
 };
 
+export function normalizeCustomModelId(value: string, existingIds: string[]) {
+  const id = value.trim();
+  return id && !existingIds.includes(id) ? id : null;
+}
+
+export function addCustomModelId(
+  value: string,
+  existingIds: string[],
+  selected: string[] | null,
+) {
+  const id = normalizeCustomModelId(value, existingIds);
+  if (!id) return null;
+  return {
+    id,
+    scope: selected === null ? null : [...new Set([...selected, id])],
+  };
+}
+
+export function toggleModelScope(
+  selected: string[] | null,
+  rowIds: string[],
+  modelId: string,
+  checked: boolean,
+) {
+  const before = selected ?? rowIds;
+  return checked
+    ? [...new Set([...before, modelId])]
+    : before.filter((id) => id !== modelId);
+}
+
 /** Remount by provider so an in-flight response cannot overwrite another tab. */
 export function ProviderModelScope({ provider, currentModel, ready }: Props) {
   const scopes = useActionQuery<ModelScopeList>("model-scope-list", {});
@@ -33,6 +64,8 @@ export function ProviderModelScope({ provider, currentModel, ready }: Props) {
   >("model-scope-update");
   const started = useRef(false);
   const [draft, setDraft] = useState<string[] | null | undefined>(undefined);
+  const [customModelIds, setCustomModelIds] = useState<string[]>([]);
+  const [customModelId, setCustomModelId] = useState("");
   const [notice, setNotice] = useState("");
   const [order, setOrder] = useState<"newest" | "weekly">("newest");
   const cached = scopes.data?.providers.find(
@@ -56,13 +89,26 @@ export function ProviderModelScope({ provider, currentModel, ready }: Props) {
     }));
     for (const id of [
       ...(selected ?? []),
-      ...(catalog?.fetchedAt && currentModel ? [currentModel] : []),
+      ...((catalog?.fetchedAt || catalog?.preserveEngineModels) && currentModel
+        ? [currentModel]
+        : []),
     ]) {
       if (!models.some((item) => item.id === id))
         models.push({ id, name: id, missing: true });
     }
+    for (const id of customModelIds) {
+      if (!models.some((item) => item.id === id))
+        models.push({ id, name: id, missing: true });
+    }
     return models;
-  }, [catalogModels, selected, currentModel, catalog?.fetchedAt]);
+  }, [
+    catalogModels,
+    selected,
+    currentModel,
+    catalog?.fetchedAt,
+    catalog?.preserveEngineModels,
+    customModelIds,
+  ]);
   const newest = catalog?.fetchedAt
     ? catalog.models.reduce(
         (value, item) =>
@@ -97,6 +143,20 @@ export function ProviderModelScope({ provider, currentModel, ready }: Props) {
     } catch {
       /* Mutation exposes the failure below; preserve the draft. */
     }
+  }
+
+  function addCustomModel(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const addition = addCustomModelId(
+      customModelId,
+      rows.map((item) => item.id),
+      selected,
+    );
+    if (!addition) return;
+    setCustomModelIds((existing) => [...existing, addition.id]);
+    if (addition.scope !== null) setDraft(addition.scope);
+    setCustomModelId("");
+    setNotice("");
   }
 
   return (
@@ -145,6 +205,38 @@ export function ProviderModelScope({ provider, currentModel, ready }: Props) {
             Model catalog has not been loaded yet.
           </p>
         )}
+      {provider === "openai" && catalog?.preserveEngineModels && (
+        <form
+          onSubmit={addCustomModel}
+          className="flex flex-wrap items-end gap-2"
+        >
+          <label className="min-w-0 flex-1 space-y-1 text-sm font-medium">
+            <span>Custom OpenAI model ID</span>
+            <Input
+              aria-label="Custom OpenAI model ID"
+              value={customModelId}
+              onChange={(event) => setCustomModelId(event.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+              disabled={scopes.isLoading || scopes.isError || save.isPending}
+            />
+          </label>
+          <Button
+            type="submit"
+            disabled={
+              !normalizeCustomModelId(
+                customModelId,
+                rows.map((item) => item.id),
+              ) ||
+              scopes.isLoading ||
+              scopes.isError ||
+              save.isPending
+            }
+          >
+            Add model ID
+          </Button>
+        </form>
+      )}
       {catalog?.fetchedAt && (
         <label className="flex items-center gap-2 text-sm">
           Sort
@@ -179,11 +271,13 @@ export function ProviderModelScope({ provider, currentModel, ready }: Props) {
               checked={selected === null || selected.includes(item.id)}
               disabled={scopes.isLoading || scopes.isError || save.isPending}
               onCheckedChange={(checked) => {
-                const before = selected ?? rows.map((row) => row.id);
                 setDraft(
-                  checked === true
-                    ? [...new Set([...before, item.id])]
-                    : before.filter((id) => id !== item.id),
+                  toggleModelScope(
+                    selected,
+                    rows.map((row) => row.id),
+                    item.id,
+                    checked === true,
+                  ),
                 );
                 setNotice("");
               }}
@@ -225,6 +319,17 @@ export function ProviderModelScope({ provider, currentModel, ready }: Props) {
         supply popularity rankings.
       </p>
       <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={selected === null || save.isPending || scopes.isError}
+          onClick={() => {
+            setDraft(null);
+            setNotice("");
+          }}
+        >
+          Allow all models
+        </Button>
         <Button
           type="button"
           disabled={!dirty || save.isPending || scopes.isError}

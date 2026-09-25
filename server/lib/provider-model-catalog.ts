@@ -121,7 +121,9 @@ export function parseCatalogPage(
 
 /** Ollama returns the models installed on the configured local Ollama instance. */
 export function isOllamaChatModel(modelId: string): boolean {
-  return !/embed(?:ding)?/i.test(modelId);
+  return !/(?:embed(?:ding)?|(?:^|[/:._-])(?:bge-m3|all-minilm)(?=$|[/:._-]))/i.test(
+    modelId,
+  );
 }
 
 export function parseOllamaCatalog(payload: unknown): CatalogModel[] {
@@ -130,7 +132,8 @@ export function parseOllamaCatalog(payload: unknown): CatalogModel[] {
     .models.filter((model) => isOllamaChatModel(model.name))
     .map((model) => ({
       id: model.name,
-      name: model.model && model.model !== model.name ? model.model : model.name,
+      name:
+        model.model && model.model !== model.name ? model.model : model.name,
     }));
 }
 

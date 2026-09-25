@@ -36,8 +36,12 @@ AgentSidebar's host catalog prop are used; no framework packages are patched.
 
 Custom OpenAI gateways are explicitly not queried: their credentials must never
 be sent to the official OpenAI origin. They retain the existing custom-model
-entry path. Ollama appears separately in Settings and lists models installed on
-the configured Ollama instance, not every model available to pull. Local
+entry path, and Settings lets users add those IDs to a personal scope when no
+catalog can be fetched. The scope editor can also restore `null` to allow current
+and future models; clearing every checkbox saves `[]` instead. Ollama appears
+separately in Settings and lists installed chat models from the configured
+Ollama instance, not every model available to pull. Embedding-only model IDs are
+excluded from fresh and cached catalogs. Local
 loopback endpoints use Ollama's official `/api/tags` API; remote Ollama endpoints
 must use HTTPS and pass Core's shared SSRF-safe fetch. API availability and tool
 support can still vary by account; model-list membership does not guarantee a
@@ -56,7 +60,7 @@ Catalog APIs inspected for this implementation:
 | Groq       | https://console.groq.com/docs/api-reference#models             | `id`, `created`, `active`; known audio-only families excluded.                                                                                                                                                                               |
 | Mistral    | https://docs.mistral.ai/api/endpoint/models                    | `id`, `name`, `created`, `capabilities.completion_chat`.                                                                                                                                                                                     |
 | Cohere     | https://docs.cohere.com/reference/list-models                  | `name`; request `endpoint=chat`, follow `next_page_token`.                                                                                                                                                                                   |
-| Ollama     | https://docs.ollama.com/api/tags                               | `models[].name` from the configured endpoint's installed local models. `modified_at` describes local model metadata time, not the model's release date; no popularity rank is inferred.                                                      |
+| Ollama     | https://docs.ollama.com/api/tags                               | Chat-compatible `models[].name` entries from the configured endpoint's installed local models. `modified_at` describes local model metadata time, not the model's release date; no popularity rank is inferred.                              |
 
 “Newest catalog entry” means the largest actual creation/release timestamp in
 the returned catalog, not a recommendation or a quality claim. OpenRouter's
