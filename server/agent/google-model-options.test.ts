@@ -27,7 +27,11 @@ describe("Google Gemini model options", () => {
     );
 
     installGoogleModelOptions();
-    expect(entry?.supportedModels.filter((model) => model === GEMINI_3_8_FLASH_MODEL_ID)).toHaveLength(1);
+    expect(
+      entry?.supportedModels.filter(
+        (model) => model === GEMINI_3_8_FLASH_MODEL_ID,
+      ),
+    ).toHaveLength(1);
   });
 
   it("maps Gemini 3.8 Flash to the Google API request unchanged", async () => {
@@ -35,14 +39,20 @@ describe("Google Gemini model options", () => {
     installGoogleModelOptions();
 
     const entry = getAgentEngineEntry("ai-sdk:google");
-    const engine = entry!.create({ apiKey: "test-key", allowEnvFallback: false });
+    const engine = entry!.create({
+      apiKey: "test-key",
+      allowEnvFallback: false,
+    });
     const requests: Array<{ url: string; body: unknown }> = [];
     const mockedFetch = vi.fn<typeof fetch>(async (input, init) => {
       requests.push({ url: String(input), body: init?.body });
-      return new Response(JSON.stringify({ error: { code: 404, message: "test capture" } }), {
-        status: 404,
-        headers: { "content-type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: { code: 404, message: "test capture" } }),
+        {
+          status: 404,
+          headers: { "content-type": "application/json" },
+        },
+      );
     });
     vi.stubGlobal("fetch", mockedFetch);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -59,12 +69,16 @@ describe("Google Gemini model options", () => {
       events.push(event);
     }
 
-    expect(events.some((event) => event.type === "stop" && event.reason === "error")).toBe(true);
+    expect(
+      events.some((event) => event.type === "stop" && event.reason === "error"),
+    ).toBe(true);
     expect(requests).toHaveLength(1);
     expect(requests[0]?.url).toBe(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:streamGenerateContent?alt=sse",
     );
     const body = JSON.parse(String(requests[0]?.body));
-    expect(body.generationConfig.thinkingConfig).toEqual({ thinkingLevel: "medium" });
+    expect(body.generationConfig.thinkingConfig).toEqual({
+      thinkingLevel: "medium",
+    });
   });
 });
