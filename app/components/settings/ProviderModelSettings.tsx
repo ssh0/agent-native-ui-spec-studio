@@ -10,6 +10,8 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ProviderModelScope } from "./ProviderModelScope";
+import { catalogProviders } from "../../../shared/provider-models";
 
 type Engine = {
   name: string;
@@ -253,6 +255,14 @@ export function ProviderModelSettings() {
           {option.docsUrl && <a className="text-sm text-muted-foreground underline" href={option.docsUrl} target="_blank" rel="noopener noreferrer">Get an API key</a>}
         </div>
       )}
+
+      {catalogProviders.includes(provider as (typeof catalogProviders)[number]) && <ProviderModelScope
+        key={`${provider}:${status}`}
+        provider={provider as (typeof catalogProviders)[number]}
+        fallbackModels={models}
+        currentModel={currentProvider === provider ? engineList?.current?.model : undefined}
+        ready={ready}
+      />}
 
       <form onSubmit={selectModel} className="space-y-3">
         <label className="block space-y-1 text-sm font-medium">

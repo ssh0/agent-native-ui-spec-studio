@@ -1,0 +1,98 @@
+export const catalogProviders = [
+  "anthropic",
+  "openai",
+  "openrouter",
+  "google",
+  "groq",
+  "mistral",
+  "cohere",
+] as const;
+export type CatalogProvider = (typeof catalogProviders)[number];
+export type CatalogModel = {
+  id: string;
+  name: string;
+  createdAt?: string;
+  weeklyRank?: number;
+};
+export type ProviderModels = {
+  provider: CatalogProvider;
+  configured?: boolean;
+  label?: string;
+  models: CatalogModel[];
+  fetchedAt: string | null;
+  stale: boolean;
+  error?: string;
+  // null = unrestricted; [] = hide this provider's models (except current).
+  scopedModels: string[] | null;
+};
+export type ModelScopeList = { providers: ProviderModels[] };
+export function catalogEngine(provider: CatalogProvider): string {
+  return provider === "anthropic" ? "anthropic" : `ai-sdk:${provider}`;
+}
+
+function matchesProvider(provider: CatalogProvider, engine: string) {
+  return (
+    catalogEngine(provider) === engine ||
+    (provider === "anthropic" && engine === "ai-sdk:anthropic")
+  );
+}
+
+/** Never switch a conversation's model as a side effect of filtering. */
+export function scopedModelGroups(
+  groups: {
+    engine: string;
+    models: string[];
+    label: string;
+    configured: boolean;
+    statusLabel?: string;
+  }[],
+  catalogs: ProviderModels[],
+  currentEngine: string,
+  currentModel: string,
+) {
+  const combined = [...groups];
+  for (const catalog of catalogs) {
+    const engine = catalogEngine(catalog.provider);
+    if (
+      catalog.configured &&
+      catalog.fetchedAt &&
+      !combined.some((group) => matchesProvider(catalog.provider, group.engine))
+    ) {
+      combined.push({
+        engine,
+        models: [],
+        label: catalog.label ?? catalog.provider,
+        configured: true,
+      });
+    }
+  }
+  return combined.map((group) => {
+    const catalog = catalogs.find((item) =>
+      matchesProvider(item.provider, group.engine),
+    );
+    if (!catalog) return group;
+    const available = catalog.fetchedAt
+      ? catalog.models.map((item) => item.id)
+      : group.models;
+    const models =
+      catalog.scopedModels === null
+        ? [...available]
+        : available.filter((id) => catalog.scopedModels!.includes(id));
+    // A missing/custom/out-of-scope current selection remains visible, not replaced.
+    if (
+      group.engine === currentEngine &&
+      currentModel &&
+      !models.includes(currentModel)
+    )
+      models.unshift(currentModel);
+    const retained =
+      group.engine === currentEngine &&
+      currentModel &&
+      !available.includes(currentModel);
+    return {
+      ...group,
+      models,
+      ...(retained ? { statusLabel: "Current model not in catalog" } : {}),
+    };
+  });
+}
