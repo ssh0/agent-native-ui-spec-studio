@@ -63,6 +63,10 @@ const pageSchema = z.object({
   next_page_token: z.string().optional(),
   total_count: z.number().optional(),
 });
+const googleModelIdCollator = new Intl.Collator("en", {
+  numeric: true,
+  sensitivity: "base",
+});
 
 export function parseCatalogPage(
   provider: RemoteCatalogProvider,
@@ -202,9 +206,15 @@ export async function fetchProviderModels(
     }
     if (!cursor)
       return [...models.values()].sort(
-        (a, b) =>
-          (b.createdAt ?? "").localeCompare(a.createdAt ?? "") ||
-          a.id.localeCompare(b.id),
+        (a, b) => {
+          const creationOrder = (b.createdAt ?? "").localeCompare(
+            a.createdAt ?? "",
+          );
+          if (creationOrder) return creationOrder;
+          if (provider === "google" && !a.createdAt && !b.createdAt)
+            return googleModelIdCollator.compare(b.id, a.id);
+          return a.id.localeCompare(b.id);
+        },
       );
     if (cursors.has(cursor)) throw new Error("Invalid catalog pagination.");
     cursors.add(cursor);

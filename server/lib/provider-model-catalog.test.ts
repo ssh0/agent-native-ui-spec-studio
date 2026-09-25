@@ -105,6 +105,29 @@ describe("official model catalogs", () => {
       ).toBe("next-example");
     },
   );
+  it("orders date-less Gemini versions numerically for family selection", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      response({
+        models: [
+          "gemini-2.5-flash",
+          "gemini-3.8-flash",
+          "gemini-3.10-flash",
+        ].map((name) => ({
+          name: `models/${name}`,
+          supportedGenerationMethods: ["generateContent"],
+        })),
+      }),
+    );
+    expect(
+      (await fetchProviderModels("google", "example", fetcher)).map(
+        (model) => model.id,
+      ),
+    ).toEqual([
+      "gemini-3.10-flash",
+      "gemini-3.8-flash",
+      "gemini-2.5-flash",
+    ]);
+  });
   it("rejects repeated pagination instead of caching a partial result", async () => {
     const fetcher = vi.fn<typeof fetch>().mockImplementation(async () =>
       response({

@@ -131,6 +131,37 @@ describe("scoped chat picker", () => {
       )[0].models,
     ).toEqual(["custom-model"]);
   });
+  it("creates a custom OpenAI group when Core only supplies Builder", () => {
+    const result = scopedModelGroups(
+      [
+        {
+          engine: "builder",
+          label: "Builder",
+          configured: true,
+          models: ["builder-standard"],
+        },
+      ],
+      [
+        {
+          provider: "openai",
+          configured: true,
+          models: [],
+          fetchedAt: null,
+          stale: true,
+          preserveEngineModels: true,
+          scopedModels: ["gateway-only-model"],
+        },
+      ],
+    );
+    expect(result).toEqual([
+      {
+        engine: "ai-sdk:openai",
+        label: "openai",
+        configured: true,
+        models: ["gateway-only-model"],
+      },
+    ]);
+  });
   it("filters Ollama with its own checked scope", () => {
     const result = scopedModelGroups(
       [

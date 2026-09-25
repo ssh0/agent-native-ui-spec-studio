@@ -40,6 +40,29 @@ function matchesProvider(provider: CatalogProvider, engine: string) {
   );
 }
 
+function isCustomOpenAIGateway(catalog: ProviderModels) {
+  return (
+    catalog.provider === "openai" &&
+    catalog.preserveEngineModels === true &&
+    catalog.fetchedAt === null
+  );
+}
+
+export function isScopedCustomOpenAIModel(
+  catalogs: readonly ProviderModels[],
+  model: string,
+  engine: string,
+) {
+  return (
+    matchesProvider("openai", engine) &&
+    catalogs.some(
+      (catalog) =>
+        isCustomOpenAIGateway(catalog) &&
+        catalog.scopedModels?.includes(model) === true,
+    )
+  );
+}
+
 /** Never switch a conversation's model as a side effect of filtering. */
 export function scopedModelGroups(
   groups: {
@@ -53,9 +76,12 @@ export function scopedModelGroups(
   const combined = [...groups];
   for (const catalog of catalogs) {
     const engine = catalogEngine(catalog.provider);
+    const hasScopedCustomOpenAIModels =
+      isCustomOpenAIGateway(catalog) &&
+      (catalog.scopedModels?.length ?? 0) > 0;
     if (
       catalog.configured &&
-      catalog.fetchedAt &&
+      (catalog.fetchedAt || hasScopedCustomOpenAIModels) &&
       !combined.some((group) => matchesProvider(catalog.provider, group.engine))
     ) {
       combined.push({
@@ -76,7 +102,7 @@ export function scopedModelGroups(
       const available = catalog.fetchedAt
         ? catalog.models.map((item) => item.id)
         : catalog.preserveEngineModels
-          ? catalog.provider === "openai" && catalog.scopedModels !== null
+          ? isCustomOpenAIGateway(catalog) && catalog.scopedModels !== null
             ? [...new Set([...group.models, ...catalog.scopedModels])]
             : group.models
           : [];

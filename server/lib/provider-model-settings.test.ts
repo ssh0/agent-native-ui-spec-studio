@@ -171,17 +171,17 @@ describe("scoped model persistence and caching", () => {
   });
   it("does not send a custom gateway's key to the official OpenAI API", async () => {
     state.endpoint = "https://gateway.example.invalid/v1";
-    await saveModelScope("openai", ["custom-gateway-model"]);
+    await saveModelScope("openai", ["gateway-only-model"]);
     expect(await readProviderModels("openai")).toMatchObject({
       provider: "openai",
       models: [],
       fetchedAt: null,
       preserveEngineModels: true,
-      scopedModels: ["custom-gateway-model"],
+      scopedModels: ["gateway-only-model"],
     });
     expect(await loadProviderModels("openai")).toMatchObject({
       preserveEngineModels: true,
-      scopedModels: ["custom-gateway-model"],
+      scopedModels: ["gateway-only-model"],
       error: expect.stringContaining("custom OpenAI gateways"),
     });
     expect(state.fetchModels).not.toHaveBeenCalled();
