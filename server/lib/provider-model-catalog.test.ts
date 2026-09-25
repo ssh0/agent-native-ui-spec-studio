@@ -225,6 +225,10 @@ describe("official model catalogs", () => {
             model: "llama3:8b",
             modified_at: "2026-08-01T00:00:00Z",
           },
+          {
+            name: "nomic-embed-text:latest",
+            model: "nomic-embed-text:latest",
+          },
         ],
       }),
     ).toEqual([

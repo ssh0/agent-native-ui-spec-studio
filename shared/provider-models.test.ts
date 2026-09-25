@@ -36,6 +36,29 @@ describe("scoped chat picker", () => {
     expect(groups[0].models).toEqual(["example-old"]);
     expect(result[0].models).toEqual([]);
   });
+  it("hides Builder models while preserving the deferred Copilot group", () => {
+    const result = scopedModelGroups(
+      [
+        ...groups,
+        {
+          engine: "builder",
+          label: "Builder",
+          configured: true,
+          models: ["builder-standard"],
+        },
+        {
+          engine: "github-copilot",
+          label: "GitHub Copilot",
+          configured: true,
+          models: ["copilot-model"],
+        },
+      ],
+      [],
+    );
+    expect(result.some((group) => group.engine === "builder")).toBe(false);
+    expect(result.find((group) => group.engine === "github-copilot")?.models)
+      .toEqual(["copilot-model"]);
+  });
   it("applies Anthropic scopes to the legacy ai-sdk engine alias too", () => {
     const result = scopedModelGroups(
       [{ ...groups[0], engine: "ai-sdk:anthropic" }],
@@ -71,6 +94,34 @@ describe("scoped chat picker", () => {
     ).toEqual([]);
     expect(
       scopedModelGroups(groups, [{ ...catalog(null), models: [] }])[0].models,
+    ).toEqual([]);
+  });
+  it("keeps existing custom OpenAI engine models subject to their saved scope", () => {
+    const openaiGroup = {
+      engine: "ai-sdk:openai",
+      label: "OpenAI",
+      configured: true,
+      models: ["custom-model", "unselected-model"],
+    };
+    const customGateway: ProviderModels = {
+      provider: "openai",
+      models: [],
+      fetchedAt: null,
+      stale: true,
+      preserveEngineModels: true,
+      scopedModels: ["custom-model"],
+    };
+    expect(scopedModelGroups([openaiGroup], [customGateway])[0].models).toEqual([
+      "custom-model",
+    ]);
+    expect(
+      scopedModelGroups([openaiGroup], [
+        { ...customGateway, scopedModels: null },
+      ])[0].models,
+    ).toEqual(["custom-model", "unselected-model"]);
+    expect(
+      scopedModelGroups([openaiGroup], [{ ...customGateway, scopedModels: [] }])[0]
+        .models,
     ).toEqual([]);
   });
   it("filters Ollama with its own checked scope", () => {

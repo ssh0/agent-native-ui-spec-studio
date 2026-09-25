@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { ProviderModels } from "../../../shared/provider-models";
+
 const state = vi.hoisted(() => ({
   base: {} as Record<string, unknown>,
   scopes: {} as Record<string, unknown>,
@@ -62,5 +64,52 @@ describe("Core composer model adapter", () => {
     expect(result.availableModels[0].models).toEqual([]);
     result.onModelChange("example-hidden", "anthropic");
     expect(state.change).not.toHaveBeenCalled();
+  });
+  it("keeps permitted custom OpenAI models selectable and hides Builder models", () => {
+    const availableModels = state.base.availableModels as {
+      engine: string;
+      label: string;
+      configured: boolean;
+      models: string[];
+    }[];
+    availableModels.push(
+      {
+        engine: "ai-sdk:openai",
+        label: "OpenAI",
+        configured: true,
+        models: ["custom-openai-model", "unselected-model"],
+      },
+      {
+        engine: "builder",
+        label: "Builder",
+        configured: true,
+        models: ["builder-standard-model"],
+      },
+    );
+    const providers = state.scopes.data?.providers as ProviderModels[];
+    providers.push({
+      provider: "openai",
+      models: [],
+      fetchedAt: null,
+      stale: true,
+      preserveEngineModels: true,
+      scopedModels: ["custom-openai-model"],
+    });
+
+    const result = useScopedChatModels({ enabled: true });
+    const openai = result.availableModels.find(
+      (group) => group.engine === "ai-sdk:openai",
+    );
+    expect(openai?.models).toEqual(["custom-openai-model"]);
+    expect(
+      result.availableModels.some((group) => group.engine === "builder"),
+    ).toBe(false);
+    result.onModelChange("unselected-model", "ai-sdk:openai");
+    result.onModelChange("custom-openai-model", "ai-sdk:openai");
+    expect(state.change).toHaveBeenCalledTimes(1);
+    expect(state.change).toHaveBeenCalledWith(
+      "custom-openai-model",
+      "ai-sdk:openai",
+    );
   });
 });

@@ -43,7 +43,8 @@ vi.mock("./spec-project.js", () => ({
     return state.email;
   },
 }));
-vi.mock("./provider-model-catalog.js", () => ({
+vi.mock("./provider-model-catalog.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./provider-model-catalog.js")>()),
   catalogKeys: { anthropic: "ANTHROPIC_API_KEY", openai: "OPENAI_API_KEY" },
   fetchProviderModels: state.fetchModels,
   fetchOllamaModels: state.fetchModels,
@@ -144,11 +145,38 @@ describe("scoped model persistence and caching", () => {
     });
     expect(state.fetchModels).not.toHaveBeenCalled();
   });
+  it("filters embedding-only models from previously cached Ollama catalogs", async () => {
+    await loadProviderModels("ollama");
+    const cacheKey =
+      "person@example.invalid:provider-models:example-org:catalog:ollama";
+    const cache = state.store.get(cacheKey);
+    expect(cache).toBeDefined();
+    state.store.set(cacheKey, {
+      ...cache,
+      models: [
+        { id: "example-chat", name: "Example chat" },
+        { id: "nomic-embed-text:latest", name: "nomic-embed-text:latest" },
+      ],
+    });
+    expect(
+      (await readProviderModels("ollama")).models.map((model) => model.id),
+    ).toEqual(["example-chat"]);
+  });
   it("does not send a custom gateway's key to the official OpenAI API", async () => {
     state.endpoint = "https://gateway.example.invalid/v1";
-    expect((await loadProviderModels("openai")).error).toContain(
-      "custom OpenAI gateways",
-    );
+    await saveModelScope("openai", ["custom-gateway-model"]);
+    expect(await readProviderModels("openai")).toMatchObject({
+      provider: "openai",
+      models: [],
+      fetchedAt: null,
+      preserveEngineModels: true,
+      scopedModels: ["custom-gateway-model"],
+    });
+    expect(await loadProviderModels("openai")).toMatchObject({
+      preserveEngineModels: true,
+      scopedModels: ["custom-gateway-model"],
+      error: expect.stringContaining("custom OpenAI gateways"),
+    });
     expect(state.fetchModels).not.toHaveBeenCalled();
   });
   it("does not fetch without credentials or erase scopes", async () => {

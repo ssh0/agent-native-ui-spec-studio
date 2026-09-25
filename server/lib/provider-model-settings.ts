@@ -18,6 +18,7 @@ import {
   catalogKeys,
   fetchOllamaModels,
   fetchProviderModels,
+  isOllamaChatModel,
 } from "./provider-model-catalog.js";
 import { currentUserEmail } from "./spec-project.js";
 
@@ -63,13 +64,16 @@ export async function readProviderModels(
       models: [],
       fetchedAt: null,
       stale: true,
+      preserveEngineModels: true,
       scopedModels: scope?.models ?? null,
       error:
         "Automatic discovery is unavailable for custom OpenAI gateways. Existing model IDs are preserved.",
     };
   return {
     provider,
-    models: cache?.models ?? [],
+    models: (cache?.models ?? []).filter(
+      (model) => provider !== "ollama" || isOllamaChatModel(model.id),
+    ),
     fetchedAt: cache?.fetchedAt ?? null,
     stale: !cache || Date.now() - Date.parse(cache.fetchedAt) >= CATALOG_TTL_MS,
     scopedModels: scope?.models ?? null,
@@ -130,6 +134,7 @@ export async function loadProviderModels(
             models: [],
             fetchedAt: null,
             stale: true,
+            preserveEngineModels: true,
             error:
               "Automatic discovery is unavailable for custom OpenAI gateways. Existing model IDs are preserved.",
           };

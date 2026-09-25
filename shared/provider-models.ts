@@ -24,6 +24,7 @@ export type ProviderModels = {
   fetchedAt: string | null;
   stale: boolean;
   error?: string;
+  preserveEngineModels?: boolean;
   // null = unrestricted; [] = hide this provider's models.
   scopedModels: string[] | null;
 };
@@ -65,18 +66,22 @@ export function scopedModelGroups(
       });
     }
   }
-  return combined.map((group) => {
-    const catalog = catalogs.find((item) =>
-      matchesProvider(item.provider, group.engine),
-    );
-    if (!catalog) return group;
-    const available = catalog.fetchedAt
-      ? catalog.models.map((item) => item.id)
-      : [];
-    const models =
-      catalog.scopedModels === null
-        ? [...available]
-        : available.filter((id) => catalog.scopedModels!.includes(id));
-    return { ...group, models };
-  });
+  return combined
+    .filter((group) => group.engine !== "builder")
+    .map((group) => {
+      const catalog = catalogs.find((item) =>
+        matchesProvider(item.provider, group.engine),
+      );
+      if (!catalog) return group;
+      const available = catalog.fetchedAt
+        ? catalog.models.map((item) => item.id)
+        : catalog.preserveEngineModels
+          ? group.models
+          : [];
+      const models =
+        catalog.scopedModels === null
+          ? [...available]
+          : available.filter((id) => catalog.scopedModels!.includes(id));
+      return { ...group, models };
+    });
 }
