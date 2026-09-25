@@ -52,6 +52,14 @@ export function toggleModelScope(
     : before.filter((id) => id !== modelId);
 }
 
+export function selectAllModelScope(rowIds: string[]) {
+  return [...new Set(rowIds)];
+}
+
+export function clearModelScope() {
+  return [];
+}
+
 /** Remount by provider so an in-flight response cannot overwrite another tab. */
 export function ProviderModelScope({ provider, currentModel, ready }: Props) {
   const scopes = useActionQuery<ModelScopeList>("model-scope-list", {});
@@ -117,6 +125,16 @@ export function ProviderModelScope({ provider, currentModel, ready }: Props) {
       )
     : "";
   const visible = [...rows].sort(compareCatalogModelsNewestFirst);
+  const visibleIds = visible.map((item) => item.id);
+  const bulkActionsDisabled =
+    visibleIds.length === 0 ||
+    scopes.isLoading ||
+    scopes.isError ||
+    save.isPending;
+  const allVisibleSelected =
+    selected === null || visibleIds.every((id) => selected.includes(id));
+  const noVisibleModelsSelected =
+    selected !== null && visibleIds.every((id) => !selected.includes(id));
 
   useEffect(() => {
     if (ready && !started.current) {
@@ -287,6 +305,28 @@ export function ProviderModelScope({ provider, currentModel, ready }: Props) {
         Catalog dates are provider metadata, not quality scores.
       </p>
       <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={bulkActionsDisabled || allVisibleSelected}
+          onClick={() => {
+            setDraft(selectAllModelScope(visibleIds));
+            setNotice("");
+          }}
+        >
+          Select all
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={bulkActionsDisabled || noVisibleModelsSelected}
+          onClick={() => {
+            setDraft(clearModelScope());
+            setNotice("");
+          }}
+        >
+          Deselect all
+        </Button>
         <Button
           type="button"
           variant="outline"

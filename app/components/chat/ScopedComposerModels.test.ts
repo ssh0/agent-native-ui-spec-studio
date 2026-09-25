@@ -84,7 +84,10 @@ vi.mock("@agent-native/core/agent/engine", () => ({
 vi.mock("../../../server/lib/spec-project.js", () => ({
   currentUserEmail: () => "person@example.invalid",
 }));
-import { useScopedChatModels } from "./ScopedComposerModels";
+import {
+  providerSettingsPath,
+  useScopedChatModels,
+} from "./ScopedComposerModels";
 import {
   listModelScopes,
   saveModelScope,
@@ -177,6 +180,18 @@ describe("Core composer model adapter", () => {
     };
   });
   afterEach(() => vi.unstubAllGlobals());
+  it("routes chat key setup to the current provider settings when known", () => {
+    expect(providerSettingsPath("ai-sdk:openai")).toBe(
+      "/settings?provider=openai#ai-provider",
+    );
+    expect(providerSettingsPath("ai-sdk:anthropic")).toBe(
+      "/settings?provider=anthropic#ai-provider",
+    );
+    expect(providerSettingsPath("builder")).toBe("/settings#ai-provider");
+    expect(providerSettingsPath("ai-sdk:ollama")).toBe(
+      "/settings#ai-provider",
+    );
+  });
   it("exposes only scoped models through the real adapter", () => {
     const result = renderScopedChatModels();
     expect(result.availableModels[0].models).toEqual(["example-new"]);

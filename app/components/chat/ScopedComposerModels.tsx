@@ -6,10 +6,15 @@ import { useActionQuery } from "@agent-native/core/client/hooks";
 import {
   ComposerRuntimeAdaptersProvider,
   useComposerRuntimeAdapters,
+  type ComposerBuilderConnectFlow,
 } from "@agent-native/toolkit/composer/runtime-adapters";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useLocation, useNavigate } from "react-router";
+
+import { Button } from "@/components/ui/button";
 
 import {
+  catalogProviderForEngine,
   isScopedCustomOpenAIModel,
   scopedModelGroups,
   type ModelScopeList,
@@ -47,6 +52,58 @@ const reasoningEfforts: readonly ReasoningEffort[] = [
   "xhigh",
   "max",
 ];
+
+const chatBuilderConnectFlow: ComposerBuilderConnectFlow = {
+  hasFetchedStatus: true,
+  configured: false,
+  envManaged: false,
+  connecting: false,
+  statusResolved: true,
+  error: null,
+  start: () => undefined,
+};
+
+function useChatBuilderConnectFlow() {
+  return chatBuilderConnectFlow;
+}
+
+export function providerSettingsPath(engine: string | null) {
+  const candidate = engine ? catalogProviderForEngine(engine) : null;
+  const provider = candidate && candidate !== "ollama" ? candidate : null;
+  const query = provider ? `?provider=${encodeURIComponent(provider)}` : "";
+  return `/settings${query}#ai-provider`;
+}
+
+function readChatSelectionEngine() {
+  if (typeof window === "undefined") return null;
+  try {
+    const saved = JSON.parse(
+      window.localStorage.getItem(chatModelSelectionStorageKey()) ?? "null",
+    );
+    return typeof saved?.engine === "string" ? saved.engine : null;
+  } catch {
+    return null;
+  }
+}
+
+function ProviderSettingsSetupAction() {
+  const navigate = useNavigate();
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-2.5">
+      <span className="text-sm text-muted-foreground">
+        Add a provider API key in settings.
+      </span>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => navigate(providerSettingsPath(readChatSelectionEngine()))}
+      >
+        Open provider settings
+      </Button>
+    </div>
+  );
+}
 
 function readPersistedSelection(storageKey: string | null) {
   if (!storageKey || typeof window === "undefined") return null;
@@ -339,10 +396,36 @@ export function useScopedChatModels({
 /** Override only the public model adapter; retain Core uploads, voice and chat. */
 export function ScopedComposerModels({ children }: { children: ReactNode }) {
   const core = useComposerRuntimeAdapters();
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    const handleOpenSettings = () => {
+      if (
+        location.pathname !== "/home" &&
+        !location.pathname.startsWith("/chat/")
+      ) {
+        return;
+      }
+      navigate(providerSettingsPath(readChatSelectionEngine()));
+    };
+    window.addEventListener("agent-panel:open-settings", handleOpenSettings);
+    return () =>
+      window.removeEventListener("agent-panel:open-settings", handleOpenSettings);
+  }, [location.pathname, navigate]);
   const adapters = useMemo(
     () => ({
       ...core,
-      models: { ...core.models, useChatModels: useScopedChatModels },
+      models: {
+        ...core.models,
+        useChatModels: useScopedChatModels,
+        BuilderSetupCard: ProviderSettingsSetupAction,
+        BuilderSetupContent: ProviderSettingsSetupAction,
+      },
+      builder: {
+        ...core.builder,
+        useConnectFlow: useChatBuilderConnectFlow,
+        BuilderConnectPopover: ProviderSettingsSetupAction,
+      },
     }),
     [core],
   );

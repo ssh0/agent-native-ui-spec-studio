@@ -75,6 +75,10 @@ function matchesProvider(provider: CatalogProvider, engine: string) {
   );
 }
 
+export function catalogProviderForEngine(engine: string): CatalogProvider | null {
+  return catalogProviders.find((provider) => matchesProvider(provider, engine)) ?? null;
+}
+
 function isCustomOpenAIGateway(catalog: ProviderModels) {
   return (
     catalog.provider === "openai" &&
