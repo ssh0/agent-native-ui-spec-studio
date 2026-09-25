@@ -10,6 +10,8 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ProviderModelScope } from "./ProviderModelScope";
+import { catalogProviders } from "../../../shared/provider-models";
 
 type Engine = {
   name: string;
@@ -57,6 +59,7 @@ export function ProviderModelSettings() {
   const initialProviderSet = useRef(false);
   const option = providers.find((item) => item.id === provider)!;
   const engine = engineList?.engines.find((item) => item.name === option.engine);
+  const ollamaEngine = engineList?.engines.find((item) => item.name === "ai-sdk:ollama");
   const status = statuses[provider] ?? "unknown";
   const available = Boolean(engine && engine.packageInstalled !== false);
   const ready = available && status === "set" && engine?.configured !== false;
@@ -254,6 +257,13 @@ export function ProviderModelSettings() {
         </div>
       )}
 
+      {catalogProviders.includes(provider as (typeof catalogProviders)[number]) && <ProviderModelScope
+        key={provider}
+        provider={provider as (typeof catalogProviders)[number]}
+        currentModel={currentProvider === provider ? engineList?.current?.model : undefined}
+        ready={ready}
+      />}
+
       <form onSubmit={selectModel} className="space-y-3">
         <label className="block space-y-1 text-sm font-medium">
           <span>Model</span>
@@ -270,6 +280,15 @@ export function ProviderModelSettings() {
         )}
         <Button type="submit" disabled={!ready || !modelDefault?.canUpdate || busy !== null}>{busy === "model" ? "Selecting…" : "Use this model"}</Button>
       </form>
+      <div className="space-y-2 border-t border-border pt-5">
+        <h3 className="font-medium">Ollama (local)</h3>
+        <ProviderModelScope
+          key="ollama"
+          provider="ollama"
+          currentModel={currentProvider === "ollama" ? engineList?.current?.model : undefined}
+          ready={Boolean(ollamaEngine?.configured && ollamaEngine.packageInstalled !== false)}
+        />
+      </div>
       {error && <div role="alert" className="flex items-center justify-between gap-3 text-sm text-destructive">
         <span>{error}</span>
         {!engineList && <Button type="button" variant="outline" onClick={() => void retryStatus()}>Retry</Button>}

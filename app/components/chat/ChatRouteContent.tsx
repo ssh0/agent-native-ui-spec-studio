@@ -52,6 +52,8 @@ import { consumeChatHomeThreadId } from "@/lib/chat-home-thread";
 import { proposalForMessage } from "@/lib/proposal-card";
 import { TAB_ID } from "@/lib/tab-id";
 
+import { ScopedComposerModels } from "./ScopedComposerModels";
+
 function chatThreadPath(threadId: string | null) {
   return threadId ? `/chat/${encodeURIComponent(threadId)}` : "/home";
 }
@@ -94,37 +96,41 @@ export function ChatThreadRouteContent({
         }`}
       >
         <CoreComposerRuntimeProvider>
-          <AgentKitRoot
-            transport={transport}
-            clientOptions={{
-              transportOwnership: "owned",
-              retainActiveRunsOnThreadRelease: true,
-              onIntegrityReport: reportStreamIntegrity,
-            }}
-            threadId={resolvedThreadId}
-            labels={{
-              composerPlaceholder:
-                "作りたいプロダクト、利用者、主要な操作を教えてください",
-            }}
-            slots={{
-              emptyState: ChatEmptyState,
-              messageSupplement: ChatMessageSupplement,
-              connectionRequest: ChatMcpConnectionRequest,
-              footer: ChatAgentFooter,
-            }}
-            onThreadForked={(thread) =>
-              navigate(`${chatThreadPath(thread.id)}${window.location.search}`)
-            }
-          >
-            <ChatLifecycleTracking threadId={resolvedThreadId} />
-            <ChatMcpConnectionResume />
-            <ChatCanvas
-              workspaceOpen={workspaceOpen}
-              setWorkspaceOpen={setWorkspaceOpen}
-              projectId={projectId}
-              compact={compact}
-            />
-          </AgentKitRoot>
+          <ScopedComposerModels>
+            <AgentKitRoot
+              transport={transport}
+              clientOptions={{
+                transportOwnership: "owned",
+                retainActiveRunsOnThreadRelease: true,
+                onIntegrityReport: reportStreamIntegrity,
+              }}
+              threadId={resolvedThreadId}
+              labels={{
+                composerPlaceholder:
+                  "作りたいプロダクト、利用者、主要な操作を教えてください",
+              }}
+              slots={{
+                emptyState: ChatEmptyState,
+                messageSupplement: ChatMessageSupplement,
+                connectionRequest: ChatMcpConnectionRequest,
+                footer: ChatAgentFooter,
+              }}
+              onThreadForked={(thread) =>
+                navigate(
+                  `${chatThreadPath(thread.id)}${window.location.search}`,
+                )
+              }
+            >
+              <ChatLifecycleTracking threadId={resolvedThreadId} />
+              <ChatMcpConnectionResume />
+              <ChatCanvas
+                workspaceOpen={workspaceOpen}
+                setWorkspaceOpen={setWorkspaceOpen}
+                projectId={projectId}
+                compact={compact}
+              />
+            </AgentKitRoot>
+          </ScopedComposerModels>
         </CoreComposerRuntimeProvider>
       </div>
       <aside
