@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 
-import type {
-  CatalogModel,
-  CatalogProvider,
-  ModelScopeList,
-  ProviderModels,
+import {
+  compareCatalogModelsNewestFirst,
+  type CatalogModel,
+  type CatalogProvider,
+  type ModelScopeList,
+  type ProviderModels,
 } from "../../../shared/provider-models";
 
 type Props = {
@@ -67,7 +68,6 @@ export function ProviderModelScope({ provider, currentModel, ready }: Props) {
   const [customModelIds, setCustomModelIds] = useState<string[]>([]);
   const [customModelId, setCustomModelId] = useState("");
   const [notice, setNotice] = useState("");
-  const [order, setOrder] = useState<"newest" | "weekly">("newest");
   const cached = scopes.data?.providers.find(
     (item) => item.provider === provider,
   );
@@ -116,14 +116,7 @@ export function ProviderModelScope({ provider, currentModel, ready }: Props) {
         "",
       )
     : "";
-  const hasCatalogDates = catalogModels.some((item) => item.createdAt);
-  const visible = rows.sort((a, b) =>
-    order === "weekly"
-      ? (a.weeklyRank ?? Infinity) - (b.weeklyRank ?? Infinity) ||
-        a.name.localeCompare(b.name)
-      : (b.createdAt ?? "").localeCompare(a.createdAt ?? "") ||
-        a.name.localeCompare(b.name),
-  );
+  const visible = [...rows].sort(compareCatalogModelsNewestFirst);
 
   useEffect(() => {
     if (ready && !started.current) {
@@ -236,26 +229,6 @@ export function ProviderModelScope({ provider, currentModel, ready }: Props) {
             Add model ID
           </Button>
         </form>
-      )}
-      {catalog?.fetchedAt && (
-        <label className="flex items-center gap-2 text-sm">
-          Sort
-          <select
-            aria-label="Sort models"
-            className="h-9 rounded-md border border-input bg-background px-2"
-            value={order}
-            onChange={(event) => setOrder(event.target.value as typeof order)}
-          >
-            <option value="newest">
-              {hasCatalogDates
-                ? "Newest catalog entries"
-                : "Name order (no catalog dates)"}
-            </option>
-            {provider === "openrouter" && (
-              <option value="weekly">Popular this week · OpenRouter</option>
-            )}
-          </select>
-        </label>
       )}
       <div
         className="max-h-72 overflow-y-auto rounded-md border border-border"

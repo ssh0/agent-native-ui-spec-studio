@@ -128,6 +128,18 @@ describe("official model catalogs", () => {
       "gemini-2.5-flash",
     ]);
   });
+  it("uses the normalized Google model ID as the final display-name fallback", () => {
+    expect(
+      parseCatalogPage("google", {
+        models: [
+          {
+            name: "models/gemini-3.8-flash",
+            supportedGenerationMethods: ["generateContent"],
+          },
+        ],
+      }).models,
+    ).toEqual([{ id: "gemini-3.8-flash", name: "gemini-3.8-flash" }]);
+  });
   it("rejects repeated pagination instead of caching a partial result", async () => {
     const fetcher = vi.fn<typeof fetch>().mockImplementation(async () =>
       response({

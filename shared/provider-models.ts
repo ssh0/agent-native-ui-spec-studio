@@ -16,6 +16,42 @@ export type CatalogModel = {
   createdAt?: string;
   weeklyRank?: number;
 };
+
+function modelVersion(id: string) {
+  const version = id.match(
+    /(?:^|[^0-9])v?(\d+(?:[.-]\d+)+)(?=$|[^0-9])/i,
+  )?.[1];
+  return version?.split(/[.-]/).map(Number);
+}
+
+export function compareCatalogModelsNewestFirst(
+  a: Pick<CatalogModel, "id" | "createdAt">,
+  b: Pick<CatalogModel, "id" | "createdAt">,
+) {
+  const aDate = a.createdAt ? Date.parse(a.createdAt) : Number.NaN;
+  const bDate = b.createdAt ? Date.parse(b.createdAt) : Number.NaN;
+  const hasADate = Number.isFinite(aDate);
+  const hasBDate = Number.isFinite(bDate);
+  if (hasADate && hasBDate && aDate !== bDate) return bDate - aDate;
+  if (hasADate !== hasBDate) return hasADate ? -1 : 1;
+  if (hasADate && hasBDate) return a.id.localeCompare(b.id);
+
+  const aVersion = modelVersion(a.id);
+  const bVersion = modelVersion(b.id);
+  if (Boolean(aVersion) !== Boolean(bVersion)) return aVersion ? -1 : 1;
+  if (aVersion && bVersion) {
+    for (
+      let index = 0;
+      index < Math.max(aVersion.length, bVersion.length);
+      index++
+    ) {
+      const difference = (bVersion[index] ?? 0) - (aVersion[index] ?? 0);
+      if (difference) return difference;
+    }
+  }
+  return a.id.localeCompare(b.id);
+}
+
 export type ProviderModels = {
   provider: CatalogProvider;
   configured?: boolean;
@@ -110,6 +146,15 @@ export function scopedModelGroups(
         catalog.scopedModels === null
           ? [...available]
           : available.filter((id) => catalog.scopedModels!.includes(id));
+      const catalogModels = new Map(
+        catalog.models.map((item) => [item.id, item]),
+      );
+      models.sort((a, b) =>
+        compareCatalogModelsNewestFirst(
+          catalogModels.get(a) ?? { id: a },
+          catalogModels.get(b) ?? { id: b },
+        ),
+      );
       return { ...group, models };
     });
 }

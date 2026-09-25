@@ -90,21 +90,29 @@ describe("provider model settings rendered states", () => {
     );
     expect(currentRow).not.toContain("checked=");
   });
-  it("labels date-free catalog ordering as name order", () => {
+  it("orders date-free model rows by numeric version without a manual sort control", () => {
     state.query = {
       data: {
         providers: [
           {
             ...catalog,
-            models: [{ id: "example-chat", name: "Example chat" }],
+            models: [
+              { id: "gemini-2.5-flash", name: "Gemini 2.5" },
+              { id: "gemini-3.8-flash", name: "Gemini 3.8" },
+              { id: "gemini-3.10-flash", name: "Gemini 3.10" },
+            ],
           },
         ],
       },
     };
     const html = render();
-    expect(html).toContain("Name order (no catalog dates)");
-    expect(html).not.toContain("Newest catalog entries");
-    expect(html).not.toContain(">Name</option>");
+    expect(html.indexOf("Gemini 3.10")).toBeLessThan(
+      html.indexOf("Gemini 3.8"),
+    );
+    expect(html.indexOf("Gemini 3.8")).toBeLessThan(
+      html.indexOf("Gemini 2.5"),
+    );
+    expect(html).not.toContain('aria-label="Sort models"');
   });
   it("shows pending and actionable catalog failure without erasing rows", () => {
     state.discovery = {

@@ -1,9 +1,10 @@
 import { ssrfSafeFetch } from "@agent-native/core/extensions/url-safety";
 import { z } from "zod";
 
-import type {
-  CatalogModel,
-  RemoteCatalogProvider,
+import {
+  compareCatalogModelsNewestFirst,
+  type CatalogModel,
+  type RemoteCatalogProvider,
 } from "../../shared/provider-models.js";
 
 export const catalogEndpoints: Record<RemoteCatalogProvider, string> = {
@@ -63,11 +64,6 @@ const pageSchema = z.object({
   next_page_token: z.string().optional(),
   total_count: z.number().optional(),
 });
-const googleModelIdCollator = new Intl.Collator("en", {
-  numeric: true,
-  sensitivity: "base",
-});
-
 export function parseCatalogPage(
   provider: RemoteCatalogProvider,
   payload: unknown,
@@ -109,7 +105,11 @@ export function parseCatalogPage(
       : (row.created ?? 0) * 1000;
     models.push({
       id,
-      name: row.display_name ?? row.displayName ?? row.model ?? row.name ?? id,
+      name:
+        row.display_name ??
+        row.displayName ??
+        row.model ??
+        (provider === "google" ? id : (row.name ?? id)),
       ...(provider === "openrouter" && rankOffset + index < 5
         ? { weeklyRank: rankOffset + index + 1 }
         : {}),
@@ -205,17 +205,7 @@ export async function fetchProviderModels(
       parameter = "offset";
     }
     if (!cursor)
-      return [...models.values()].sort(
-        (a, b) => {
-          const creationOrder = (b.createdAt ?? "").localeCompare(
-            a.createdAt ?? "",
-          );
-          if (creationOrder) return creationOrder;
-          if (provider === "google" && !a.createdAt && !b.createdAt)
-            return googleModelIdCollator.compare(b.id, a.id);
-          return a.id.localeCompare(b.id);
-        },
-      );
+      return [...models.values()].sort(compareCatalogModelsNewestFirst);
     if (cursors.has(cursor)) throw new Error("Invalid catalog pagination.");
     cursors.add(cursor);
     url.searchParams.set(parameter, cursor);

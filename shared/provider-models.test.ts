@@ -80,6 +80,50 @@ describe("scoped chat picker", () => {
     ]);
     expect(scopedModelGroups(groups, [catalog([])])[0].models).toEqual([]);
   });
+  it("orders chat groups by catalog dates then numeric model versions", () => {
+    const googleGroup = {
+      engine: "ai-sdk:google",
+      label: "Google",
+      configured: true,
+      models: [
+        "gemini-2.5-flash",
+        "gemini-3.8-flash",
+        "gemini-3.10-flash",
+        "gemini-dated-older",
+        "gemini-current",
+      ],
+    };
+    const googleCatalog: ProviderModels = {
+      provider: "google",
+      models: [
+        { id: "gemini-2.5-flash", name: "2.5" },
+        { id: "gemini-3.8-flash", name: "3.8" },
+        { id: "gemini-3.10-flash", name: "3.10" },
+        {
+          id: "gemini-dated-older",
+          name: "Older dated",
+          createdAt: "2025-09-01T00:00:00Z",
+        },
+        {
+          id: "gemini-current",
+          name: "Current",
+          createdAt: "2026-09-01T00:00:00Z",
+        },
+      ],
+      fetchedAt: "2026-09-02T00:00:00Z",
+      stale: false,
+      scopedModels: null,
+    };
+    expect(
+      scopedModelGroups([googleGroup], [googleCatalog])[0].models,
+    ).toEqual([
+      "gemini-current",
+      "gemini-dated-older",
+      "gemini-3.10-flash",
+      "gemini-3.8-flash",
+      "gemini-2.5-flash",
+    ]);
+  });
   it("does not add removed IDs outside the saved scope", () => {
     expect(
       scopedModelGroups(groups, [

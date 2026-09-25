@@ -141,6 +141,45 @@ describe("Core composer model adapter", () => {
     result.onModelChange("example-new", "anthropic");
     expect(state.change).toHaveBeenCalledWith("example-new", "anthropic");
   });
+  it("exposes newest date-less versions first in the chat model groups", () => {
+    state.base = {
+      ...state.base,
+      availableModels: [
+        {
+          engine: "ai-sdk:google",
+          label: "Google",
+          configured: true,
+          models: [
+            "gemini-2.5-flash",
+            "gemini-3.8-flash",
+            "gemini-3.10-flash",
+          ],
+        },
+      ],
+    };
+    state.scopes = {
+      data: {
+        providers: [
+          {
+            provider: "google",
+            models: [
+              { id: "gemini-2.5-flash", name: "Gemini 2.5" },
+              { id: "gemini-3.8-flash", name: "Gemini 3.8" },
+              { id: "gemini-3.10-flash", name: "Gemini 3.10" },
+            ],
+            fetchedAt: "2026-09-01T00:00:00Z",
+            scopedModels: null,
+            stale: false,
+          },
+        ],
+      },
+    };
+    expect(renderScopedChatModels().availableModels[0].models).toEqual([
+      "gemini-3.10-flash",
+      "gemini-3.8-flash",
+      "gemini-2.5-flash",
+    ]);
+  });
   it("exposes no models while scope loading fails", () => {
     state.scopes = { isLoading: false, isError: true };
     const result = renderScopedChatModels();
@@ -184,8 +223,8 @@ describe("Core composer model adapter", () => {
       (group) => group.engine === "ai-sdk:openai",
     );
     expect(openai?.models).toEqual([
-      "listed-openai-model",
       "custom-openai-model",
+      "listed-openai-model",
     ]);
     expect(
       result.availableModels.some((group) => group.engine === "builder"),
