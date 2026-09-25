@@ -1,11 +1,31 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ProviderModels } from "../../../shared/provider-models";
+import type { UseChatModelsResult } from "@agent-native/core/client/agent-chat";
+import type {
+  ModelScopeList,
+  ProviderModels,
+} from "../../../shared/provider-models";
 import { addCustomModelId } from "../settings/ProviderModelScope";
 
+type MockChatModels = Pick<
+  UseChatModelsResult,
+  | "availableModels"
+  | "selectedEngine"
+  | "selectedModel"
+  | "selectedEffort"
+  | "isLoading"
+  | "onModelChange"
+> & {
+  onEffortChange?: UseChatModelsResult["onEffortChange"];
+};
+
 const state = vi.hoisted(() => ({
-  base: {} as Record<string, unknown>,
-  scopes: {} as Record<string, unknown>,
+  base: {} as MockChatModels,
+  scopes: {} as {
+    isLoading?: boolean;
+    isError?: boolean;
+    data?: ModelScopeList;
+  },
   change: vi.fn(),
   settings: new Map<string, Record<string, unknown>>(),
   refs: [] as { current: unknown }[],
@@ -217,12 +237,7 @@ describe("Core composer model adapter", () => {
     expect(state.change).not.toHaveBeenCalled();
   });
   it("keeps permitted custom OpenAI models selectable and hides Builder models", () => {
-    const availableModels = state.base.availableModels as {
-      engine: string;
-      label: string;
-      configured: boolean;
-      models: string[];
-    }[];
+    const availableModels = state.base.availableModels;
     availableModels.push(
       {
         engine: "ai-sdk:openai",
@@ -303,7 +318,7 @@ describe("Core composer model adapter", () => {
         }),
       );
     };
-    const persistEffort = (effort: string) => {
+    const persistEffort = (effort: UseChatModelsResult["selectedEffort"]) => {
       state.base.selectedEffort = effort;
       storage.set(selectionKey, JSON.stringify({ ...savedSelection, effort }));
     };
@@ -457,7 +472,7 @@ describe("Core composer model adapter", () => {
       model: "example-new",
       engine: "anthropic",
       effort: "medium",
-    };
+    } as const;
     storage.set(selectionKey, JSON.stringify(newerSelection));
     state.base.selectedModel = newerSelection.model;
     state.base.selectedEngine = newerSelection.engine;
@@ -518,7 +533,7 @@ describe("Core composer model adapter", () => {
       model: "example-new",
       engine: "anthropic",
       effort: "medium",
-    };
+    } as const;
     storage.set(selectionKey, JSON.stringify(newerSelection));
     dispatchSelectionChange(selectionKey);
     expect(renderScopedChatModels().selectedModel).toBe("gpt-5");
