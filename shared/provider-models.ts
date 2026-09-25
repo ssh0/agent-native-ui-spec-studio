@@ -76,7 +76,9 @@ export function scopedModelGroups(
       const available = catalog.fetchedAt
         ? catalog.models.map((item) => item.id)
         : catalog.preserveEngineModels
-          ? group.models
+          ? catalog.provider === "openai" && catalog.scopedModels !== null
+            ? [...new Set([...group.models, ...catalog.scopedModels])]
+            : group.models
           : [];
       const models =
         catalog.scopedModels === null

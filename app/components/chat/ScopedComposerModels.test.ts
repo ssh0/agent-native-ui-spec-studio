@@ -77,7 +77,7 @@ describe("Core composer model adapter", () => {
         engine: "ai-sdk:openai",
         label: "OpenAI",
         configured: true,
-        models: ["custom-openai-model", "unselected-model"],
+        models: ["listed-openai-model", "unselected-model"],
       },
       {
         engine: "builder",
@@ -93,22 +93,30 @@ describe("Core composer model adapter", () => {
       fetchedAt: null,
       stale: true,
       preserveEngineModels: true,
-      scopedModels: ["custom-openai-model"],
+      scopedModels: ["custom-openai-model", "listed-openai-model"],
     });
 
     const result = useScopedChatModels({ enabled: true });
     const openai = result.availableModels.find(
       (group) => group.engine === "ai-sdk:openai",
     );
-    expect(openai?.models).toEqual(["custom-openai-model"]);
+    expect(openai?.models).toEqual([
+      "listed-openai-model",
+      "custom-openai-model",
+    ]);
     expect(
       result.availableModels.some((group) => group.engine === "builder"),
     ).toBe(false);
     result.onModelChange("unselected-model", "ai-sdk:openai");
     result.onModelChange("custom-openai-model", "ai-sdk:openai");
-    expect(state.change).toHaveBeenCalledTimes(1);
+    result.onModelChange("listed-openai-model", "ai-sdk:openai");
+    expect(state.change).toHaveBeenCalledTimes(2);
     expect(state.change).toHaveBeenCalledWith(
       "custom-openai-model",
+      "ai-sdk:openai",
+    );
+    expect(state.change).toHaveBeenCalledWith(
+      "listed-openai-model",
       "ai-sdk:openai",
     );
   });

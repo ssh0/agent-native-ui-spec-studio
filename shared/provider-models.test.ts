@@ -96,7 +96,7 @@ describe("scoped chat picker", () => {
       scopedModelGroups(groups, [{ ...catalog(null), models: [] }])[0].models,
     ).toEqual([]);
   });
-  it("keeps existing custom OpenAI engine models subject to their saved scope", () => {
+  it("offers explicitly scoped custom OpenAI IDs missing from Core's group", () => {
     const openaiGroup = {
       engine: "ai-sdk:openai",
       label: "OpenAI",
@@ -109,10 +109,11 @@ describe("scoped chat picker", () => {
       fetchedAt: null,
       stale: true,
       preserveEngineModels: true,
-      scopedModels: ["custom-model"],
+      scopedModels: ["custom-model", "gateway-only-model"],
     };
     expect(scopedModelGroups([openaiGroup], [customGateway])[0].models).toEqual([
       "custom-model",
+      "gateway-only-model",
     ]);
     expect(
       scopedModelGroups([openaiGroup], [
@@ -123,6 +124,12 @@ describe("scoped chat picker", () => {
       scopedModelGroups([openaiGroup], [{ ...customGateway, scopedModels: [] }])[0]
         .models,
     ).toEqual([]);
+    expect(
+      scopedModelGroups(
+        [{ ...openaiGroup, engine: "anthropic" }],
+        [{ ...customGateway, provider: "anthropic" }],
+      )[0].models,
+    ).toEqual(["custom-model"]);
   });
   it("filters Ollama with its own checked scope", () => {
     const result = scopedModelGroups(
