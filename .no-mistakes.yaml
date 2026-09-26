@@ -1,0 +1,2 @@
+commands:
+  test: pnpm exec vitest --run --passWithNoTests --maxWorkers=1
