@@ -1,4 +1,4 @@
-import { agentNativePath, appMountedPath } from "@agent-native/core/client/api-path";
+import { agentNativePath } from "@agent-native/core/client/api-path";
 import { callAction } from "@agent-native/core/client/hooks";
 import {
   AGENT_PROVIDER_CATALOG,
@@ -9,10 +9,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation } from "react-router";
 
-import {
-  buildSettingsRoute,
-  STANDARD_APP_ROUTES,
-} from "@agent-native/core/client/navigation";
+import { buildSettingsRoute } from "@agent-native/core/client/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -218,10 +215,7 @@ export function ProviderModelSettings() {
           {available && option.key && (
             <Link
               className="text-sm text-muted-foreground underline"
-              to={appMountedPath(
-                buildSettingsRoute(`keys:secrets:${option.key}`),
-                STANDARD_APP_ROUTES.settings,
-              )}
+              to={buildSettingsRoute(`keys:secrets:${option.key}`)}
             >
               Manage API key
             </Link>
