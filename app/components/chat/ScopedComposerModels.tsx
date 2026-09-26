@@ -97,7 +97,9 @@ function ProviderSettingsSetupAction() {
         type="button"
         variant="outline"
         size="sm"
-        onClick={() => navigate(providerSettingsPath(readChatSelectionEngine()))}
+        onClick={() =>
+          navigate(providerSettingsPath(readChatSelectionEngine()))
+        }
       >
         Open provider settings
       </Button>
@@ -110,8 +112,7 @@ function readPersistedSelection(storageKey: string | null) {
   try {
     const value = JSON.parse(window.localStorage.getItem(storageKey) ?? "null");
     const effort = reasoningEfforts.find((option) => option === value?.effort);
-    return typeof value?.model === "string" &&
-      typeof value?.engine === "string"
+    return typeof value?.model === "string" && typeof value?.engine === "string"
       ? {
           model: value.model,
           engine: value.engine,
@@ -410,7 +411,10 @@ export function ScopedComposerModels({ children }: { children: ReactNode }) {
     };
     window.addEventListener("agent-panel:open-settings", handleOpenSettings);
     return () =>
-      window.removeEventListener("agent-panel:open-settings", handleOpenSettings);
+      window.removeEventListener(
+        "agent-panel:open-settings",
+        handleOpenSettings,
+      );
   }, [location.pathname, navigate]);
   const adapters = useMemo(
     () => ({
@@ -422,9 +426,11 @@ export function ScopedComposerModels({ children }: { children: ReactNode }) {
         BuilderSetupContent: ProviderSettingsSetupAction,
       },
       builder: {
-        ...core.builder,
         useConnectFlow: useChatBuilderConnectFlow,
         BuilderConnectPopover: ProviderSettingsSetupAction,
+        tryDelegateBuildRequest: () => false,
+        isTrustedBuilderMessage: () => false,
+        isTrustedFrameMessage: core.builder?.isTrustedFrameMessage,
       },
     }),
     [core],

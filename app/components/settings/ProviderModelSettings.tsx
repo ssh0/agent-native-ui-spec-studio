@@ -39,8 +39,6 @@ function asEngineList(value: unknown): EngineList {
 
 function errorMessage(error: unknown): string {
   if (!(error instanceof Error)) return "The request failed. Try again.";
-  // A Core fallback mentions its optional Builder connection on sign-in errors.
-  if (error.message.includes("connect Builder")) return "Sign in to save an API key.";
   return error.message;
 }
 
