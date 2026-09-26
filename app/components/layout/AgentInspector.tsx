@@ -3,6 +3,7 @@ import {
   chatModelSelectionStorageKey,
   focusAgentChat,
   navigateWithAgentChatViewTransition,
+  useAgentEngineConfigured,
 } from "@agent-native/core/client/agent-chat";
 import { useT } from "@agent-native/core/client/i18n";
 import { type ReactNode } from "react";
@@ -25,8 +26,10 @@ export function AgentInspector({
 }: AgentInspectorProps) {
   const navigate = useNavigate();
   const t = useT();
+  const engineStatus = useAgentEngineConfigured(true);
+  const agentReady = engineStatus.state === "configured";
   const models = useScopedChatModels({
-    enabled: true,
+    enabled: agentReady,
     storageKey: chatModelSelectionStorageKey("chat"),
   });
 
@@ -37,6 +40,7 @@ export function AgentInspector({
 
   return (
     <AgentSidebar
+      enabled={agentReady}
       availableModels={models.availableModels}
       modelListLoading={models.isLoading}
       position="right"

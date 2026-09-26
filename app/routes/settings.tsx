@@ -34,7 +34,7 @@ export default function SettingsRoute() {
           content: (
             <div className="mx-auto w-full max-w-2xl space-y-8" id="ai-provider">
               <ProviderModelSettings />
-              <AgentSettingsContent sections={["limits", "voice"]} />
+              <AgentSettingsContent sections={["limits"]} />
             </div>
           ),
         }

@@ -1,6 +1,12 @@
 import { defineAppConfig } from "@agent-native/core/server";
 
+import { appBuiltInEngines } from "../lib/agent-engine-policy.js";
+
 export default defineAppConfig({
+  agent: {
+    builtInEngines: [...appBuiltInEngines],
+    preferBringYourOwnKey: true,
+  },
   app: {
     // This name appears in transactional emails. Change it to your product name.
     name: "Ui Spec Studio",
