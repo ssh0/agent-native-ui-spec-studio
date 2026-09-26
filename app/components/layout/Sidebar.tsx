@@ -25,10 +25,8 @@ import {
   IconLoader2,
   IconMessages,
   IconPin,
-  IconPuzzle,
   IconSearch,
   IconSettings,
-  IconUsers,
 } from "@tabler/icons-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router";
@@ -61,8 +59,6 @@ interface SidebarProps {
 const primaryNavigation = [
   { href: "/spec", labelKey: "navigation.spec", Icon: IconCode },
   { href: "/database", labelKey: "navigation.database", Icon: IconDatabase },
-  { href: "/extensions", labelKey: "navigation.extensions", Icon: IconPuzzle },
-  { href: "/team", labelKey: "navigation.team", Icon: IconUsers },
   { href: "/settings", labelKey: "navigation.settings", Icon: IconSettings },
 ] as const;
 

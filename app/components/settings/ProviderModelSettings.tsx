@@ -1,4 +1,4 @@
-import { agentNativePath } from "@agent-native/core/client/api-path";
+import { agentNativePath, appMountedPath } from "@agent-native/core/client/api-path";
 import { callAction } from "@agent-native/core/client/hooks";
 import {
   AGENT_PROVIDER_CATALOG,
@@ -7,7 +7,12 @@ import {
   type AgentProviderId,
 } from "@agent-native/core/client/settings";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { useLocation } from "react-router";
+import { Link, useLocation } from "react-router";
+
+import {
+  buildSettingsRoute,
+  STANDARD_APP_ROUTES,
+} from "@agent-native/core/client/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,11 +59,9 @@ export function ProviderModelSettings() {
   const [engineList, setEngineList] = useState<EngineList | null>(null);
   const [modelDefault, setModelDefault] = useState<ModelDefault | null>(null);
   const [statuses, setStatuses] = useState<Record<string, KeyStatus>>({});
-  const [keySources, setKeySources] = useState<Record<string, string>>({});
-  const [key, setKey] = useState("");
   const [model, setModel] = useState("");
   const [customModel, setCustomModel] = useState("");
-  const [busy, setBusy] = useState<"key" | "model" | null>(null);
+  const [busy, setBusy] = useState<"model" | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -89,13 +92,11 @@ export function ProviderModelSettings() {
     if (!Array.isArray(secrets)) throw new Error("API key status could not be read.");
     if (!modelSettings || typeof modelSettings.canUpdate !== "boolean") throw new Error("Model settings could not be read.");
     const next: Record<string, KeyStatus> = {};
-    const sources: Record<string, string> = {};
     for (const item of providers) {
       const secret = secrets.find((entry) => entry?.key === item.key);
       next[item.id] = ["set", "unset", "invalid"].includes(secret?.status)
         ? secret.status
         : "unknown";
-      if (typeof secret?.effectiveScope === "string") sources[item.id] = secret.effectiveScope;
     }
     const engineData = asEngineList(list);
     const effectiveProvider = providerIdForEngine(engineData.current?.engine ?? "");
@@ -110,7 +111,6 @@ export function ProviderModelSettings() {
       }
     }
     setStatuses(next);
-    setKeySources(sources);
     setModelDefault(modelSettings);
     setEngineList(engineData);
     return { statuses: next, modelSettings };
@@ -145,46 +145,6 @@ export function ProviderModelSettings() {
       setError(errorMessage(cause));
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function saveKey(event: FormEvent) {
-    event.preventDefault();
-    if (!key.trim() || busy) return;
-    setBusy("key");
-    setError("");
-    setNotice("");
-    try {
-      const response = await fetch(agentNativePath("/_agent-native/agent-engine/api-key"), {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          key: option.key,
-          value: key.trim(),
-          scope: keySources[provider] === "user" || !modelDefault?.canUpdate || !modelDefault.orgId
-            ? "user"
-            : "org",
-        }),
-      });
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null);
-        if (response.status === 401) throw new Error("Sign in to save an API key.");
-        throw new Error(typeof payload?.error === "string"
-          ? payload.error
-          : `The ${option.label} key could not be saved (HTTP ${response.status}).`);
-      }
-      setKey("");
-      window.dispatchEvent(new CustomEvent("agent-engine:configured-changed"));
-      const verified = await refresh();
-      if (verified.statuses[provider] !== "set") {
-        throw new Error(`The ${option.label} key could not be verified. Check the key and try again.`);
-      }
-      setNotice(`${option.label} key saved.`);
-    } catch (cause) {
-      setError(errorMessage(cause));
-    } finally {
-      setBusy(null);
     }
   }
 
@@ -232,7 +192,7 @@ export function ProviderModelSettings() {
 
       <AgentProviderPicker
         value={provider}
-        onChange={(next) => { setProvider(next); setKey(""); setError(""); setNotice(""); }}
+        onChange={(next) => { setProvider(next); setError(""); setNotice(""); }}
         options={providers}
         configuredProviders={configuredProviders}
         disabled={loading || busy !== null}
@@ -249,23 +209,22 @@ export function ProviderModelSettings() {
           </div>
           {!available && <p className="text-sm text-muted-foreground">This provider is unavailable in this app. Choose another provider.</p>}
           {available && status === "invalid" && <p className="text-sm text-destructive">Update the API key to use this provider.</p>}
-          {available && status === "set" && engine?.configured === false && <p className="text-sm text-muted-foreground">Update the key or choose another provider.</p>}
           {available && status === "unknown" && (
             <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
               <span>Key status is unavailable.</span>
               <Button type="button" variant="outline" onClick={() => void retryStatus()}>Retry</Button>
             </div>
           )}
-          {available && (
-            <form onSubmit={saveKey} className="flex flex-col gap-2 sm:flex-row sm:items-end">
-              <label className="min-w-0 flex-1 space-y-1 text-sm font-medium">
-                <span>{option.label} API key</span>
-                <Input type="password" value={key} onChange={(event) => setKey(event.target.value)} autoComplete="off" spellCheck={false} disabled={busy !== null} />
-              </label>
-              <Button type="submit" disabled={!key.trim() || busy !== null}>
-                {busy === "key" ? "Saving…" : status === "set" ? "Update key" : "Save key"}
-              </Button>
-            </form>
+          {available && option.key && (
+            <Link
+              className="text-sm text-muted-foreground underline"
+              to={appMountedPath(
+                buildSettingsRoute(`keys:secrets:${option.key}`),
+                STANDARD_APP_ROUTES.settings,
+              )}
+            >
+              Manage API key
+            </Link>
           )}
           {option.docsUrl && <a className="text-sm text-muted-foreground underline" href={option.docsUrl} target="_blank" rel="noopener noreferrer">Get an API key</a>}
         </div>
