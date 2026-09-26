@@ -12,23 +12,32 @@ function normalizedAgentHash(hash: string): string {
   }
 }
 
-export function buildAgentSettingsDestination(hash: string, search = "") {
+function isLegacyAgentResourcesHash(hash: string): boolean {
   const normalizedHash = normalizedAgentHash(hash);
-  if (normalizedHash === "resources" || normalizedHash === "agent:resources") {
-    return `${buildSettingsRoute("agent:resources")}${search}`;
+  return normalizedHash === "resources" || normalizedHash === "agent:resources";
+}
+
+export function buildAgentResourcesDestination(search = "") {
+  return `${buildSettingsRoute("agent:resources")}${search}`;
+}
+
+export function buildAgentSettingsDestination(hash: string, search = "") {
+  if (isLegacyAgentResourcesHash(hash)) {
+    return buildAgentResourcesDestination(search);
   }
   return buildLegacyAgentSettingsRoute(hash, search);
 }
 
-export function isLegacyAgentResourcesLocation(
+export function getLegacyAgentResourcesDestination(
   pathname: string,
   hash: string,
-): boolean {
+  search = "",
+): string | null {
   const pathParts = pathname.split("/").filter(Boolean);
-  const normalizedHash = normalizedAgentHash(hash);
-  return (
+  const isAgentSettingsRoot =
     pathParts[pathParts.length - 2] === "settings" &&
-    pathParts[pathParts.length - 1] === "agent" &&
-    (normalizedHash === "resources" || normalizedHash === "agent:resources")
-  );
+    pathParts[pathParts.length - 1] === "agent";
+  return isAgentSettingsRoot && isLegacyAgentResourcesHash(hash)
+    ? buildAgentResourcesDestination(search)
+    : null;
 }

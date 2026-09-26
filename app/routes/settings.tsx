@@ -14,7 +14,7 @@ import { useMemo } from "react";
 import { Navigate, useLocation } from "react-router";
 
 import { ProviderModelSettings } from "@/components/settings/ProviderModelSettings";
-import { isLegacyAgentResourcesLocation } from "@/lib/agent-route";
+import { getLegacyAgentResourcesDestination } from "@/lib/agent-route";
 import { APP_TITLE } from "@/lib/app-config";
 import { suppressWorkspaceConnectionPrompt } from "@/lib/settings-tabs";
 
@@ -24,10 +24,13 @@ export function meta() {
 
 export default function SettingsRoute() {
   const location = useLocation();
-  if (isLegacyAgentResourcesLocation(location.pathname, location.hash)) {
-    return (
-      <Navigate to={`/settings/agent/resources${location.search}`} replace />
-    );
+  const legacyResourcesDestination = getLegacyAgentResourcesDestination(
+    location.pathname,
+    location.hash,
+    location.search,
+  );
+  if (legacyResourcesDestination) {
+    return <Navigate to={legacyResourcesDestination} replace />;
   }
   return <SettingsPage />;
 }

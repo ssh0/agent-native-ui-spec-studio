@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildAgentSettingsDestination,
-  isLegacyAgentResourcesLocation,
+  getLegacyAgentResourcesDestination,
 } from "./agent-route";
 
 describe("agent settings routes", () => {
@@ -13,18 +13,25 @@ describe("agent settings routes", () => {
     expect(buildAgentSettingsDestination("#agent%3Aresources")).toBe(
       "/settings/agent/resources",
     );
+    expect(buildAgentSettingsDestination("#AGENT%3AResources")).toBe(
+      "/settings/agent/resources",
+    );
   });
 
   it("identifies old Resources hashes on the settings route", () => {
     expect(
-      isLegacyAgentResourcesLocation("/settings/agent", "#resources"),
-    ).toBe(true);
+      getLegacyAgentResourcesDestination(
+        "/settings/agent",
+        "#resources",
+        "?project=spec",
+      ),
+    ).toBe("/settings/agent/resources?project=spec");
     expect(
-      isLegacyAgentResourcesLocation("/settings/agent/files", "#resources"),
-    ).toBe(false);
-    expect(isLegacyAgentResourcesLocation("/settings/agent", "#limits")).toBe(
-      false,
-    );
+      getLegacyAgentResourcesDestination("/settings/agent/files", "#resources"),
+    ).toBeNull();
+    expect(
+      getLegacyAgentResourcesDestination("/settings/agent", "#limits"),
+    ).toBeNull();
   });
 
   it("preserves other legacy agent destinations", () => {
