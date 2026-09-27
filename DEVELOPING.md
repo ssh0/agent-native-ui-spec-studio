@@ -248,7 +248,7 @@ When adding app data, define tables with `@agent-native/core/db/schema` helpers 
 
 ## Extensions (Framework Feature)
 
-The framework provides **Extensions** — mini sandboxed Alpine.js apps that run inside iframes. Extensions let users (or the agent) create interactive widgets, dashboards, and utilities without modifying the app's source code. They appear in the sidebar under an "Extensions" section. (Distinct from LLM tools — the function-calling primitives the agent invokes.)
+The framework provides **Extensions** — mini sandboxed Alpine.js apps that run inside iframes. Extensions let users (or the agent) create interactive widgets, dashboards, and utilities without modifying the app's source code. (Distinct from LLM tools — the function-calling primitives the agent invokes.)
 
 - **Creating extensions**: Via the sidebar "+" button, agent chat, or `POST /_agent-native/extensions`
 - **API calls**: Extensions use `extensionFetch()` (legacy alias `toolFetch`) which proxies requests through the server with `${keys.NAME}` secret injection

@@ -11,35 +11,62 @@ import {
 import { TeamPage } from "@agent-native/core/client/team-page";
 import { useSetPageTitle } from "@agent-native/toolkit/app-shell";
 import { useMemo } from "react";
+import { Navigate, useLocation } from "react-router";
 
-import { APP_TITLE } from "@/lib/app-config";
 import { ProviderModelSettings } from "@/components/settings/ProviderModelSettings";
+import { getLegacyAgentResourcesDestination } from "@/lib/agent-route";
+import { APP_TITLE } from "@/lib/app-config";
+import { suppressWorkspaceConnectionPrompt } from "@/lib/settings-tabs";
 
 export function meta() {
   return [{ title: `Settings - ${APP_TITLE}` }];
 }
 
 export default function SettingsRoute() {
+  const location = useLocation();
+  const legacyResourcesDestination = getLegacyAgentResourcesDestination(
+    location.pathname,
+    location.hash,
+    location.search,
+  );
+  if (legacyResourcesDestination) {
+    return <Navigate to={legacyResourcesDestination} replace />;
+  }
+  return <SettingsPage />;
+}
+
+function SettingsPage() {
   const t = useT();
   const agentSettingsTabs = useAgentSettingsTabs();
-  const settingsTabs = agentSettingsTabs.map((tab) =>
-    tab.id === "agent"
-      ? {
-          ...tab,
-          label: "AI & models",
-          keywords: "AI provider model API key Anthropic OpenAI OpenRouter Gemini Groq Mistral Cohere",
-          searchEntries: [
-            { id: "ai-provider", label: "AI provider", keywords: "API key model", hash: "ai-provider" },
-          ],
-          content: (
-            <div className="mx-auto w-full max-w-2xl space-y-8" id="ai-provider">
-              <ProviderModelSettings />
-              <AgentSettingsContent sections={["limits"]} />
-            </div>
-          ),
-        }
-      : tab,
-  );
+  const settingsTabs = agentSettingsTabs
+    .map(suppressWorkspaceConnectionPrompt)
+    .map((tab) =>
+      tab.id === "agent"
+        ? {
+            ...tab,
+            label: "AI & models",
+            keywords:
+              "AI provider model Anthropic OpenAI OpenRouter Gemini Groq Mistral Cohere",
+            searchEntries: [
+              {
+                id: "ai-provider",
+                label: "AI provider",
+                keywords: "model provider",
+                hash: "ai-provider",
+              },
+            ],
+            content: (
+              <div
+                className="mx-auto w-full max-w-2xl space-y-8"
+                id="ai-provider"
+              >
+                <ProviderModelSettings />
+                <AgentSettingsContent sections={["limits"]} />
+              </div>
+            ),
+          }
+        : tab,
+    );
   useSetPageTitle(t("settings.title"));
 
   const generalSearchEntries = useMemo<SettingsSearchEntry[]>(
