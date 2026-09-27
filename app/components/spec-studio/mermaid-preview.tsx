@@ -1,9 +1,17 @@
 import { useEffect, useId, useRef, useState } from "react";
-export function MermaidFlowPreview({ source }: { source: string }) {
+
+export function MermaidFlowPreview({
+  source,
+  zoom,
+}: {
+  source: string;
+  zoom: number;
+}) {
   const [svg, setSvg] = useState("");
   const [hasError, setHasError] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
   const renderNumber = useRef(0);
+  const renderedDiagram = useRef<HTMLDivElement>(null);
   const instance = useId().replace(/[^a-zA-Z0-9]/g, "");
 
   useEffect(() => {
@@ -65,6 +73,20 @@ export function MermaidFlowPreview({ source }: { source: string }) {
     };
   }, [source, instance]);
 
+  useEffect(() => {
+    const svgElement = renderedDiagram.current?.querySelector("svg");
+    if (!svgElement) return;
+
+    const viewBox = svgElement.viewBox.baseVal;
+    const width = viewBox.width || svgElement.width.baseVal.value;
+    const height = viewBox.height || svgElement.height.baseVal.value;
+    if (width <= 0 || height <= 0) return;
+
+    svgElement.style.maxWidth = "none";
+    svgElement.setAttribute("width", `${width * zoom}px`);
+    svgElement.setAttribute("height", `${height * zoom}px`);
+  }, [svg, zoom]);
+
   if (!source.trim())
     return (
       <div className="spec-flow-empty">
@@ -84,7 +106,14 @@ export function MermaidFlowPreview({ source }: { source: string }) {
       aria-busy={isRendering}
     >
       {svg ? (
-        <div dangerouslySetInnerHTML={{ __html: svg }} />
+        <div
+          ref={renderedDiagram}
+          className="spec-flow-canvas"
+          role="region"
+          aria-label="図の表示領域"
+          tabIndex={0}
+          dangerouslySetInnerHTML={{ __html: svg }}
+        />
       ) : (
         <div className="spec-flow-loading">
           {isRendering ? "描画中…" : "図を表示できません。"}

@@ -78,15 +78,45 @@ export function performerTitle(
     )
     .join("、");
 }
-function performerKey(
-  performer: UiSpec["flows"][number]["steps"][number]["performer"],
-): string {
-  return performer.kind === "externalSystem"
-    ? `externalSystem:${performer.id}`
-    : `actors:${performer.refs
-        .map((ref) => `${ref.kind}:${ref.id}`)
-        .sort()
-        .join("|")}`;
+type FlowStep = UiSpec["flows"][number]["steps"][number];
+type FlowPerformer = FlowStep["performer"];
+export type FlowPerformerLane = {
+  performer: FlowPerformer;
+  steps: { step: FlowStep; index: number }[];
+};
+
+function performerKey(performer: FlowPerformer): string {
+  if (performer.kind === "externalSystem")
+    return JSON.stringify(["externalSystem", performer.id]);
+
+  const refs = performer.refs
+    .map(({ kind, id }) => [kind, id] as const)
+    .sort(([kindA, idA], [kindB, idB]) => {
+      if (kindA !== kindB) return kindA < kindB ? -1 : 1;
+      if (idA === idB) return 0;
+      return idA < idB ? -1 : 1;
+    });
+  return JSON.stringify(["actors", refs]);
+}
+
+export function groupFlowStepsByPerformer(
+  steps: readonly FlowStep[],
+): FlowPerformerLane[] {
+  const lanes: FlowPerformerLane[] = [];
+  const laneByPerformer = new Map<string, FlowPerformerLane>();
+
+  steps.forEach((step, index) => {
+    const key = performerKey(step.performer);
+    let lane = laneByPerformer.get(key);
+    if (!lane) {
+      lane = { performer: step.performer, steps: [] };
+      laneByPerformer.set(key, lane);
+      lanes.push(lane);
+    }
+    lane.steps.push({ step, index });
+  });
+
+  return lanes;
 }
 
 export type ParsedSpec = {
@@ -202,7 +232,7 @@ export function renderFlow(
   kind: FlowKind = "screens",
   selectedId?: string,
 ): string {
-  const lines = ["flowchart TD"];
+  const lines = [kind === "flows" ? "flowchart LR" : "flowchart TD"];
   const label = mermaidLabel;
   if (kind === "flows") {
     const flows = selectedId
@@ -218,23 +248,27 @@ export function renderFlow(
           ),
         )}"]`,
       );
-      const participants = Array.from(
-        new Map(
-          flow.steps.map((step) => [
-            performerKey(step.performer),
-            step.performer,
-          ]),
-        ).values(),
-      );
-      participants.forEach((p, lane) => {
-        const steps = flow.steps
-          .map((step, index) => ({ step, index }))
-          .filter(
-            ({ step }) => performerKey(step.performer) === performerKey(p),
-          );
-        if (!steps.length) return;
+      const lanes: {
+        performer: FlowStep["performer"];
+        steps: { step: FlowStep; index: number }[];
+      }[] = [];
+      flow.steps.forEach((step, index) => {
+        const currentLane = lanes[lanes.length - 1];
+        if (
+          currentLane &&
+          performerKey(currentLane.performer) === performerKey(step.performer)
+        ) {
+          currentLane.steps.push({ step, index });
+        } else {
+          lanes.push({
+            performer: step.performer,
+            steps: [{ step, index }],
+          });
+        }
+      });
+      lanes.forEach(({ performer, steps }, lane) => {
         lines.push(
-          `  subgraph f${i}lane${lane}["${label(performerTitle(spec, p))}"]`,
+          `  subgraph f${i}lane${lane}["${label(performerTitle(spec, performer))}"]`,
         );
         steps.forEach(({ step, index }) => {
           const useCaseLabel = step.useCase

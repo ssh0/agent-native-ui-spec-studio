@@ -238,6 +238,7 @@ export function StageContent({
                       <Diagram
                         key={flow.id}
                         source={renderFlow(spec, "flows", flow.id)}
+                        businessFlow={{ spec, flow }}
                       />
                     ) : (
                       <Empty>参照エラーを修正すると図を表示できます。</Empty>

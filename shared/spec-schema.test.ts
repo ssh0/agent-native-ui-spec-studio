@@ -4,15 +4,20 @@ import { describe, expect, it } from "vitest";
 import { stringify } from "yaml";
 
 import { DEFAULT_SPEC_YAML } from "./default-spec";
-import { migrateSpecTo21 } from "./spec-migration";
 import {
   editSpec,
   renameEntity,
   renameParticipant,
   renameTerm,
 } from "./spec-edit";
+import { migrateSpecTo21 } from "./spec-migration";
 import { SpecSchema, validateSpecRelations, type UiSpec } from "./spec-schema";
-import { parseSpecYaml, renderFlow, renderWireframe } from "./spec-utils";
+import {
+  groupFlowStepsByPerformer,
+  parseSpecYaml,
+  renderFlow,
+  renderWireframe,
+} from "./spec-utils";
 const example = () => parseSpecYaml(DEFAULT_SPEC_YAML).spec!;
 
 describe("canonical specification structure and relations", () => {
@@ -267,13 +272,39 @@ describe("canonical specification structure and relations", () => {
     const migrated = migrateSpecTo21(example()).spec!;
     const spec = editSpec(migrated, {
       kind: "add_transition",
-      transition: { id: "refresh", from: "dashboard", to: "dashboard", trigger: "refresh" },
+      transition: {
+        id: "refresh",
+        from: "dashboard",
+        to: "dashboard",
+        trigger: "refresh",
+      },
     });
     expect(spec.transitions).toHaveLength(3);
-    const moved = editSpec(spec, { kind: "update_transition", transitionId: "refresh", transition: { to: "create-task" } });
-    expect(moved.transitions.find((transition) => transition.id === "refresh")?.to).toBe("create-task");
-    expect(editSpec({ ...moved, transitions: [...moved.transitions].reverse() }, { kind: "delete_transition", transitionId: "refresh" }).transitions).toHaveLength(2);
-    expect(() => editSpec(example(), { kind: "add_transition", transition: { id: "new", from: "dashboard", to: "dashboard", trigger: "refresh" } })).toThrow("2.1");
+    const moved = editSpec(spec, {
+      kind: "update_transition",
+      transitionId: "refresh",
+      transition: { to: "create-task" },
+    });
+    expect(
+      moved.transitions.find((transition) => transition.id === "refresh")?.to,
+    ).toBe("create-task");
+    expect(
+      editSpec(
+        { ...moved, transitions: [...moved.transitions].reverse() },
+        { kind: "delete_transition", transitionId: "refresh" },
+      ).transitions,
+    ).toHaveLength(2);
+    expect(() =>
+      editSpec(example(), {
+        kind: "add_transition",
+        transition: {
+          id: "new",
+          from: "dashboard",
+          to: "dashboard",
+          trigger: "refresh",
+        },
+      }),
+    ).toThrow("2.1");
   });
   it("validates section replacement before accepting it", () => {
     expect(() =>
@@ -442,10 +473,80 @@ describe("business flow participants and lanes", () => {
       }),
     ).toThrow();
   });
+  it("keeps performer identities distinct when IDs contain separators", () => {
+    const spec = example();
+    spec.flows[0].steps = [
+      {
+        id: "single",
+        title: "単独担当",
+        performer: {
+          kind: "actors",
+          refs: [{ kind: "actor", id: "a|actor:b" }],
+        },
+      },
+      {
+        id: "multiple",
+        title: "複数担当",
+        performer: {
+          kind: "actors",
+          refs: [
+            { kind: "actor", id: "a" },
+            { kind: "actor", id: "b" },
+          ],
+        },
+      },
+    ];
+
+    const diagram = renderFlow(spec, "flows", "task-intake");
+    const encode = (value: string) =>
+      Array.from(value, (char) => `#${char.codePointAt(0)};`).join("");
+    expect(diagram.match(/subgraph f0lane/g)).toHaveLength(2);
+    expect(diagram).toContain(encode("アクター: 未解決 (a|actor:…)"));
+    expect(diagram).toContain(
+      encode("アクター: 未解決 (a)、アクター: 未解決 (b)"),
+    );
+  });
+  it("places each performer in one vertical lane and keeps step order", () => {
+    const spec = example();
+    const [sample] = spec.flows[0].steps;
+    const requester = {
+      kind: "actors" as const,
+      refs: [{ kind: "actor" as const, id: "requester" }],
+    };
+    const member = {
+      kind: "actors" as const,
+      refs: [{ kind: "actor" as const, id: "member" }],
+    };
+    spec.flows[0].steps = [
+      { ...sample, id: "request", performer: requester },
+      { ...sample, id: "review", performer: member },
+      { ...sample, id: "confirm", performer: requester },
+      {
+        ...sample,
+        id: "notify",
+        performer: { kind: "externalSystem", id: "notification" },
+      },
+      { ...sample, id: "complete", performer: member },
+    ];
+
+    const lanes = groupFlowStepsByPerformer(spec.flows[0].steps);
+    expect(lanes.map((lane) => lane.steps.map(({ index }) => index))).toEqual([
+      [0, 2],
+      [1, 4],
+      [3],
+    ]);
+    expect(lanes.map((lane) => lane.performer)).toEqual([
+      requester,
+      member,
+      { kind: "externalSystem", id: "notification" },
+    ]);
+  });
   it("renders lanes, ordered handoffs, use case links and safe labels", () => {
     const spec = example();
     const diagram = renderFlow(spec, "flows", "task-intake");
-    expect(diagram.match(/subgraph f0lane/g)).toHaveLength(3);
+    expect(diagram).toMatch(/^flowchart LR/);
+    expect(renderFlow(spec, "screens")).toMatch(/^flowchart TD/);
+    expect(diagram.match(/subgraph f0lane/g)).toHaveLength(4);
     for (let i = 1; i < 6; i++)
       expect(diagram).toContain(`f0s${i - 1} --> f0s${i}`);
     const encode = (s: string) =>
@@ -726,6 +827,6 @@ describe("typed domain sets, hierarchy and associations", () => {
     };
     expect(
       renderFlow(spec, "flows", "purchase").match(/subgraph f0lane/g),
-    ).toHaveLength(5);
+    ).toHaveLength(6);
   });
 });

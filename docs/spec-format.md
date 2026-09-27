@@ -50,14 +50,14 @@ transitions: []
 
 ## データ・用語 `domain`
 
-| フィールド            | 形式・意味                                                                                          |
-| --------------------- | --------------------------------------------------------------------------------------------------- |
-| `notes`               | 任意の検討メモ                                                                                      |
-| `actors[]`, `externalSystems[]` | 必須配列。各項目は `id`, `title`, `description`（空でない説明）、任意 `notes` |
-| `entities[]`          | `id`, `title`, 必須 `extends[]`（上位エンティティID）, `fields[]`、任意 `description`, `notes` |
-| `entities[].fields[]` | 値項目。`id`, `title`, `type`（文字列）, 任意 `required`（真偽値）, `notes` |
-| `relations[]` | `id`, `title`, `from`, `to`、任意 `notes`。各端は `{ entity, role, min, max }` |
-| `terms[]`             | `id`, `title`, `definition`, 任意 `entity`（説明対象）, `actorSet`, `entitySet`, `notes` |
+| フィールド                      | 形式・意味                                                                                     |
+| ------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `notes`                         | 任意の検討メモ                                                                                 |
+| `actors[]`, `externalSystems[]` | 必須配列。各項目は `id`, `title`, `description`（空でない説明）、任意 `notes`                  |
+| `entities[]`                    | `id`, `title`, 必須 `extends[]`（上位エンティティID）, `fields[]`、任意 `description`, `notes` |
+| `entities[].fields[]`           | 値項目。`id`, `title`, `type`（文字列）, 任意 `required`（真偽値）, `notes`                    |
+| `relations[]`                   | `id`, `title`, `from`, `to`、任意 `notes`。各端は `{ entity, role, min, max }`                 |
+| `terms[]`                       | `id`, `title`, `definition`, 任意 `entity`（説明対象）, `actorSet`, `entitySet`, `notes`       |
 
 `actors`, `externalSystems`, `entities`, `relations`, `terms`, `extends`, `fields` は必須の配列。`type` は業務上の値型の記述であり、実行可能なSQL型ではない。アクターと外部システムのID空間は別。
 
@@ -103,8 +103,8 @@ flows:
 手作業・外部処理・ユースケース未検討の手順は `useCase` を省略できる。
 空の `steps: []` は未検討を表す。参照先の定義と合わせた完全な例は `specs/example.yaml` を参照。
 
-描画は `spec-render-flow kind: flows`。Mermaid `flowchart` の参加者別 `subgraph` をレーン相当として使い、
-手順番号・順序の矢印・任意のユースケース名を表示する。図の配置はMermaidに委ねるため厳密な等幅スイムレーンではない。
+描画は `spec-render-flow kind: flows`。Mermaid `flowchart LR` で手順番号・左から右への順序矢印・任意のユースケース名を表示する。担当者が連続する手順を同じ `subgraph` にまとめてレーン相当とし、同じ担当者が後の手順で再登場する場合は別のまとまりとして表示する。参加者ごとの厳密な等幅スイムレーン配置ではない。
+スタジオの共有図表示では、高さを260〜420pxに制限した領域で内容サイズを自動縮小せずスクロールできる。倍率は25%刻みの25〜200%で調整でき、100%にリセットできる。
 sequenceDiagramではなくflowchartを選んだ理由は、メッセージ送受信のない手作業も手順ノードとして表現できるため。
 生Mermaidは保存せず、この構造化YAMLから再生成する。
 スタジオのデータ・用語段階では、エンティティ・関連・用語・アクター・外部システムを独立した選択セクションとして表示する。アクター・用語・エンティティのID変更時は型付き参照を追従し、参照中の削除は先に置換が必要。関連IDは外部参照されない。業務フロー段階では参加者を参照名で表示・選択する。
@@ -114,7 +114,7 @@ sequenceDiagramではなくflowchartを選んだ理由は、メッセージ送�
 | フィールド                        | 形式・意味                                                                                               |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `id`, `title`                     | 必須の識別子と名称                                                                                       |
-| `actors`, `notes`                  | 必須の型付きアクター参照配列・任意の検討メモ |
+| `actors`, `notes`                 | 必須の型付きアクター参照配列・任意の検討メモ                                                             |
 | `entities`, `screens`             | 必須のエンティティID配列・画面ID配列（未定義は `[]`）                                                    |
 | `preconditions`, `postconditions` | 必須の文字列配列（未検討は `[]`）                                                                        |
 | `steps[]`                         | `id`, `title`, 任意 `screen`, `action: { screen, component }`, `notes`                                   |
