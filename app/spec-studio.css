@@ -747,6 +747,74 @@
   height: auto;
   margin: 0 auto;
 }
+.spec-business-flow-render {
+  overflow-x: hidden;
+}
+.spec-business-flow-canvas {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  margin-inline: auto;
+}
+.spec-business-flow-chart-scroll {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-gutter: stable;
+}
+.spec-business-flow-chart-scroll > svg,
+.spec-business-flow-canvas > svg {
+  margin: 0;
+}
+.spec-business-flow-lane-rail {
+  order: -1;
+  flex: 0 0 auto;
+  align-self: start;
+  pointer-events: none;
+}
+.spec-business-flow-svg {
+  font-family: inherit;
+}
+.spec-business-flow-lane-rail .spec-business-flow-lane {
+  fill: hsl(var(--muted));
+}
+.spec-business-flow-lane {
+  fill: hsl(var(--muted) / 0.42);
+  stroke: hsl(var(--border));
+  stroke-width: 1;
+}
+.spec-business-flow-lane-divider {
+  stroke: hsl(var(--border));
+  stroke-width: 1;
+}
+.spec-business-flow-lane-label {
+  fill: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 600;
+}
+.spec-business-flow-step-card {
+  fill: hsl(var(--background));
+  stroke: hsl(var(--border));
+  stroke-width: 1.25;
+}
+.spec-business-flow-step-title {
+  fill: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 500;
+}
+.spec-business-flow-step-use-case {
+  fill: hsl(var(--muted-foreground));
+  font-size: 10px;
+}
+.spec-business-flow-connector {
+  fill: none;
+  stroke: hsl(var(--muted-foreground));
+  stroke-width: 1.5;
+}
+.spec-business-flow-arrow {
+  fill: hsl(var(--muted-foreground));
+}
 .spec-flow-render.is-rendering {
   opacity: 0.6;
 }

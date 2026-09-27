@@ -12,7 +12,12 @@ import {
 } from "./spec-edit";
 import { migrateSpecTo21 } from "./spec-migration";
 import { SpecSchema, validateSpecRelations, type UiSpec } from "./spec-schema";
-import { parseSpecYaml, renderFlow, renderWireframe } from "./spec-utils";
+import {
+  groupFlowStepsByPerformer,
+  parseSpecYaml,
+  renderFlow,
+  renderWireframe,
+} from "./spec-utils";
 const example = () => parseSpecYaml(DEFAULT_SPEC_YAML).spec!;
 
 describe("canonical specification structure and relations", () => {
@@ -500,6 +505,41 @@ describe("business flow participants and lanes", () => {
     expect(diagram).toContain(
       encode("アクター: 未解決 (a)、アクター: 未解決 (b)"),
     );
+  });
+  it("places each performer in one vertical lane and keeps step order", () => {
+    const spec = example();
+    const [sample] = spec.flows[0].steps;
+    const requester = {
+      kind: "actors" as const,
+      refs: [{ kind: "actor" as const, id: "requester" }],
+    };
+    const member = {
+      kind: "actors" as const,
+      refs: [{ kind: "actor" as const, id: "member" }],
+    };
+    spec.flows[0].steps = [
+      { ...sample, id: "request", performer: requester },
+      { ...sample, id: "review", performer: member },
+      { ...sample, id: "confirm", performer: requester },
+      {
+        ...sample,
+        id: "notify",
+        performer: { kind: "externalSystem", id: "notification" },
+      },
+      { ...sample, id: "complete", performer: member },
+    ];
+
+    const lanes = groupFlowStepsByPerformer(spec.flows[0].steps);
+    expect(lanes.map((lane) => lane.steps.map(({ index }) => index))).toEqual([
+      [0, 2],
+      [1, 4],
+      [3],
+    ]);
+    expect(lanes.map((lane) => lane.performer)).toEqual([
+      requester,
+      member,
+      { kind: "externalSystem", id: "notification" },
+    ]);
   });
   it("renders lanes, ordered handoffs, use case links and safe labels", () => {
     const spec = example();

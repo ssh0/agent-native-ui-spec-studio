@@ -78,9 +78,14 @@ export function performerTitle(
     )
     .join("、");
 }
-function performerKey(
-  performer: UiSpec["flows"][number]["steps"][number]["performer"],
-): string {
+type FlowStep = UiSpec["flows"][number]["steps"][number];
+type FlowPerformer = FlowStep["performer"];
+export type FlowPerformerLane = {
+  performer: FlowPerformer;
+  steps: { step: FlowStep; index: number }[];
+};
+
+function performerKey(performer: FlowPerformer): string {
   if (performer.kind === "externalSystem")
     return JSON.stringify(["externalSystem", performer.id]);
 
@@ -92,6 +97,26 @@ function performerKey(
       return idA < idB ? -1 : 1;
     });
   return JSON.stringify(["actors", refs]);
+}
+
+export function groupFlowStepsByPerformer(
+  steps: readonly FlowStep[],
+): FlowPerformerLane[] {
+  const lanes: FlowPerformerLane[] = [];
+  const laneByPerformer = new Map<string, FlowPerformerLane>();
+
+  steps.forEach((step, index) => {
+    const key = performerKey(step.performer);
+    let lane = laneByPerformer.get(key);
+    if (!lane) {
+      lane = { performer: step.performer, steps: [] };
+      laneByPerformer.set(key, lane);
+      lanes.push(lane);
+    }
+    lane.steps.push({ step, index });
+  });
+
+  return lanes;
 }
 
 export type ParsedSpec = {
@@ -201,7 +226,6 @@ export function renderWireframe(
 function mermaidLabel(value: string): string {
   return Array.from(value, (char) => `#${char.codePointAt(0)};`).join("");
 }
-type FlowStep = UiSpec["flows"][number]["steps"][number];
 export type FlowKind = "flows" | "screens" | "useCases" | "states";
 export function renderFlow(
   spec: UiSpec,

@@ -1,8 +1,10 @@
+import type { UiSpec } from "@shared/spec-schema";
 import { IconMinus, IconPlus, IconZoomReset } from "@tabler/icons-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
+import { BusinessFlowPreview } from "./business-flow-preview";
 import { MermaidFlowPreview } from "./mermaid-preview";
 import { SourceEditor } from "./spec-editor-ui";
 
@@ -10,12 +12,21 @@ const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2;
 const ZOOM_STEP = 0.25;
 
-export function Diagram({ source }: { source: string }) {
+export function Diagram({
+  source,
+  businessFlow,
+}: {
+  source: string;
+  businessFlow?: { spec: UiSpec; flow: UiSpec["flows"][number] };
+}) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const diagramSource = draft ?? source;
-  const hasDiagram = diagramSource.trim().length > 0;
+  const usesBusinessFlowLayout = businessFlow !== undefined && draft === null;
+  const hasDiagram = usesBusinessFlowLayout
+    ? businessFlow.flow.steps.length > 0
+    : diagramSource.trim().length > 0;
   return (
     <div className="spec-diagram">
       <div className="spec-diagram-toolbar">
@@ -91,7 +102,15 @@ export function Diagram({ source }: { source: string }) {
           />
         </>
       )}
-      <MermaidFlowPreview source={diagramSource} zoom={zoom} />
+      {usesBusinessFlowLayout ? (
+        <BusinessFlowPreview
+          spec={businessFlow.spec}
+          flow={businessFlow.flow}
+          zoom={zoom}
+        />
+      ) : (
+        <MermaidFlowPreview source={diagramSource} zoom={zoom} />
+      )}
     </div>
   );
 }
