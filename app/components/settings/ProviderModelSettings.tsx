@@ -1,5 +1,6 @@
 import { agentNativePath } from "@agent-native/core/client/api-path";
 import { callAction } from "@agent-native/core/client/hooks";
+import { buildSettingsRoute } from "@agent-native/core/client/navigation";
 import {
   AGENT_PROVIDER_CATALOG,
   AgentProviderPicker,
@@ -9,12 +10,11 @@ import {
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation } from "react-router";
 
-import { buildSettingsRoute } from "@agent-native/core/client/navigation";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ProviderModelScope } from "./ProviderModelScope";
+
 import { catalogProviders } from "../../../shared/provider-models";
+import { ProviderModelScope } from "./ProviderModelScope";
 
 type Engine = {
   name: string;
@@ -27,13 +27,22 @@ type EngineList = {
   current?: { engine: string; model: string } | null;
 };
 type KeyStatus = "set" | "unset" | "invalid" | "unknown";
-type ModelDefault = { engine?: string; model?: string; canUpdate: boolean; orgId?: string | null };
+type ModelDefault = {
+  engine?: string;
+  model?: string;
+  canUpdate: boolean;
+  orgId?: string | null;
+};
 
 const providers = AGENT_PROVIDER_CATALOG.filter((option) => option.key);
 
 function asEngineList(value: unknown): EngineList {
   const parsed = typeof value === "string" ? JSON.parse(value) : value;
-  if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as EngineList).engines)) {
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    !Array.isArray((parsed as EngineList).engines)
+  ) {
     throw new Error("Provider availability could not be loaded.");
   }
   return parsed as EngineList;
@@ -46,7 +55,9 @@ function errorMessage(error: unknown): string {
 
 export function ProviderModelSettings() {
   const location = useLocation();
-  const requestedProviderId = new URLSearchParams(location.search).get("provider");
+  const requestedProviderId = new URLSearchParams(location.search).get(
+    "provider",
+  );
   const requestedProvider = providers.find(
     (item) => item.id === requestedProviderId,
   );
@@ -64,30 +75,51 @@ export function ProviderModelSettings() {
   const [notice, setNotice] = useState("");
   const initialProviderSet = useRef(false);
   const option = providers.find((item) => item.id === provider)!;
-  const engine = engineList?.engines.find((item) => item.name === option.engine);
-  const ollamaEngine = engineList?.engines.find((item) => item.name === "ai-sdk:ollama");
+  const engine = engineList?.engines.find(
+    (item) => item.name === option.engine,
+  );
+  const ollamaEngine = engineList?.engines.find(
+    (item) => item.name === "ai-sdk:ollama",
+  );
   const status = statuses[provider] ?? "unknown";
   const available = Boolean(engine && engine.packageInstalled !== false);
   const ready = available && status === "set" && engine?.configured !== false;
-  const currentProvider = providerIdForEngine(engineList?.current?.engine ?? "");
+  const currentProvider = providerIdForEngine(
+    engineList?.current?.engine ?? "",
+  );
   const configuredProviders = useMemo(
-    () => new Set(providers.filter((item) => statuses[item.id] === "set").map((item) => item.id)),
+    () =>
+      new Set(
+        providers
+          .filter((item) => statuses[item.id] === "set")
+          .map((item) => item.id),
+      ),
     [statuses],
   );
-  const models = engine?.supportedModels?.length ? engine.supportedModels : option.supportedModels;
+  const models = engine?.supportedModels?.length
+    ? engine.supportedModels
+    : option.supportedModels;
 
   async function refresh() {
     const [list, secretsResponse, modelResponse] = await Promise.all([
       callAction("manage-agent-engine", { action: "list" }),
-      fetch(agentNativePath("/_agent-native/secrets"), { credentials: "include" }),
-      fetch(agentNativePath("/_agent-native/agent-model-defaults"), { credentials: "include" }),
+      fetch(agentNativePath("/_agent-native/secrets"), {
+        credentials: "include",
+      }),
+      fetch(agentNativePath("/_agent-native/agent-model-defaults"), {
+        credentials: "include",
+      }),
     ]);
-    if (!secretsResponse.ok) throw new Error("API key status could not be loaded.");
-    if (!modelResponse.ok) throw new Error("Model settings could not be loaded.");
+    if (!secretsResponse.ok)
+      throw new Error("API key status could not be loaded.");
+    if (!modelResponse.ok)
+      throw new Error("Model settings could not be loaded.");
     const secrets: unknown = await secretsResponse.json();
     const modelSettings: ModelDefault = await modelResponse.json();
-    if (!Array.isArray(secrets)) throw new Error("API key status could not be read.");
-    if (!modelSettings || typeof modelSettings.canUpdate !== "boolean") throw new Error("Model settings could not be read.");
+    if (!Array.isArray(secrets))
+      throw new Error("API key status could not be read.");
+    if (!modelSettings || typeof modelSettings.canUpdate !== "boolean")
+      throw new Error("Model settings could not be read.");
     const next: Record<string, KeyStatus> = {};
     for (const item of providers) {
       const secret = secrets.find((entry) => entry?.key === item.key);
@@ -96,7 +128,9 @@ export function ProviderModelSettings() {
         : "unknown";
     }
     const engineData = asEngineList(list);
-    const effectiveProvider = providerIdForEngine(engineData.current?.engine ?? "");
+    const effectiveProvider = providerIdForEngine(
+      engineData.current?.engine ?? "",
+    );
     if (!initialProviderSet.current) {
       initialProviderSet.current = true;
       if (
@@ -115,12 +149,16 @@ export function ProviderModelSettings() {
 
   useEffect(() => {
     let active = true;
-    void refresh().catch((cause) => {
-      if (active) setError(errorMessage(cause));
-    }).finally(() => {
-      if (active) setLoading(false);
-    });
-    return () => { active = false; };
+    void refresh()
+      .catch((cause) => {
+        if (active) setError(errorMessage(cause));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -128,8 +166,11 @@ export function ProviderModelSettings() {
   }, [requestedProvider?.id]);
 
   useEffect(() => {
-    const selected = currentProvider === provider ? engineList?.current?.model : undefined;
-    setModel(selected && models.includes(selected) ? selected : option.defaultModel);
+    const selected =
+      currentProvider === provider ? engineList?.current?.model : undefined;
+    setModel(
+      selected && models.includes(selected) ? selected : option.defaultModel,
+    );
     setCustomModel(selected && !models.includes(selected) ? selected : "");
   }, [provider, engineList]);
 
@@ -153,20 +194,33 @@ export function ProviderModelSettings() {
     setNotice("");
     try {
       const selected = customModel.trim() || model;
-      const response = await fetch(agentNativePath("/_agent-native/agent-model-defaults"), {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ engine: option.engine, model: selected }),
-      });
+      const response = await fetch(
+        agentNativePath("/_agent-native/agent-model-defaults"),
+        {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ engine: option.engine, model: selected }),
+        },
+      );
       const saved = await response.json();
-      if (!response.ok || !saved || saved.engine !== option.engine || saved.model !== selected) {
+      if (
+        !response.ok ||
+        !saved ||
+        saved.engine !== option.engine ||
+        saved.model !== selected
+      ) {
         throw new Error(saved?.error ?? `Could not select ${option.label}.`);
       }
       window.dispatchEvent(new CustomEvent("agent-engine:configured-changed"));
       const verified = await refresh();
-      if (verified.modelSettings.engine !== option.engine || verified.modelSettings.model !== selected) {
-        throw new Error("The model change could not be verified. Refresh and try again.");
+      if (
+        verified.modelSettings.engine !== option.engine ||
+        verified.modelSettings.model !== selected
+      ) {
+        throw new Error(
+          "The model change could not be verified. Refresh and try again.",
+        );
       }
       setNotice(`${option.label} · ${saved.model} selected.`);
     } catch (cause) {
@@ -182,34 +236,66 @@ export function ProviderModelSettings() {
         <h2 className="text-lg font-semibold">AI provider</h2>
         {currentProvider && currentProvider !== "ollama" && (
           <span className="text-sm text-muted-foreground">
-            Current: {providers.find((item) => item.id === currentProvider)?.label ?? "Unavailable"}
+            Current:{" "}
+            {providers.find((item) => item.id === currentProvider)?.label ??
+              "Unavailable"}
           </span>
         )}
       </div>
 
       <AgentProviderPicker
         value={provider}
-        onChange={(next) => { setProvider(next); setError(""); setNotice(""); }}
+        onChange={(next) => {
+          setProvider(next);
+          setError("");
+          setNotice("");
+        }}
         options={providers}
         configuredProviders={configuredProviders}
         disabled={loading || busy !== null}
         layout="page"
       />
 
-      {loading ? <p className="text-sm text-muted-foreground">Checking providers…</p> : (
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Checking providers…</p>
+      ) : (
         <div className="space-y-4 rounded-lg border border-border p-4">
           <div className="flex items-center justify-between gap-3">
             <span className="font-medium">{option.label}</span>
             <span className="text-sm text-muted-foreground">
-              {!available ? "Unavailable" : status === "invalid" ? "Key invalid" : status === "unset" ? "Key needed" : status === "set" && engine?.configured === false ? "Provider not ready" : status === "set" ? "Key saved" : "Status unavailable"}
+              {!available
+                ? "Unavailable"
+                : status === "invalid"
+                  ? "Key invalid"
+                  : status === "unset"
+                    ? "Key needed"
+                    : status === "set" && engine?.configured === false
+                      ? "Provider not ready"
+                      : status === "set"
+                        ? "Key saved"
+                        : "Status unavailable"}
             </span>
           </div>
-          {!available && <p className="text-sm text-muted-foreground">This provider is unavailable in this app. Choose another provider.</p>}
-          {available && status === "invalid" && <p className="text-sm text-destructive">Update the API key to use this provider.</p>}
+          {!available && (
+            <p className="text-sm text-muted-foreground">
+              This provider is unavailable in this app. Choose another provider.
+            </p>
+          )}
+          {available && status === "invalid" && (
+            <p className="text-sm text-destructive">
+              Update the API key to use this provider.
+            </p>
+          )}
           {available && status === "unknown" && (
             <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
               <span>Key status is unavailable.</span>
-              <Button type="button" variant="outline" onClick={() => void retryStatus()}>Retry</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void retryStatus()}
+              >
+                Retry
+              </Button>
             </div>
           )}
           {available && option.key && (
@@ -220,47 +306,111 @@ export function ProviderModelSettings() {
               Manage API key
             </Link>
           )}
-          {option.docsUrl && <a className="text-sm text-muted-foreground underline" href={option.docsUrl} target="_blank" rel="noopener noreferrer">Get an API key</a>}
+          {option.docsUrl && (
+            <a
+              className="text-sm text-muted-foreground underline"
+              href={option.docsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Get an API key
+            </a>
+          )}
         </div>
       )}
 
-      {catalogProviders.includes(provider as (typeof catalogProviders)[number]) && <ProviderModelScope
-        key={provider}
-        provider={provider as (typeof catalogProviders)[number]}
-        currentModel={currentProvider === provider ? engineList?.current?.model : undefined}
-        ready={ready}
-      />}
+      {catalogProviders.includes(
+        provider as (typeof catalogProviders)[number],
+      ) && (
+        <ProviderModelScope
+          key={provider}
+          provider={provider as (typeof catalogProviders)[number]}
+          currentModel={
+            currentProvider === provider
+              ? engineList?.current?.model
+              : undefined
+          }
+          ready={ready}
+        />
+      )}
 
       <form onSubmit={selectModel} className="space-y-3">
         <label className="block space-y-1 text-sm font-medium">
           <span>Model</span>
-          <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={model} onChange={(event) => setModel(event.target.value)} disabled={!ready || busy !== null}>
-            {models.map((item) => <option key={item} value={item}>{item}</option>)}
+          <select
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            value={model}
+            onChange={(event) => setModel(event.target.value)}
+            disabled={!ready || busy !== null}
+          >
+            {models.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
           </select>
         </label>
-        {ready && <label className="block space-y-1 text-sm font-medium">
-          <span>Other model ID (optional)</span>
-          <Input value={customModel} onChange={(event) => setCustomModel(event.target.value)} autoComplete="off" spellCheck={false} disabled={busy !== null} />
-        </label>}
-        {ready && modelDefault?.canUpdate === false && (
-          <p className="text-sm text-muted-foreground">Ask an organization owner or admin to change this app’s model.</p>
+        {ready && (
+          <label className="block space-y-1 text-sm font-medium">
+            <span>Other model ID (optional)</span>
+            <Input
+              value={customModel}
+              onChange={(event) => setCustomModel(event.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+              disabled={busy !== null}
+            />
+          </label>
         )}
-        <Button type="submit" disabled={!ready || !modelDefault?.canUpdate || busy !== null}>{busy === "model" ? "Selecting…" : "Use this model"}</Button>
+        {ready && modelDefault?.canUpdate === false && (
+          <p className="text-sm text-muted-foreground">
+            Ask an organization owner or admin to change this app’s model.
+          </p>
+        )}
+        <Button
+          type="submit"
+          disabled={!ready || !modelDefault?.canUpdate || busy !== null}
+        >
+          {busy === "model" ? "Selecting…" : "Use this model"}
+        </Button>
       </form>
       <div className="space-y-2 border-t border-border pt-5">
         <h3 className="font-medium">Ollama (local)</h3>
         <ProviderModelScope
           key="ollama"
           provider="ollama"
-          currentModel={currentProvider === "ollama" ? engineList?.current?.model : undefined}
-          ready={Boolean(ollamaEngine?.configured && ollamaEngine.packageInstalled !== false)}
+          currentModel={
+            currentProvider === "ollama"
+              ? engineList?.current?.model
+              : undefined
+          }
+          ready={Boolean(
+            ollamaEngine?.configured && ollamaEngine.packageInstalled !== false,
+          )}
         />
       </div>
-      {error && <div role="alert" className="flex items-center justify-between gap-3 text-sm text-destructive">
-        <span>{error}</span>
-        {!engineList && <Button type="button" variant="outline" onClick={() => void retryStatus()}>Retry</Button>}
-      </div>}
-      {notice && <p role="status" className="text-sm text-muted-foreground">{notice}</p>}
+      {error && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 text-sm text-destructive"
+        >
+          <span>{error}</span>
+          {!engineList && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void retryStatus()}
+            >
+              Retry
+            </Button>
+          )}
+        </div>
+      )}
+      {notice && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {notice}
+        </p>
+      )}
     </section>
   );
 }
