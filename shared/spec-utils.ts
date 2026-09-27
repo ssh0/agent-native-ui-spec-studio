@@ -81,12 +81,17 @@ export function performerTitle(
 function performerKey(
   performer: UiSpec["flows"][number]["steps"][number]["performer"],
 ): string {
-  return performer.kind === "externalSystem"
-    ? `externalSystem:${performer.id}`
-    : `actors:${performer.refs
-        .map((ref) => `${ref.kind}:${ref.id}`)
-        .sort()
-        .join("|")}`;
+  if (performer.kind === "externalSystem")
+    return JSON.stringify(["externalSystem", performer.id]);
+
+  const refs = performer.refs
+    .map(({ kind, id }) => [kind, id] as const)
+    .sort(([kindA, idA], [kindB, idB]) => {
+      if (kindA !== kindB) return kindA < kindB ? -1 : 1;
+      if (idA === idB) return 0;
+      return idA < idB ? -1 : 1;
+    });
+  return JSON.stringify(["actors", refs]);
 }
 
 export type ParsedSpec = {

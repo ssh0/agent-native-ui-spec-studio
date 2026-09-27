@@ -82,6 +82,7 @@ export function MermaidFlowPreview({
     const height = viewBox.height || svgElement.height.baseVal.value;
     if (width <= 0 || height <= 0) return;
 
+    svgElement.style.maxWidth = "none";
     svgElement.setAttribute("width", `${width * zoom}px`);
     svgElement.setAttribute("height", `${height * zoom}px`);
   }, [svg, zoom]);

@@ -442,6 +442,39 @@ describe("business flow participants and lanes", () => {
       }),
     ).toThrow();
   });
+  it("keeps performer identities distinct when IDs contain separators", () => {
+    const spec = example();
+    spec.flows[0].steps = [
+      {
+        id: "single",
+        title: "単独担当",
+        performer: {
+          kind: "actors",
+          refs: [{ kind: "actor", id: "a|actor:b" }],
+        },
+      },
+      {
+        id: "multiple",
+        title: "複数担当",
+        performer: {
+          kind: "actors",
+          refs: [
+            { kind: "actor", id: "a" },
+            { kind: "actor", id: "b" },
+          ],
+        },
+      },
+    ];
+
+    const diagram = renderFlow(spec, "flows", "task-intake");
+    const encode = (value: string) =>
+      Array.from(value, (char) => `#${char.codePointAt(0)};`).join("");
+    expect(diagram.match(/subgraph f0lane/g)).toHaveLength(2);
+    expect(diagram).toContain(encode("アクター: 未解決 (a|actor:…)"));
+    expect(diagram).toContain(
+      encode("アクター: 未解決 (a)、アクター: 未解決 (b)"),
+    );
+  });
   it("renders lanes, ordered handoffs, use case links and safe labels", () => {
     const spec = example();
     const diagram = renderFlow(spec, "flows", "task-intake");
