@@ -130,7 +130,8 @@ export function StageContent({
                                               {
                                                 kind: "actor" as const,
                                                 id:
-                                                  spec.domain.actors[0]?.id ?? "",
+                                                  spec.domain.actors[0]?.id ??
+                                                  "",
                                               },
                                             ],
                                           }
@@ -209,7 +210,8 @@ export function StageContent({
                                                         ...step,
                                                         performer: {
                                                           kind: "externalSystem",
-                                                          id: event.target.value,
+                                                          id: event.target
+                                                            .value,
                                                         },
                                                       }
                                                     : step,

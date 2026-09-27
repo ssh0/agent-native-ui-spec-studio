@@ -135,10 +135,7 @@ export const FlowControlNodeSchema = z.discriminatedUnion("kind", [
   z.strictObject({ id, kind: z.literal("branch"), title: id, notes }),
   z.strictObject({ id, kind: z.literal("end"), notes }),
 ]);
-export const FlowNodeSchema = z.union([
-  FlowStepSchema,
-  FlowControlNodeSchema,
-]);
+export const FlowNodeSchema = z.union([FlowStepSchema, FlowControlNodeSchema]);
 export const FlowEdgeSchema = z.strictObject({
   id: id.optional(),
   from: id,
@@ -224,29 +221,47 @@ export const TransitionSchema = z.strictObject({
   trigger: id,
   notes,
 });
-export const SpecSchema = z.strictObject({
-  version: z.enum(["2.0", "2.1"]),
-  title: id,
-  notes,
-  domain: DomainSchema,
-  flows: z.array(FlowSchema),
-  useCases: z.array(UseCaseSchema),
-  screens: z.array(ScreenSchema),
-  transitions: z.array(TransitionSchema),
-}).superRefine((spec, context) => {
-  const check = (items: { id?: string }[], path: (string | number)[]) =>
-    items.forEach((item, index) => {
-      if (spec.version === "2.1" && !item.id)
-        context.addIssue({ code: "custom", path: [...path, index, "id"], message: "2.1 の遷移・接続には ID が必要です。" });
-      if (spec.version === "2.0" && item.id !== undefined)
-        context.addIssue({ code: "custom", path: [...path, index, "id"], message: "2.0 の遷移・接続に ID は指定できません。明示的に移行してください。" });
-    });
-  check(spec.transitions, ["transitions"]);
-  spec.flows.forEach((flow, index) =>
-    check(flow.edges ?? [], ["flows", index, "edges"]),
-  );
-  spec.screens.forEach((screen, index) => check(screen.stateFlow.transitions, ["screens", index, "stateFlow", "transitions"]));
-});
+export const SpecSchema = z
+  .strictObject({
+    version: z.enum(["2.0", "2.1"]),
+    title: id,
+    notes,
+    domain: DomainSchema,
+    flows: z.array(FlowSchema),
+    useCases: z.array(UseCaseSchema),
+    screens: z.array(ScreenSchema),
+    transitions: z.array(TransitionSchema),
+  })
+  .superRefine((spec, context) => {
+    const check = (items: { id?: string }[], path: (string | number)[]) =>
+      items.forEach((item, index) => {
+        if (spec.version === "2.1" && !item.id)
+          context.addIssue({
+            code: "custom",
+            path: [...path, index, "id"],
+            message: "2.1 の遷移・接続には ID が必要です。",
+          });
+        if (spec.version === "2.0" && item.id !== undefined)
+          context.addIssue({
+            code: "custom",
+            path: [...path, index, "id"],
+            message:
+              "2.0 の遷移・接続に ID は指定できません。明示的に移行してください。",
+          });
+      });
+    check(spec.transitions, ["transitions"]);
+    spec.flows.forEach((flow, index) =>
+      check(flow.edges ?? [], ["flows", index, "edges"]),
+    );
+    spec.screens.forEach((screen, index) =>
+      check(screen.stateFlow.transitions, [
+        "screens",
+        index,
+        "stateFlow",
+        "transitions",
+      ]),
+    );
+  });
 export type UiSpec = z.infer<typeof SpecSchema>;
 export type FlowNode = z.infer<typeof FlowNodeSchema>;
 export type FlowStep = z.infer<typeof FlowStepSchema>;
@@ -507,7 +522,10 @@ export function validateSpecRelations(spec: UiSpec): ValidationIssue[] {
       ref(edge.to, nodeIds, `${edgePath}.to`);
       const key = JSON.stringify([edge.from, edge.to, edge.label ?? null]);
       if (seenEdges.has(key))
-        issues.push({ path: edgePath, message: "同じフロー接続が重複しています。" });
+        issues.push({
+          path: edgePath,
+          message: "同じフロー接続が重複しています。",
+        });
       seenEdges.add(key);
       edgesFrom.set(edge.from, [...(edgesFrom.get(edge.from) ?? []), edge]);
       incoming.set(edge.to, (incoming.get(edge.to) ?? 0) + 1);
@@ -515,27 +533,48 @@ export function validateSpecRelations(spec: UiSpec): ValidationIssue[] {
 
     const starts = flow.steps.filter((node) => node.kind === "start");
     if (starts.length > 1)
-      issues.push({ path: `${path}.steps`, message: "開始ノードは1つだけ指定できます。" });
+      issues.push({
+        path: `${path}.steps`,
+        message: "開始ノードは1つだけ指定できます。",
+      });
     flow.steps.forEach((node, j) => {
       const nodePath = `${path}.steps[${j}]`;
       const outgoing = edgesFrom.get(node.id) ?? [];
       if (node.kind === "start" && (incoming.get(node.id) ?? 0) > 0)
-        issues.push({ path: nodePath, message: "開始ノードに入る接続は指定できません。" });
+        issues.push({
+          path: nodePath,
+          message: "開始ノードに入る接続は指定できません。",
+        });
       if (node.kind === "end" && outgoing.length > 0)
-        issues.push({ path: nodePath, message: "終了ノードから出る接続は指定できません。" });
+        issues.push({
+          path: nodePath,
+          message: "終了ノードから出る接続は指定できません。",
+        });
       if (node.kind === "branch") {
         if (outgoing.length === 1)
-          issues.push({ path: nodePath, message: "分岐には2つ以上の経路を指定してください。" });
+          issues.push({
+            path: nodePath,
+            message: "分岐には2つ以上の経路を指定してください。",
+          });
         const labels = new Set<string>();
         outgoing.forEach((edge) => {
           if (!edge.label)
-            issues.push({ path: `${path}.edges`, message: `分岐「${node.title}」の経路ラベルを指定してください。` });
+            issues.push({
+              path: `${path}.edges`,
+              message: `分岐「${node.title}」の経路ラベルを指定してください。`,
+            });
           else if (labels.has(edge.label))
-            issues.push({ path: `${path}.edges`, message: `分岐「${node.title}」の経路ラベル「${edge.label}」が重複しています。` });
+            issues.push({
+              path: `${path}.edges`,
+              message: `分岐「${node.title}」の経路ラベル「${edge.label}」が重複しています。`,
+            });
           labels.add(edge.label ?? "");
         });
       } else if (outgoing.length > 1) {
-        issues.push({ path: nodePath, message: "複数の経路を出す場合は分岐ノードを使用してください。" });
+        issues.push({
+          path: nodePath,
+          message: "複数の経路を出す場合は分岐ノードを使用してください。",
+        });
       }
     });
   });
@@ -575,7 +614,11 @@ export function validateSpecRelations(spec: UiSpec): ValidationIssue[] {
       many(c.useCases, cases, `${path}.components[${j}].useCases`),
     );
     if (screen.stateFlow) {
-      if (spec.version === "2.1") unique(screen.stateFlow.transitions as { id: string }[], `${path}.stateFlow.transitions`);
+      if (spec.version === "2.1")
+        unique(
+          screen.stateFlow.transitions as { id: string }[],
+          `${path}.stateFlow.transitions`,
+        );
       const states = unique(
         screen.stateFlow.states,
         `${path}.stateFlow.states`,
@@ -607,7 +650,8 @@ export function validateSpecRelations(spec: UiSpec): ValidationIssue[] {
     ref(t.from, screenIds, `transitions[${i}].from`);
     ref(t.to, screenIds, `transitions[${i}].to`);
   });
-  if (spec.version === "2.1") unique(spec.transitions as { id: string }[], "transitions");
+  if (spec.version === "2.1")
+    unique(spec.transitions as { id: string }[], "transitions");
   return issues;
 }
 export function formatZodIssues(error: z.ZodError): ValidationIssue[] {

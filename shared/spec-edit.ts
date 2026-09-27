@@ -41,7 +41,10 @@ export const EditOperationSchema = z.object({
     .describe("Screen patch including entities, useCases, stateFlow or notes"),
   componentId: z.string().optional(),
   component: z.record(z.string(), z.unknown()).optional(),
-  transitionId: z.string().optional().describe("Stable transition ID in specification 2.1"),
+  transitionId: z
+    .string()
+    .optional()
+    .describe("Stable transition ID in specification 2.1"),
   transition: z.record(z.string(), z.unknown()).optional(),
 });
 export function renameScreen(spec: UiSpec, from: string, to: string): UiSpec {
@@ -96,8 +99,11 @@ export function editSpec(
       components: [],
     });
   } else if (input.kind.includes("transition")) {
-    if (spec.version !== "2.1") throw new Error("遷移を編集する前に仕様を 2.1 に移行してください。");
-    const i = spec.transitions.findIndex((transition) => transition.id === input.transitionId);
+    if (spec.version !== "2.1")
+      throw new Error("遷移を編集する前に仕様を 2.1 に移行してください。");
+    const i = spec.transitions.findIndex(
+      (transition) => transition.id === input.transitionId,
+    );
     if (input.kind === "add_transition") {
       if (!input.transition) throw new Error("transition が必要です。");
       if (typeof input.transition.id !== "string" || !input.transition.id)
@@ -183,7 +189,10 @@ export function renameParticipant(
               ...step,
               performer:
                 step.performer.kind === "actors"
-                  ? { ...step.performer, refs: step.performer.refs.map(renameRef) }
+                  ? {
+                      ...step.performer,
+                      refs: step.performer.refs.map(renameRef),
+                    }
                   : kind === "externalSystem" && step.performer.id === from
                     ? { ...step.performer, id: to }
                     : step.performer,

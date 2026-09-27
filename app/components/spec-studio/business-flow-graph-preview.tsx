@@ -361,8 +361,7 @@ export function BusinessFlowGraphPreview({
               const target = nodesById.get(edge.to);
               if (!source || !target) return null;
               const needsOuterRoute =
-                target.order <= source.order ||
-                target.order > source.order + 1;
+                target.order <= source.order || target.order > source.order + 1;
               const path = edgePath(
                 edge,
                 source,

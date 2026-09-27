@@ -1,10 +1,14 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
+
 import { migrateSpecTo21 } from "./spec-migration.js";
 import { parseSpecYaml } from "./spec-utils.js";
 import { diffSpecVersions, specTargets } from "./spec-versions.js";
-import { readFileSync } from "node:fs";
 
-const example = parseSpecYaml(readFileSync(new URL("../specs/example.yaml", import.meta.url), "utf8")).spec!;
+const example = parseSpecYaml(
+  readFileSync(new URL("../specs/example.yaml", import.meta.url), "utf8"),
+).spec!;
 
 describe("saved version targets and diffs", () => {
   it("keys nested states and components by their parent screen", () => {
@@ -22,11 +26,30 @@ describe("saved version targets and diffs", () => {
     const removed = screen.stateFlow.states.pop()!;
     screen.stateFlow.states.push({ id: "new-state", title: "新状態" });
     const changes = diffSpecVersions(before, after);
-    expect(changes).toEqual(expect.arrayContaining([
-      expect.objectContaining({ change: "changed", target: expect.objectContaining({ kind: "screen", id: screen.id }) }),
-      expect.objectContaining({ change: "removed", target: expect.objectContaining({ kind: "state", id: removed.id, parentId: screen.id }) }),
-      expect.objectContaining({ change: "added", target: expect.objectContaining({ kind: "state", id: "new-state", parentId: screen.id }) }),
-    ]));
+    expect(changes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          change: "changed",
+          target: expect.objectContaining({ kind: "screen", id: screen.id }),
+        }),
+        expect.objectContaining({
+          change: "removed",
+          target: expect.objectContaining({
+            kind: "state",
+            id: removed.id,
+            parentId: screen.id,
+          }),
+        }),
+        expect.objectContaining({
+          change: "added",
+          target: expect.objectContaining({
+            kind: "state",
+            id: "new-state",
+            parentId: screen.id,
+          }),
+        }),
+      ]),
+    );
   });
 
   it("tracks control-flow nodes and stable edge IDs", () => {
@@ -108,7 +131,10 @@ describe("saved version targets and diffs", () => {
       expect.arrayContaining([
         expect.objectContaining({
           change: "changed",
-          target: expect.objectContaining({ kind: "flow", id: before.flows[0].id }),
+          target: expect.objectContaining({
+            kind: "flow",
+            id: before.flows[0].id,
+          }),
         }),
       ]),
     );
