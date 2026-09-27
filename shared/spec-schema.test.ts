@@ -445,7 +445,9 @@ describe("business flow participants and lanes", () => {
   it("renders lanes, ordered handoffs, use case links and safe labels", () => {
     const spec = example();
     const diagram = renderFlow(spec, "flows", "task-intake");
-    expect(diagram.match(/subgraph f0lane/g)).toHaveLength(3);
+    expect(diagram).toMatch(/^flowchart LR/);
+    expect(renderFlow(spec, "screens")).toMatch(/^flowchart TD/);
+    expect(diagram.match(/subgraph f0lane/g)).toHaveLength(4);
     for (let i = 1; i < 6; i++)
       expect(diagram).toContain(`f0s${i - 1} --> f0s${i}`);
     const encode = (s: string) =>
@@ -726,6 +728,6 @@ describe("typed domain sets, hierarchy and associations", () => {
     };
     expect(
       renderFlow(spec, "flows", "purchase").match(/subgraph f0lane/g),
-    ).toHaveLength(5);
+    ).toHaveLength(6);
   });
 });

@@ -692,8 +692,28 @@
 }
 .spec-diagram-toolbar {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+.spec-diagram-actions,
+.spec-diagram-zoom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.spec-diagram-zoom output {
+  min-width: 42px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.spec-diagram-zoom button {
+  width: 32px;
+  height: 32px;
 }
 .spec-diagram .spec-editor {
   min-height: 200px;
@@ -703,18 +723,37 @@
   resize: vertical;
 }
 .spec-flow-render {
+  height: min(420px, 60vh);
   min-height: 260px;
-  padding: 24px 4px;
+  padding: 16px;
   overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border: 1px solid var(--spec-border);
+  background: hsl(var(--background));
+}
+.spec-flow-render:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+.spec-flow-canvas {
+  width: max-content;
+  min-width: 100%;
+  margin-inline: auto;
 }
 .spec-flow-render svg {
   display: block;
-  max-width: 100%;
+  max-width: none;
   height: auto;
-  margin: auto;
+  margin: 0 auto;
 }
 .spec-flow-render.is-rendering {
   opacity: 0.6;
+}
+.spec-flow-loading {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
 }
 .spec-flow-empty,
 .spec-flow-loading,

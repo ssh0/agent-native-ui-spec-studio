@@ -196,13 +196,14 @@ export function renderWireframe(
 function mermaidLabel(value: string): string {
   return Array.from(value, (char) => `#${char.codePointAt(0)};`).join("");
 }
+type FlowStep = UiSpec["flows"][number]["steps"][number];
 export type FlowKind = "flows" | "screens" | "useCases" | "states";
 export function renderFlow(
   spec: UiSpec,
   kind: FlowKind = "screens",
   selectedId?: string,
 ): string {
-  const lines = ["flowchart TD"];
+  const lines = [kind === "flows" ? "flowchart LR" : "flowchart TD"];
   const label = mermaidLabel;
   if (kind === "flows") {
     const flows = selectedId
@@ -218,23 +219,27 @@ export function renderFlow(
           ),
         )}"]`,
       );
-      const participants = Array.from(
-        new Map(
-          flow.steps.map((step) => [
-            performerKey(step.performer),
-            step.performer,
-          ]),
-        ).values(),
-      );
-      participants.forEach((p, lane) => {
-        const steps = flow.steps
-          .map((step, index) => ({ step, index }))
-          .filter(
-            ({ step }) => performerKey(step.performer) === performerKey(p),
-          );
-        if (!steps.length) return;
+      const lanes: {
+        performer: FlowStep["performer"];
+        steps: { step: FlowStep; index: number }[];
+      }[] = [];
+      flow.steps.forEach((step, index) => {
+        const currentLane = lanes[lanes.length - 1];
+        if (
+          currentLane &&
+          performerKey(currentLane.performer) === performerKey(step.performer)
+        ) {
+          currentLane.steps.push({ step, index });
+        } else {
+          lanes.push({
+            performer: step.performer,
+            steps: [{ step, index }],
+          });
+        }
+      });
+      lanes.forEach(({ performer, steps }, lane) => {
         lines.push(
-          `  subgraph f${i}lane${lane}["${label(performerTitle(spec, p))}"]`,
+          `  subgraph f${i}lane${lane}["${label(performerTitle(spec, performer))}"]`,
         );
         steps.forEach(({ step, index }) => {
           const useCaseLabel = step.useCase
