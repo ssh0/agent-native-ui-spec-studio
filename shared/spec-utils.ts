@@ -2,8 +2,12 @@ import YAML from "yaml";
 
 import {
   formatZodIssues,
+  isFlowStep,
   SpecSchema,
   validateSpecRelations,
+  type FlowNode,
+  type FlowPerformer,
+  type FlowStep,
   type UiSpec,
   type ActorRef,
   type ValidationIssue,
@@ -60,10 +64,7 @@ export function actorRefTitle(spec: UiSpec, ref: ActorRef): string {
     items.map((item) => item.id),
   );
 }
-export function performerTitle(
-  spec: UiSpec,
-  performer: UiSpec["flows"][number]["steps"][number]["performer"],
-): string {
+export function performerTitle(spec: UiSpec, performer: FlowPerformer): string {
   if (performer.kind === "externalSystem") {
     const systems = spec.domain.externalSystems;
     return `外部システム: ${formatReferenceLabel(
@@ -78,14 +79,12 @@ export function performerTitle(
     )
     .join("、");
 }
-type FlowStep = UiSpec["flows"][number]["steps"][number];
-type FlowPerformer = FlowStep["performer"];
 export type FlowPerformerLane = {
   performer: FlowPerformer;
   steps: { step: FlowStep; index: number }[];
 };
 
-function performerKey(performer: FlowPerformer): string {
+export function flowPerformerKey(performer: FlowPerformer): string {
   if (performer.kind === "externalSystem")
     return JSON.stringify(["externalSystem", performer.id]);
 
@@ -100,13 +99,14 @@ function performerKey(performer: FlowPerformer): string {
 }
 
 export function groupFlowStepsByPerformer(
-  steps: readonly FlowStep[],
+  steps: readonly FlowNode[],
 ): FlowPerformerLane[] {
   const lanes: FlowPerformerLane[] = [];
   const laneByPerformer = new Map<string, FlowPerformerLane>();
 
   steps.forEach((step, index) => {
-    const key = performerKey(step.performer);
+    if (!isFlowStep(step)) return;
+    const key = flowPerformerKey(step.performer);
     let lane = laneByPerformer.get(key);
     if (!lane) {
       lane = { performer: step.performer, steps: [] };
@@ -240,6 +240,9 @@ export function renderFlow(
       : spec.flows;
     flows.forEach((flow, i) => {
       if (!flow.steps.length) return;
+      const isGraphFlow =
+        flow.edges !== undefined ||
+        flow.steps.some((step) => !isFlowStep(step));
       lines.push(
         `  subgraph f${i}["${label(
           formatReferenceLabel(
@@ -248,43 +251,108 @@ export function renderFlow(
           ),
         )}"]`,
       );
-      const lanes: {
-        performer: FlowStep["performer"];
-        steps: { step: FlowStep; index: number }[];
-      }[] = [];
-      flow.steps.forEach((step, index) => {
-        const currentLane = lanes[lanes.length - 1];
-        if (
-          currentLane &&
-          performerKey(currentLane.performer) === performerKey(step.performer)
-        ) {
-          currentLane.steps.push({ step, index });
-        } else {
-          lanes.push({
-            performer: step.performer,
-            steps: [{ step, index }],
-          });
-        }
-      });
-      lanes.forEach(({ performer, steps }, lane) => {
-        lines.push(
-          `  subgraph f${i}lane${lane}["${label(performerTitle(spec, performer))}"]`,
+      if (isGraphFlow) {
+        const nodeIds = new Map(
+          flow.steps.map((node, index) => [node.id, `f${i}n${index}`]),
         );
-        steps.forEach(({ step, index }) => {
-          const useCaseLabel = step.useCase
-            ? ` / UC: ${formatReferenceLabel(
-                resolveNamedReference(spec.useCases, step.useCase),
-                spec.useCases.map((item) => item.id),
-              )}`
-            : "";
-          const title = `${index + 1}. ${step.title}${useCaseLabel}`;
-          lines.push(`  f${i}s${index}["${label(title)}"]`);
+        let actionIndex = 0;
+        let laneIndex = 0;
+        let lanePerformer: FlowPerformer | undefined;
+        let laneNodes: { node: FlowStep; id: string }[] = [];
+        const flushLane = () => {
+          if (!lanePerformer || !laneNodes.length) return;
+          lines.push(
+            `  subgraph f${i}lane${laneIndex}["${label(performerTitle(spec, lanePerformer))}"]`,
+          );
+          laneNodes.forEach(({ node, id }) => {
+            actionIndex += 1;
+            const useCaseLabel = node.useCase
+              ? ` / UC: ${formatReferenceLabel(
+                  resolveNamedReference(spec.useCases, node.useCase),
+                  spec.useCases.map((item) => item.id),
+                )}`
+              : "";
+            lines.push(
+              `  ${id}["${label(`${actionIndex}. ${node.title}${useCaseLabel}`)}"]`,
+            );
+          });
+          lines.push("  end");
+          laneIndex += 1;
+          lanePerformer = undefined;
+          laneNodes = [];
+        };
+        flow.steps.forEach((node) => {
+          const nodeId = nodeIds.get(node.id)!;
+          if (isFlowStep(node)) {
+            if (
+              lanePerformer &&
+              flowPerformerKey(lanePerformer) !==
+                flowPerformerKey(node.performer)
+            )
+              flushLane();
+            lanePerformer ??= node.performer;
+            laneNodes.push({ node, id: nodeId });
+            return;
+          }
+          flushLane();
+          if (node.kind === "start")
+            lines.push(`  ${nodeId}(("${label("開始")}"))`);
+          else if (node.kind === "end")
+            lines.push(`  ${nodeId}(("${label("終了")}"))`);
+          else lines.push(`  ${nodeId}{"${label(node.title)}"}`);
         });
-        lines.push("  end");
-      });
-      flow.steps.forEach((_, j) => {
-        if (j) lines.push(`  f${i}s${j - 1} --> f${i}s${j}`);
-      });
+        flushLane();
+        flow.edges?.forEach((edge) => {
+          const from = nodeIds.get(edge.from);
+          const to = nodeIds.get(edge.to);
+          if (!from || !to) return;
+          lines.push(
+            edge.label
+              ? `  ${from} -->|"${label(edge.label)}"| ${to}`
+              : `  ${from} --> ${to}`,
+          );
+        });
+      } else {
+        const lanes: {
+          performer: FlowStep["performer"];
+          steps: { step: FlowStep; index: number }[];
+        }[] = [];
+        flow.steps.forEach((step, index) => {
+          if (!isFlowStep(step)) return;
+          const currentLane = lanes[lanes.length - 1];
+          if (
+            currentLane &&
+            flowPerformerKey(currentLane.performer) ===
+              flowPerformerKey(step.performer)
+          ) {
+            currentLane.steps.push({ step, index });
+          } else {
+            lanes.push({
+              performer: step.performer,
+              steps: [{ step, index }],
+            });
+          }
+        });
+        lanes.forEach(({ performer, steps }, lane) => {
+          lines.push(
+            `  subgraph f${i}lane${lane}["${label(performerTitle(spec, performer))}"]`,
+          );
+          steps.forEach(({ step, index }) => {
+            const useCaseLabel = step.useCase
+              ? ` / UC: ${formatReferenceLabel(
+                  resolveNamedReference(spec.useCases, step.useCase),
+                  spec.useCases.map((item) => item.id),
+                )}`
+              : "";
+            const title = `${index + 1}. ${step.title}${useCaseLabel}`;
+            lines.push(`  f${i}s${index}["${label(title)}"]`);
+          });
+          lines.push("  end");
+        });
+        flow.steps.forEach((_, j) => {
+          if (j) lines.push(`  f${i}s${j - 1} --> f${i}s${j}`);
+        });
+      }
       lines.push("  end");
     });
   } else if (kind === "screens") {

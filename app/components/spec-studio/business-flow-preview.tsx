@@ -1,4 +1,4 @@
-import type { UiSpec } from "@shared/spec-schema";
+import { isFlowStep, type FlowStep, type UiSpec } from "@shared/spec-schema";
 import {
   formatReferenceLabel,
   groupFlowStepsByPerformer,
@@ -6,6 +6,8 @@ import {
   resolveNamedReference,
 } from "@shared/spec-utils";
 import { useId } from "react";
+
+import { BusinessFlowGraphPreview } from "./business-flow-graph-preview";
 
 const LANE_LABEL_WIDTH = 204;
 const STEP_START_X = 24;
@@ -21,7 +23,7 @@ const USE_CASE_LINE_HEIGHT = 12;
 const CARD_PADDING = 12;
 
 type Flow = UiSpec["flows"][number];
-type Step = Flow["steps"][number];
+type Step = FlowStep;
 type StepCard = {
   step: Step;
   index: number;
@@ -135,6 +137,9 @@ export function BusinessFlowPreview({
 }) {
   const instance = useId().replace(/[^a-zA-Z0-9]/g, "");
   const arrowId = `business-flow-arrow-${instance}`;
+
+  if (flow.edges !== undefined || flow.steps.some((node) => !isFlowStep(node)))
+    return <BusinessFlowGraphPreview spec={spec} flow={flow} zoom={zoom} />;
 
   if (flow.steps.length === 0)
     return (

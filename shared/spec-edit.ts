@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   type ActorRef,
+  isFlowStep,
   SpecSchema,
   validateSpecRelations,
   type UiSpec,
@@ -176,15 +177,19 @@ export function renameParticipant(
     },
     flows: spec.flows.map((flow) => ({
       ...flow,
-      steps: flow.steps.map((step) => ({
-        ...step,
-        performer:
-          step.performer.kind === "actors"
-            ? { ...step.performer, refs: step.performer.refs.map(renameRef) }
-            : kind === "externalSystem" && step.performer.id === from
-              ? { ...step.performer, id: to }
-              : step.performer,
-      })),
+      steps: flow.steps.map((step) =>
+        isFlowStep(step)
+          ? {
+              ...step,
+              performer:
+                step.performer.kind === "actors"
+                  ? { ...step.performer, refs: step.performer.refs.map(renameRef) }
+                  : kind === "externalSystem" && step.performer.id === from
+                    ? { ...step.performer, id: to }
+                    : step.performer,
+            }
+          : step,
+      ),
     })),
     useCases: spec.useCases.map((useCase) => ({
       ...useCase,
@@ -223,13 +228,17 @@ export function renameTerm(spec: UiSpec, from: string, to: string): UiSpec {
     },
     flows: spec.flows.map((f) => ({
       ...f,
-      steps: f.steps.map((s) => ({
-        ...s,
-        performer:
-          s.performer.kind === "actors"
-            ? { ...s.performer, refs: s.performer.refs.map(renameRef) }
-            : s.performer,
-      })),
+      steps: f.steps.map((s) =>
+        isFlowStep(s)
+          ? {
+              ...s,
+              performer:
+                s.performer.kind === "actors"
+                  ? { ...s.performer, refs: s.performer.refs.map(renameRef) }
+                  : s.performer,
+            }
+          : s,
+      ),
     })),
     useCases: spec.useCases.map((u) => ({
       ...u,

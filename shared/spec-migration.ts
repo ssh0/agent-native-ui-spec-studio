@@ -1,6 +1,7 @@
 import { SpecSchema, validateSpecRelations, type UiSpec, type ValidationIssue } from "./spec-schema.js";
 
 type Transition = UiSpec["transitions"][number];
+type FlowEdge = NonNullable<UiSpec["flows"][number]["edges"]>[number];
 
 // The fields are ordered explicitly so YAML key order and array order do not affect IDs.
 function transitionKey(scope: string, transition: Transition): string {
@@ -11,6 +12,16 @@ function transitionKey(scope: string, transition: Transition): string {
     transition.trigger,
     "component" in transition ? transition.component ?? null : null,
     transition.notes ?? null,
+  ]);
+}
+
+function flowEdgeKey(scope: string, edge: FlowEdge): string {
+  return JSON.stringify([
+    scope,
+    edge.from,
+    edge.to,
+    edge.label ?? null,
+    edge.notes ?? null,
   ]);
 }
 
@@ -29,11 +40,15 @@ export function migrateSpecTo21(spec: UiSpec): { spec?: UiSpec; issues: Validati
     return { issues: [{ path: "version", message: "移行元は 2.0 である必要があります。" }] };
   const issues = validateSpecRelations(spec);
   if (issues.length) return { issues };
-  const migrate = <T extends Transition>(items: T[], scope: string, path: string): (T & { id: string })[] => {
+  const migrate = <T extends { id?: string }>(
+    items: T[],
+    path: string,
+    makeKey: (item: T) => string,
+  ): (T & { id: string })[] => {
     const seen = new Map<string, number>();
     const ids = new Map<string, string>();
     return items.map((item, index) => {
-      const key = transitionKey(scope, item);
+      const key = makeKey(item);
       const id = stableId(key);
       const earlier = seen.get(key);
       if (earlier !== undefined)
@@ -49,12 +64,30 @@ export function migrateSpecTo21(spec: UiSpec): { spec?: UiSpec; issues: Validati
   const migrated = {
     ...spec,
     version: "2.1" as const,
-    transitions: migrate(spec.transitions, "screens", "transitions"),
+    transitions: migrate(spec.transitions, "transitions", (item) =>
+      transitionKey("screens", item),
+    ),
+    flows: spec.flows.map((flow, index) => ({
+      ...flow,
+      ...(flow.edges
+        ? {
+            edges: migrate(
+              flow.edges,
+              `flows[${index}].edges`,
+              (edge) => flowEdgeKey(`flow:${flow.id}`, edge),
+            ),
+          }
+        : {}),
+    })),
     screens: spec.screens.map((screen, index) => ({
       ...screen,
       stateFlow: {
         ...screen.stateFlow,
-        transitions: migrate(screen.stateFlow.transitions, `states:${screen.id}`, `screens[${index}].stateFlow.transitions`),
+        transitions: migrate(
+          screen.stateFlow.transitions,
+          `screens[${index}].stateFlow.transitions`,
+          (item) => transitionKey(`states:${screen.id}`, item),
+        ),
       },
     })),
   };

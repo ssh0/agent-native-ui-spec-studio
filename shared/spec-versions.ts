@@ -1,9 +1,9 @@
-import type { UiSpec, SpecStage } from "./spec-schema.js";
+import { isFlowStep, type UiSpec, type SpecStage } from "./spec-schema.js";
 
 export type SpecTarget = { key: string; kind: string; id: string; parentId?: string; title: string; stage: SpecStage; value: unknown };
 const key = (...parts: string[]) => JSON.stringify(parts);
 
-/** Stable, scoped IDs from the saved model. 2.0 transitions have no stable IDs. */
+/** Stable, scoped IDs from the saved model. 2.0 transitions and flow edges have no stable IDs. */
 export function specTargets(spec: UiSpec): SpecTarget[] {
   const result: SpecTarget[] = [{ key: key("document"), kind: "document", id: "document", title: spec.title, stage: "domain", value: { version: spec.version, title: spec.title, notes: spec.notes, domainNotes: spec.domain.notes, order: {
     actors: spec.domain.actors.map((item) => item.id), externalSystems: spec.domain.externalSystems.map((item) => item.id), entities: spec.domain.entities.map((item) => item.id), relations: spec.domain.relations.map((item) => item.id), terms: spec.domain.terms.map((item) => item.id), flows: spec.flows.map((item) => item.id), useCases: spec.useCases.map((item) => item.id), screens: spec.screens.map((item) => item.id), transitions: spec.transitions.map((item) => item.id ?? null),
@@ -19,9 +19,29 @@ export function specTargets(spec: UiSpec): SpecTarget[] {
     }
   }
   for (const flow of spec.flows) {
-    const { steps, ...parent } = flow;
-    add("flow", flow.id, flow.title, "flows", { ...parent, stepOrder: steps.map((item) => item.id) });
-    for (const step of steps) add("flowStep", step.id, step.title, "flows", step, flow.id);
+    const { steps, edges, ...parent } = flow;
+    add("flow", flow.id, flow.title, "flows", {
+      ...parent,
+      stepOrder: steps.map((item) => item.id),
+      ...(edges === undefined
+        ? {}
+        : {
+            edgeOrder: edges.map((item) => item.id ?? null),
+            ...(edges.some((item) => !item.id) ? { unversionedEdges: edges } : {}),
+          }),
+    });
+    for (const node of steps) {
+      const title = isFlowStep(node)
+        ? node.title
+        : node.kind === "branch"
+          ? node.title
+          : node.kind === "start"
+            ? "開始"
+            : "終了";
+      add(isFlowStep(node) ? "flowStep" : "flowControlNode", node.id, title, "flows", node, flow.id);
+    }
+    for (const edge of edges ?? []) if (edge.id)
+      add("flowEdge", edge.id, edge.label ?? `${edge.from} → ${edge.to}`, "flows", edge, flow.id);
   }
   for (const useCase of spec.useCases) {
     const { steps, branches, ...parent } = useCase;

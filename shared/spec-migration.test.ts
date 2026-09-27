@@ -26,6 +26,52 @@ describe("explicit 2.0 to 2.1 migration", () => {
     expect(migrateSpecTo21(first).issues[0].path).toBe("version");
   });
 
+  it("assigns order-independent IDs to business-flow graph edges", () => {
+    const original = legacy();
+    const performer = {
+      kind: "actors" as const,
+      refs: [{ kind: "actor" as const, id: "member" }],
+    };
+    original.flows[0].steps = [
+      { id: "start", kind: "start" },
+      { id: "submit", title: "申請を提出する", performer },
+      { id: "decision", kind: "branch", title: "承認するか" },
+      { id: "revise", title: "申請を修正する", performer },
+      { id: "end", kind: "end" },
+    ];
+    const edges = [
+      { from: "start", to: "submit" },
+      { from: "submit", to: "decision" },
+      { from: "decision", to: "revise", label: "差し戻し" },
+      { from: "decision", to: "end", label: "承認" },
+      { from: "revise", to: "submit" },
+    ];
+    original.flows[0].edges = edges;
+
+    const firstMigration = migrateSpecTo21(original);
+    expect(firstMigration.issues).toEqual([]);
+    const first = firstMigration.spec!;
+    expect(first.flows[0].edges?.every((edge) => edge.id)).toBe(true);
+    expect(parseSpecYaml(stringify(first)).issues).toEqual([]);
+
+    const reordered = legacy();
+    reordered.flows[0].steps = structuredClone(original.flows[0].steps);
+    reordered.flows[0].edges = structuredClone(edges).reverse();
+    const secondMigration = migrateSpecTo21(reordered);
+    expect(secondMigration.issues).toEqual([]);
+    const second = secondMigration.spec!;
+    const idsByEdge = (items: (typeof first.flows)[number]["edges"]) =>
+      new Map(
+        (items ?? []).map((edge) => [
+          `${edge.from}:${edge.to}:${edge.label ?? ""}`,
+          edge.id,
+        ]),
+      );
+    expect(idsByEdge(first.flows[0].edges)).toEqual(
+      idsByEdge(second.flows[0].edges),
+    );
+  });
+
   it("reports ambiguous duplicates, duplicate IDs and broken references", () => {
     const duplicate = legacy();
     duplicate.transitions.push({ ...duplicate.transitions[0] });

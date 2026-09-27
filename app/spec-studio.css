@@ -815,6 +815,27 @@
 .spec-business-flow-arrow {
   fill: hsl(var(--muted-foreground));
 }
+.spec-business-flow-terminal > rect,
+.spec-business-flow-branch > path {
+  fill: hsl(var(--background));
+  stroke: hsl(var(--border));
+  stroke-width: 1.5;
+}
+.spec-business-flow-terminal-label,
+.spec-business-flow-branch-title {
+  fill: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 600;
+}
+.spec-business-flow-edge-label {
+  fill: hsl(var(--muted-foreground));
+  font-size: 10px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: hsl(var(--background));
+  stroke-linejoin: round;
+  stroke-width: 5px;
+}
 .spec-flow-render.is-rendering {
   opacity: 0.6;
 }

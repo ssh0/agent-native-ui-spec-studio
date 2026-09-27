@@ -11,7 +11,13 @@ import {
   renameTerm,
 } from "./spec-edit";
 import { migrateSpecTo21 } from "./spec-migration";
-import { SpecSchema, validateSpecRelations, type UiSpec } from "./spec-schema";
+import {
+  isFlowStep,
+  SpecSchema,
+  validateSpecRelations,
+  type FlowStep,
+  type UiSpec,
+} from "./spec-schema";
 import {
   groupFlowStepsByPerformer,
   parseSpecYaml,
@@ -19,6 +25,12 @@ import {
   renderWireframe,
 } from "./spec-utils";
 const example = () => parseSpecYaml(DEFAULT_SPEC_YAML).spec!;
+const flowStep = (spec: UiSpec, index = 0): FlowStep => {
+  const node = spec.flows[0].steps[index];
+  if (!node || !isFlowStep(node))
+    throw new Error(`Expected flow step ${index}`);
+  return node;
+};
 
 describe("canonical specification structure and relations", () => {
   it("starts with every stage explicit and no invented screens", () => {
@@ -159,7 +171,7 @@ describe("canonical specification structure and relations", () => {
     [
       "flow use case",
       (s: UiSpec) => {
-        s.flows[0].steps[0].useCase = "missing";
+        flowStep(s).useCase = "missing";
       },
     ],
     [
@@ -375,6 +387,46 @@ describe("canonical specification structure and relations", () => {
 });
 
 describe("business flow participants and lanes", () => {
+  const graphSpec = () => {
+    const spec = example();
+    const performer = {
+      kind: "actors" as const,
+      refs: [{ kind: "actor" as const, id: "member" }],
+    };
+    spec.flows[0].steps = [
+      { id: "start", kind: "start" },
+      { id: "submit", kind: "step", title: "申請を提出する", performer },
+      { id: "decision", kind: "branch", title: "承認するか" },
+      { id: "revise", kind: "step", title: "申請を修正する", performer },
+      { id: "approve", kind: "step", title: "承認を登録する", performer },
+      {
+        id: "reject",
+        kind: "step",
+        title: "却下を通知する",
+        performer: { kind: "externalSystem", id: "notification" },
+      },
+      {
+        id: "notify",
+        kind: "step",
+        title: "結果を通知する",
+        performer: { kind: "externalSystem", id: "notification" },
+      },
+      { id: "end", kind: "end" },
+    ];
+    spec.flows[0].edges = [
+      { from: "start", to: "submit" },
+      { from: "submit", to: "decision" },
+      { from: "decision", to: "revise", label: "差し戻し" },
+      { from: "decision", to: "approve", label: "承認" },
+      { from: "decision", to: "reject", label: "却下" },
+      { from: "revise", to: "submit" },
+      { from: "approve", to: "notify" },
+      { from: "reject", to: "notify" },
+      { from: "notify", to: "end" },
+    ];
+    return spec;
+  };
+
   it.each(["example", "todo-app", "ec-commerce"])(
     "validates the %s sample",
     (name) => {
@@ -382,7 +434,11 @@ describe("business flow participants and lanes", () => {
         readFileSync(new URL(`../specs/${name}.yaml`, import.meta.url), "utf8"),
       );
       expect(parsed.issues).toEqual([]);
-      expect(parsed.spec?.flows[0].steps.some((s) => !s.useCase)).toBe(true);
+      expect(
+        parsed.spec?.flows[0].steps.some(
+          (node) => isFlowStep(node) && !node.useCase,
+        ),
+      ).toBe(true);
     },
   );
   it.each(["actors", "externalSystems"] as const)(
@@ -404,7 +460,7 @@ describe("business flow participants and lanes", () => {
     "checks the %s reference namespace",
     (kind) => {
       const spec = example();
-      const step = spec.flows[0].steps[0];
+      const step = flowStep(spec);
       step.performer =
         kind === "actors"
           ? { kind, refs: [{ kind: "actor", id: "notification" }] }
@@ -451,14 +507,14 @@ describe("business flow participants and lanes", () => {
   it("preserves notes and typed references on participant rename", () => {
     const spec = example();
     spec.domain.externalSystems[0].id = "member";
-    spec.flows[0].steps[4].performer = { kind: "externalSystem", id: "member" };
+    flowStep(spec, 4).performer = { kind: "externalSystem", id: "member" };
     const next = renameParticipant(spec, "actor", "member", "staff");
     expect(validateSpecRelations(next)).toEqual([]);
-    expect(next.flows[0].steps[1].performer).toEqual({
+    expect(flowStep(next, 1).performer).toEqual({
       kind: "actors",
       refs: [{ kind: "actor", id: "staff" }],
     });
-    expect(next.flows[0].steps[4].performer).toEqual({
+    expect(flowStep(next, 4).performer).toEqual({
       kind: "externalSystem",
       id: "member",
     });
@@ -508,7 +564,7 @@ describe("business flow participants and lanes", () => {
   });
   it("places each performer in one vertical lane and keeps step order", () => {
     const spec = example();
-    const [sample] = spec.flows[0].steps;
+    const sample = flowStep(spec);
     const requester = {
       kind: "actors" as const,
       refs: [{ kind: "actor" as const, id: "requester" }],
@@ -541,6 +597,123 @@ describe("business flow participants and lanes", () => {
       { kind: "externalSystem", id: "notification" },
     ]);
   });
+  it("validates branches, merges, and loops, then renders their explicit connections", () => {
+    const spec = graphSpec();
+    expect(validateSpecRelations(spec)).toEqual([]);
+    expect(SpecSchema.safeParse(spec).success).toBe(true);
+    expect(parseSpecYaml(stringify(spec)).issues).toEqual([]);
+
+    const diagram = renderFlow(spec, "flows", spec.flows[0].id);
+    const encode = (value: string) =>
+      Array.from(value, (char) => `#${char.codePointAt(0)};`).join("");
+    expect(diagram).toMatch(/^flowchart LR/);
+    expect(diagram).toContain(`f0n0(("${encode("開始")}"))`);
+    expect(diagram).toContain(`f0n2{"${encode("承認するか")}"}`);
+    expect(diagram).toContain(`f0n2 -->|"${encode("差し戻し")}"| f0n3`);
+    expect(diagram).toContain("f0n3 --> f0n1");
+    expect(diagram).toContain("f0n4 --> f0n6");
+    expect(diagram).toContain("f0n5 --> f0n6");
+    expect(diagram).toContain(`f0n7(("${encode("終了")}"))`);
+  });
+  it("allows unfinished graph connectivity while validating defined edges", () => {
+    const unfinished = graphSpec();
+    unfinished.flows[0].edges = [];
+    expect(validateSpecRelations(unfinished)).toEqual([]);
+
+    unfinished.flows[0].edges = [{ from: "submit", to: "decision" }];
+    expect(validateSpecRelations(unfinished)).toEqual([]);
+  });
+  it("requires explicit edges for control nodes and enforces versioned edge IDs", () => {
+    const missingEdges = graphSpec();
+    delete missingEdges.flows[0].edges;
+    expect(validateSpecRelations(missingEdges)).toContainEqual(
+      expect.objectContaining({
+        path: "flows[0].edges",
+        message: "制御ノードを含むフローには edges 配列が必要です。",
+      }),
+    );
+
+    const withEdges = graphSpec();
+    const migrated = migrateSpecTo21(withEdges).spec!;
+    expect(migrated.flows[0].edges?.every((edge) => edge.id)).toBe(true);
+    expect(SpecSchema.safeParse(migrated).success).toBe(true);
+    delete migrated.flows[0].edges![0].id;
+    expect(SpecSchema.safeParse(migrated).success).toBe(false);
+
+    const legacyWithEdgeIds = graphSpec();
+    legacyWithEdgeIds.flows[0].edges![0].id = "not-allowed-in-2.0";
+    expect(SpecSchema.safeParse(legacyWithEdgeIds).success).toBe(false);
+  });
+  it("rejects malformed branch exits and invalid edge endpoints", () => {
+    const oneExit = graphSpec();
+    oneExit.flows[0].edges = oneExit.flows[0].edges!.filter(
+      (edge) => edge.from !== "decision" || edge.label === "承認",
+    );
+    expect(validateSpecRelations(oneExit)).toContainEqual(
+      expect.objectContaining({
+        path: "flows[0].steps[2]",
+        message: "分岐には2つ以上の経路を指定してください。",
+      }),
+    );
+
+    const unlabeled = graphSpec();
+    delete unlabeled.flows[0].edges![2].label;
+    expect(validateSpecRelations(unlabeled)).toContainEqual(
+      expect.objectContaining({
+        message: "分岐「承認するか」の経路ラベルを指定してください。",
+      }),
+    );
+
+    const duplicateLabel = graphSpec();
+    duplicateLabel.flows[0].edges![3].label = "差し戻し";
+    expect(validateSpecRelations(duplicateLabel)).toContainEqual(
+      expect.objectContaining({
+        message: "分岐「承認するか」の経路ラベル「差し戻し」が重複しています。",
+      }),
+    );
+
+    const missingTarget = graphSpec();
+    missingTarget.flows[0].edges![0].to = "missing";
+    expect(validateSpecRelations(missingTarget)).toContainEqual(
+      expect.objectContaining({ path: "flows[0].edges[0].to" }),
+    );
+
+    const exitsEnd = graphSpec();
+    exitsEnd.flows[0].edges!.push({ from: "end", to: "submit" });
+    expect(validateSpecRelations(exitsEnd)).toContainEqual(
+      expect.objectContaining({
+        path: "flows[0].steps[7]",
+        message: "終了ノードから出る接続は指定できません。",
+      }),
+    );
+
+    const actionFanOut = graphSpec();
+    actionFanOut.flows[0].edges!.push({ from: "submit", to: "end" });
+    expect(validateSpecRelations(actionFanOut)).toContainEqual(
+      expect.objectContaining({
+        path: "flows[0].steps[1]",
+        message: "複数の経路を出す場合は分岐ノードを使用してください。",
+      }),
+    );
+
+    const startWithIncoming = graphSpec();
+    startWithIncoming.flows[0].edges!.push({ from: "revise", to: "start" });
+    expect(validateSpecRelations(startWithIncoming)).toContainEqual(
+      expect.objectContaining({
+        path: "flows[0].steps[0]",
+        message: "開始ノードに入る接続は指定できません。",
+      }),
+    );
+
+    const duplicateStart = graphSpec();
+    duplicateStart.flows[0].steps.push({ id: "another-start", kind: "start" });
+    expect(validateSpecRelations(duplicateStart)).toContainEqual(
+      expect.objectContaining({
+        path: "flows[0].steps",
+        message: "開始ノードは1つだけ指定できます。",
+      }),
+    );
+  });
   it("renders lanes, ordered handoffs, use case links and safe labels", () => {
     const spec = example();
     const diagram = renderFlow(spec, "flows", "task-intake");
@@ -556,7 +729,7 @@ describe("business flow participants and lanes", () => {
     const malicious = 'end"]\nclick f0s0 "javascript:alert(1)"';
     spec.domain.actors[0].title = malicious;
     spec.flows[0].title = malicious;
-    spec.flows[0].steps[0].title = malicious;
+    flowStep(spec).title = malicious;
     expect(renderFlow(spec, "flows")).not.toContain("javascript:");
     expect(renderFlow(spec, "flows")).toContain(encode(malicious));
   });
@@ -629,7 +802,7 @@ describe("typed domain sets, hierarchy and associations", () => {
     expect(validateSpecRelations(spec)).toContainEqual(
       expect.objectContaining({ path: "useCases[0].actors[0]" }),
     );
-    spec.flows[0].steps[0].performer = {
+    flowStep(spec).performer = {
       kind: "actors",
       refs: [{ kind: "actor", id: "member-service" }],
     };
@@ -641,9 +814,9 @@ describe("typed domain sets, hierarchy and associations", () => {
   });
   it("requires a nonempty performer set and a bounded difference", () => {
     const spec = ec();
-    spec.flows[0].steps[0].performer = { kind: "actors", refs: [] };
+    flowStep(spec).performer = { kind: "actors", refs: [] };
     expect(SpecSchema.safeParse(spec).success).toBe(false);
-    spec.flows[0].steps[0].performer = {
+    flowStep(spec).performer = {
       kind: "actors",
       refs: [{ kind: "actor", id: "customer" }],
     };
@@ -802,7 +975,7 @@ describe("typed domain sets, hierarchy and associations", () => {
   });
   it("renders named and multi-actor business lanes", () => {
     const spec = ec();
-    spec.flows[0].steps[0].performer = {
+    flowStep(spec).performer = {
       kind: "actors",
       refs: [
         { kind: "actor", id: "customer" },
@@ -818,7 +991,7 @@ describe("typed domain sets, hierarchy and associations", () => {
       ),
     );
     expect(diagram).toContain("f0s0 --> f0s1");
-    spec.flows[0].steps[1].performer = {
+    flowStep(spec, 1).performer = {
       kind: "actors",
       refs: [
         { kind: "term", id: "storefront-users" },

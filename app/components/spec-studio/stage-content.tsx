@@ -1,4 +1,5 @@
 import {
+  isFlowStep,
   type DomainSection,
   type SpecStage,
   type UiSpec,
@@ -94,6 +95,11 @@ export function StageContent({
             {stage === "flows" &&
               (() => {
                 const flow = spec.flows!.find((f) => f.id === selected.id)!;
+                const stepNumbers = new Map<string, number>();
+                flow.steps.forEach((step) => {
+                  if (isFlowStep(step))
+                    stepNumbers.set(step.id, stepNumbers.size + 1);
+                });
                 return (
                   <>
                     <dl className="spec-facts">
@@ -103,91 +109,66 @@ export function StageContent({
                       </div>
                     </dl>
                     <ol className="spec-step-list">
-                      {flow.steps.map((s, i) => (
-                        <li key={s.id}>
-                          <span className="spec-step-number">{i + 1}</span>
-                          <div>
-                            <strong>{s.title}</strong>
-                            <p>{performerTitle(spec, s.performer)}</p>
-                            <Field label="担当者の種類">
-                              <select
-                                value={s.performer.kind}
-                                onChange={(event) => {
-                                  const performer =
-                                    event.target.value === "actors"
-                                      ? {
-                                          kind: "actors" as const,
-                                          refs: [
-                                            {
-                                              kind: "actor" as const,
-                                              id:
-                                                spec.domain.actors[0]?.id ?? "",
-                                            },
-                                          ],
-                                        }
-                                      : {
-                                          kind: "externalSystem" as const,
-                                          id:
-                                            spec.domain.externalSystems[0]
-                                              ?.id ?? "",
-                                        };
-                                  update({
-                                    ...spec,
-                                    flows: spec.flows.map((f) =>
-                                      f.id === flow.id
-                                        ? {
-                                            ...f,
-                                            steps: f.steps.map((step) =>
-                                              step.id === s.id
-                                                ? { ...step, performer }
-                                                : step,
-                                            ),
-                                          }
-                                        : f,
-                                    ),
-                                  });
-                                }}
-                              >
-                                <option value="actors">アクター</option>
-                                <option value="externalSystem">
-                                  外部システム
-                                </option>
-                              </select>
-                            </Field>
-                            {s.performer.kind === "actors" ? (
-                              <ActorRefsEditor
-                                spec={spec}
-                                value={s.performer.refs}
-                                onChange={(refs) => {
-                                  if (!refs.length) return;
-                                  update({
-                                    ...spec,
-                                    flows: spec.flows.map((f) =>
-                                      f.id === flow.id
-                                        ? {
-                                            ...f,
-                                            steps: f.steps.map((step) =>
-                                              step.id === s.id
-                                                ? {
-                                                    ...step,
-                                                    performer: {
-                                                      kind: "actors",
-                                                      refs,
-                                                    },
-                                                  }
-                                                : step,
-                                            ),
-                                          }
-                                        : f,
-                                    ),
-                                  });
-                                }}
-                              />
-                            ) : (
-                              <Field label="外部システム">
+                      {flow.steps.map((s) =>
+                        isFlowStep(s) ? (
+                          <li key={s.id}>
+                            <span className="spec-step-number">
+                              {stepNumbers.get(s.id)}
+                            </span>
+                            <div>
+                              <strong>{s.title}</strong>
+                              <p>{performerTitle(spec, s.performer)}</p>
+                              <Field label="担当者の種類">
                                 <select
-                                  value={s.performer.id}
-                                  onChange={(event) =>
+                                  value={s.performer.kind}
+                                  onChange={(event) => {
+                                    const performer =
+                                      event.target.value === "actors"
+                                        ? {
+                                            kind: "actors" as const,
+                                            refs: [
+                                              {
+                                                kind: "actor" as const,
+                                                id:
+                                                  spec.domain.actors[0]?.id ?? "",
+                                              },
+                                            ],
+                                          }
+                                        : {
+                                            kind: "externalSystem" as const,
+                                            id:
+                                              spec.domain.externalSystems[0]
+                                                ?.id ?? "",
+                                          };
+                                    update({
+                                      ...spec,
+                                      flows: spec.flows.map((f) =>
+                                        f.id === flow.id
+                                          ? {
+                                              ...f,
+                                              steps: f.steps.map((step) =>
+                                                step.id === s.id
+                                                  ? { ...step, performer }
+                                                  : step,
+                                              ),
+                                            }
+                                          : f,
+                                      ),
+                                    });
+                                  }}
+                                >
+                                  <option value="actors">アクター</option>
+                                  <option value="externalSystem">
+                                    外部システム
+                                  </option>
+                                </select>
+                              </Field>
+                              {s.performer.kind === "actors" ? (
+                                <ActorRefsEditor
+                                  spec={spec}
+                                  value={s.performer.refs}
+                                  onChange={(refs) => {
+                                    if (!refs.length) return;
                                     update({
                                       ...spec,
                                       flows: spec.flows.map((f) =>
@@ -199,8 +180,8 @@ export function StageContent({
                                                   ? {
                                                       ...step,
                                                       performer: {
-                                                        kind: "externalSystem",
-                                                        id: event.target.value,
+                                                        kind: "actors",
+                                                        refs,
                                                       },
                                                     }
                                                   : step,
@@ -208,29 +189,78 @@ export function StageContent({
                                             }
                                           : f,
                                       ),
-                                    })
-                                  }
-                                >
-                                  <ReferenceOptions
-                                    items={spec.domain.externalSystems}
-                                    id={s.performer.id}
-                                  />
-                                </select>
-                              </Field>
-                            )}
-                            {s.useCase && (
-                              <p>
-                                ユースケース：
-                                <ReferenceLabel
-                                  items={spec.useCases}
-                                  id={s.useCase}
+                                    });
+                                  }}
                                 />
-                              </p>
-                            )}
-                            <Note value={s.notes} />
-                          </div>
-                        </li>
-                      ))}
+                              ) : (
+                                <Field label="外部システム">
+                                  <select
+                                    value={s.performer.id}
+                                    onChange={(event) =>
+                                      update({
+                                        ...spec,
+                                        flows: spec.flows.map((f) =>
+                                          f.id === flow.id
+                                            ? {
+                                                ...f,
+                                                steps: f.steps.map((step) =>
+                                                  step.id === s.id
+                                                    ? {
+                                                        ...step,
+                                                        performer: {
+                                                          kind: "externalSystem",
+                                                          id: event.target.value,
+                                                        },
+                                                      }
+                                                    : step,
+                                                ),
+                                              }
+                                            : f,
+                                        ),
+                                      })
+                                    }
+                                  >
+                                    <ReferenceOptions
+                                      items={spec.domain.externalSystems}
+                                      id={s.performer.id}
+                                    />
+                                  </select>
+                                </Field>
+                              )}
+                              {s.useCase && (
+                                <p>
+                                  ユースケース：
+                                  <ReferenceLabel
+                                    items={spec.useCases}
+                                    id={s.useCase}
+                                  />
+                                </p>
+                              )}
+                              <Note value={s.notes} />
+                            </div>
+                          </li>
+                        ) : (
+                          <li key={s.id}>
+                            <span className="spec-step-number">
+                              {s.kind === "start"
+                                ? "開始"
+                                : s.kind === "branch"
+                                  ? "分岐"
+                                  : "終了"}
+                            </span>
+                            <div>
+                              <strong>
+                                {s.kind === "branch"
+                                  ? s.title
+                                  : s.kind === "start"
+                                    ? "開始"
+                                    : "終了"}
+                              </strong>
+                              <Note value={s.notes} />
+                            </div>
+                          </li>
+                        ),
+                      )}
                     </ol>
                     <Note value={flow.notes} />
                     <h3>業務フロー図</h3>
