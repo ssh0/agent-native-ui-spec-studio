@@ -4,13 +4,13 @@ import { describe, expect, it } from "vitest";
 import { stringify } from "yaml";
 
 import { DEFAULT_SPEC_YAML } from "./default-spec";
-import { migrateSpecTo21 } from "./spec-migration";
 import {
   editSpec,
   renameEntity,
   renameParticipant,
   renameTerm,
 } from "./spec-edit";
+import { migrateSpecTo21 } from "./spec-migration";
 import { SpecSchema, validateSpecRelations, type UiSpec } from "./spec-schema";
 import { parseSpecYaml, renderFlow, renderWireframe } from "./spec-utils";
 const example = () => parseSpecYaml(DEFAULT_SPEC_YAML).spec!;
@@ -267,13 +267,39 @@ describe("canonical specification structure and relations", () => {
     const migrated = migrateSpecTo21(example()).spec!;
     const spec = editSpec(migrated, {
       kind: "add_transition",
-      transition: { id: "refresh", from: "dashboard", to: "dashboard", trigger: "refresh" },
+      transition: {
+        id: "refresh",
+        from: "dashboard",
+        to: "dashboard",
+        trigger: "refresh",
+      },
     });
     expect(spec.transitions).toHaveLength(3);
-    const moved = editSpec(spec, { kind: "update_transition", transitionId: "refresh", transition: { to: "create-task" } });
-    expect(moved.transitions.find((transition) => transition.id === "refresh")?.to).toBe("create-task");
-    expect(editSpec({ ...moved, transitions: [...moved.transitions].reverse() }, { kind: "delete_transition", transitionId: "refresh" }).transitions).toHaveLength(2);
-    expect(() => editSpec(example(), { kind: "add_transition", transition: { id: "new", from: "dashboard", to: "dashboard", trigger: "refresh" } })).toThrow("2.1");
+    const moved = editSpec(spec, {
+      kind: "update_transition",
+      transitionId: "refresh",
+      transition: { to: "create-task" },
+    });
+    expect(
+      moved.transitions.find((transition) => transition.id === "refresh")?.to,
+    ).toBe("create-task");
+    expect(
+      editSpec(
+        { ...moved, transitions: [...moved.transitions].reverse() },
+        { kind: "delete_transition", transitionId: "refresh" },
+      ).transitions,
+    ).toHaveLength(2);
+    expect(() =>
+      editSpec(example(), {
+        kind: "add_transition",
+        transition: {
+          id: "new",
+          from: "dashboard",
+          to: "dashboard",
+          trigger: "refresh",
+        },
+      }),
+    ).toThrow("2.1");
   });
   it("validates section replacement before accepting it", () => {
     expect(() =>

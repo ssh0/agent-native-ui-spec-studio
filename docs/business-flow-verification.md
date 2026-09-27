@@ -15,4 +15,4 @@
 9. エージェントから `spec-render-flow` に `kind: flows`、任意 `selectedId: task-intake` を渡し、`format: mermaid` とUIと同じ生成ソースが返ることを確認する。`screens` / `useCases` / `states` の既存指定も確認する。
 
 Mermaidの試作は一時編集であり、保存される業務定義は構造化YAMLのみ。
-レーンはflowchartのsubgraphによるグループ化で、幅や配置はMermaidの自動レイアウトに依存する。
+業務フロー図の表示仕様は [spec-format.md](./spec-format.md) を参照。
