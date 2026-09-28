@@ -1,8 +1,8 @@
 import type { FlowEdge, FlowNode, UiSpec } from "@shared/spec-schema";
-import { isFlowStep } from "@shared/spec-schema";
+import { flowNodePerformer, isFlowStep } from "@shared/spec-schema";
 import {
   formatReferenceLabel,
-  groupFlowStepsByPerformer,
+  flowPerformerKey,
   performerTitle,
   resolveNamedReference,
 } from "@shared/spec-utils";
@@ -174,7 +174,7 @@ function buildLanes(
 } {
   const rowDefinitions: Omit<Lane, "top" | "height" | "labelLines">[] = [];
   const controlIndexes = flow.steps.flatMap((node, index) =>
-    isFlowStep(node) ? [] : [index],
+    flowNodePerformer(node) ? [] : [index],
   );
   if (controlIndexes.length)
     rowDefinitions.push({
@@ -183,14 +183,23 @@ function buildLanes(
       indexes: controlIndexes,
     });
 
-  for (const lane of groupFlowStepsByPerformer(flow.steps)) {
-    const indexes = lane.steps.map(({ index }) => index);
-    rowDefinitions.push({
-      key: JSON.stringify(["performer", lane.performer]),
-      label: performerTitle(spec, lane.performer),
-      indexes,
-    });
-  }
+  const performerRows = new Map<string, (typeof rowDefinitions)[number]>();
+  flow.steps.forEach((node, index) => {
+    const performer = flowNodePerformer(node);
+    if (!performer) return;
+    const key = flowPerformerKey(performer);
+    let row = performerRows.get(key);
+    if (!row) {
+      row = {
+        key,
+        label: performerTitle(spec, performer),
+        indexes: [],
+      };
+      performerRows.set(key, row);
+      rowDefinitions.push(row);
+    }
+    row.indexes.push(index);
+  });
 
   let nextTop = TOP_PADDING;
   const lanes: Lane[] = rowDefinitions.map((row) => {

@@ -107,6 +107,59 @@ describe("specification stage composition", () => {
     expect(html).toContain('aria-label="担当レーン: フロー制御');
   });
 
+  it("places assigned decisions in the actor lane and keeps unassigned branches in control", () => {
+    const graph = structuredClone(spec);
+    const flow = graph.flows[0];
+    flow.steps = [
+      { id: "start", kind: "start" },
+      { id: "decision", kind: "branch", title: "判定する" },
+      { id: "end", kind: "end" },
+    ];
+    flow.edges = [];
+    const render = () =>
+      renderToStaticMarkup(
+        <StageContent
+          stage="flows"
+          spec={graph}
+          update={() => {}}
+          selectedId={flow.id}
+          select={() => {}}
+          domainSection="entities"
+          selectDomainSection={() => {}}
+          valid
+        />,
+      );
+    const branchTop = (html: string) =>
+      Number(
+        html.match(
+          /class="spec-business-flow-branch"[^>]*>.*?<path d="M [\d.]+ ([\d.]+) L/,
+        )?.[1],
+      );
+    const legacy = render();
+    expect(legacy).toContain('aria-label="担当レーン: フロー制御"');
+    expect(legacy).toContain(
+      '<option value="" selected="">指定なし（制御レーン）</option>',
+    );
+    const legacyTop = branchTop(legacy);
+
+    flow.steps[1] = {
+      id: "decision",
+      kind: "branch",
+      title: "判定する",
+      performer: { kind: "actors", refs: [{ kind: "actor", id: "member" }] },
+    };
+    const assigned = render();
+    expect(assigned).toContain(
+      'aria-label="担当レーン: フロー制御、アクター: チームメンバー',
+    );
+    expect(assigned).toContain(
+      '<option value="actors" selected="">アクター</option>',
+    );
+    expect(assigned).toContain('class="spec-step-number">分岐</span>');
+    expect(assigned).toContain('aria-label="分岐: 判定する"');
+    expect(branchTop(assigned)).toBeGreaterThan(legacyTop);
+  });
+
   it.each([
     ["domain", "タスク"],
     ["flows", "作業の受付と登録"],
