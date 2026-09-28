@@ -100,6 +100,10 @@ describe("BPMN projection of canonical YAML", () => {
       .filter((shape) => shape.bpmnElement.startsWith("Lane_"))
       .sort((a, b) => a.bounds.y - b.bounds.y);
     expect(lanes.length).toBeGreaterThan(1);
+    expect(pool.bounds.y).toBe(lanes[0].bounds.y);
+    expect(pool.bounds.height).toBe(
+      lanes.reduce((sum, lane) => sum + lane.bounds.height, 0),
+    );
     for (const lane of lanes) {
       expect(lane.bounds.x).toBe(lanes[0].bounds.x);
       expect(lane.bounds.width).toBe(lanes[0].bounds.width);
@@ -109,7 +113,7 @@ describe("BPMN projection of canonical YAML", () => {
       );
     }
     for (let i = 1; i < lanes.length; i++)
-      expect(lanes[i].bounds.y).toBeGreaterThanOrEqual(
+      expect(lanes[i].bounds.y).toBe(
         lanes[i - 1].bounds.y + lanes[i - 1].bounds.height,
       );
   });

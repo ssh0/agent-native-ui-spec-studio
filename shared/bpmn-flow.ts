@@ -54,8 +54,8 @@ function documentation(...parts: (string | undefined)[]): string | undefined {
 }
 
 // BPMN Kit 1.0's auto-layout may place the control lane above y=0 while
-// leaving the participant at y=0. The pool then clips that lane (and its
-// entry/exit events). Expand the pool around all lanes and align their rails.
+// leaving the participant at y=0, or leave unused space below the last lane.
+// Match the pool's vertical bounds exactly to the stacked lanes.
 function alignLaneDiagram(
   plane: BpmnDiPlane,
   participantId: string,
@@ -81,12 +81,9 @@ function alignLaneDiagram(
     lane.bounds.width = right - left;
   }
   pool.bounds.x = Math.min(pool.bounds.x, left - 30);
-  pool.bounds.y = Math.min(pool.bounds.y, top);
+  pool.bounds.y = top;
   pool.bounds.width = Math.max(pool.bounds.width, right - pool.bounds.x);
-  pool.bounds.height = Math.max(
-    pool.bounds.height + Math.max(0, -top),
-    bottom - pool.bounds.y,
-  );
+  pool.bounds.height = bottom - top;
 }
 
 function bpmnNode(flowId: string, node: FlowNode): BpmnFlowElement {
