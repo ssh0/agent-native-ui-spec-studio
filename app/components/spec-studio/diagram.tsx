@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
-import { BusinessFlowPreview } from "./business-flow-preview";
+import { BpmnFlowPreview } from "./bpmn-flow-preview";
 import { MermaidFlowPreview } from "./mermaid-preview";
 import { SourceEditor } from "./spec-editor-ui";
 
@@ -17,16 +17,25 @@ export function Diagram({
   businessFlow,
 }: {
   source: string;
-  businessFlow?: { spec: UiSpec; flow: UiSpec["flows"][number] };
+  businessFlow?: {
+    spec: UiSpec;
+    flow: UiSpec["flows"][number];
+    update?: (spec: UiSpec) => void;
+  };
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const diagramSource = draft ?? source;
-  const usesBusinessFlowLayout = businessFlow !== undefined && draft === null;
-  const hasDiagram = usesBusinessFlowLayout
-    ? businessFlow.flow.steps.length > 0
-    : diagramSource.trim().length > 0;
+  if (businessFlow)
+    return (
+      <BpmnFlowPreview
+        spec={businessFlow.spec}
+        flow={businessFlow.flow}
+        update={businessFlow.update}
+      />
+    );
+  const hasDiagram = diagramSource.trim().length > 0;
   return (
     <div className="spec-diagram">
       <div className="spec-diagram-toolbar">
@@ -102,15 +111,7 @@ export function Diagram({
           />
         </>
       )}
-      {usesBusinessFlowLayout ? (
-        <BusinessFlowPreview
-          spec={businessFlow.spec}
-          flow={businessFlow.flow}
-          zoom={zoom}
-        />
-      ) : (
-        <MermaidFlowPreview source={diagramSource} zoom={zoom} />
-      )}
+      <MermaidFlowPreview source={diagramSource} zoom={zoom} />
     </div>
   );
 }

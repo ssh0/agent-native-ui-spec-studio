@@ -134,7 +134,7 @@ export function StageContent({
                     <ol className="spec-step-list">
                       {flow.steps.map((s) =>
                         isFlowStep(s) ? (
-                          <li key={s.id}>
+                          <li key={s.id} id={`flow-node-${flow.id}-${s.id}`}>
                             <span className="spec-step-number">
                               {stepNumbers.get(s.id)}
                             </span>
@@ -268,7 +268,7 @@ export function StageContent({
                             </div>
                           </li>
                         ) : (
-                          <li key={s.id}>
+                          <li key={s.id} id={`flow-node-${flow.id}-${s.id}`}>
                             <span className="spec-step-number">
                               {s.kind === "start"
                                 ? "開始"
@@ -356,8 +356,8 @@ export function StageContent({
                     {valid ? (
                       <Diagram
                         key={flow.id}
-                        source={renderFlow(spec, "flows", flow.id)}
-                        businessFlow={{ spec, flow }}
+                        source=""
+                        businessFlow={{ spec, flow, update }}
                       />
                     ) : (
                       <Empty>参照エラーを修正すると図を表示できます。</Empty>

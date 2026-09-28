@@ -1,4 +1,5 @@
 import { defineAction, fail } from "@agent-native/core/action";
+import { flowToBpmnXml } from "@shared/bpmn-flow";
 import { parseSpecYaml, renderFlow } from "@shared/spec-utils";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -9,7 +10,7 @@ import { resolveSpecProject } from "../server/lib/spec-project.js";
 
 export default defineAction({
   description:
-    "Render linear or start/branch/end business flows with labeled, cyclic connections, screens (default), useCases with branches/exceptions, or states as Mermaid.",
+    "Render business flows as BPMN 2.0 XML with interactive-compatible layout; screens (default), useCases and states remain Mermaid.",
   mcpTool: true,
   schema: z.object({
     projectId: z
@@ -29,7 +30,7 @@ export default defineAction({
       .optional()
       .describe("YAML to render; loads the shared document when omitted"),
   }),
-  publicAgent: { expose: true, readOnly: false, requiresAuth: true },
+  publicAgent: { expose: true, readOnly: true, requiresAuth: true },
   run: async ({ yaml, kind, selectedId, projectId }) => {
     const project = await resolveSpecProject(projectId);
     let source = yaml;
@@ -50,8 +51,22 @@ export default defineAction({
         details: { issues: parsed.issues },
       });
     }
+    if (kind === "flows") {
+      const flows = selectedId
+        ? parsed.spec.flows.filter((flow) => flow.id === selectedId)
+        : parsed.spec.flows;
+      if (selectedId && !flows.length)
+        fail("指定した業務フローは存在しません。");
+      return {
+        format: "bpmn" as const,
+        diagrams: flows.map((flow) => ({
+          id: flow.id,
+          xml: flowToBpmnXml(parsed.spec!, flow),
+        })),
+      };
+    }
     return {
-      format: "mermaid",
+      format: "mermaid" as const,
       mermaid: renderFlow(parsed.spec, kind, selectedId),
     };
   },
