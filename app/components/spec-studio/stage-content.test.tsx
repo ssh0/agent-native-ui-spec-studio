@@ -87,6 +87,16 @@ describe("specification stage composition", () => {
     );
 
     expect(html).toContain('aria-label="分岐: 承認するか"');
+    const diamond = html.match(
+      /class="spec-business-flow-branch"[^>]*>.*?<path d="M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+) Z"/,
+    );
+    expect(diamond).not.toBeNull();
+    const [, topX, topY, rightX, rightY, bottomX, bottomY, leftX, leftY] =
+      diamond!.map(Number);
+    expect(Number(topX)).toBe(Number(bottomX));
+    expect(Number(rightY)).toBe(Number(leftY));
+    expect(Number(rightX) - Number(leftX)).toBe(Number(bottomY) - Number(topY));
+    expect(Number(leftX)).toBeLessThan(Number(topX));
     expect(html).toContain("ノード: 分岐: 承認するか");
     expect(html).toContain("差し戻し");
     expect(html).toContain("承認");

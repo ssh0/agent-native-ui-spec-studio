@@ -37,13 +37,15 @@ const LANE_LABEL_WIDTH = 204;
 const NODE_START_X = 24;
 const NODE_WIDTH = 204;
 const NODE_PITCH = 260;
-const CONTROL_WIDTH = 148;
+const NODE_GAP = 56;
+const BRANCH_MIN_SIZE = 128;
 const TERMINAL_WIDTH = 120;
 const LANE_GAP = 10;
 const TOP_PADDING = 12;
 const BOTTOM_PADDING = 16;
 const ACTION_TEXT_LIMIT = 19;
-const CONTROL_TEXT_LIMIT = 14;
+const BRANCH_TEXT_LIMIT = 8;
+const EDGE_LABEL_TEXT_LIMIT = 12;
 const LANE_TEXT_LIMIT = 16;
 const TITLE_LINE_HEIGHT = 15;
 const USE_CASE_LINE_HEIGHT = 12;
@@ -91,6 +93,23 @@ function flowNodeLabel(node: FlowNode): string {
   return node.kind === "start" ? "開始" : "終了";
 }
 
+function requiresOuterRoute(
+  edge: FlowEdge,
+  source: PositionedNode,
+  target: PositionedNode,
+): boolean {
+  if (target.order <= source.order || target.order > source.order + 1)
+    return true;
+  if (!edge.label) return false;
+  const widestLabelLine = Math.max(
+    ...wrapText(edge.label, EDGE_LABEL_TEXT_LIMIT).map(
+      (line) => Array.from(line).length,
+    ),
+  );
+  const availableLabelWidth = target.x - 18 - (source.x + source.width);
+  return widestLabelLine * 10 + 16 > availableLabelWidth;
+}
+
 function measureNodes(spec: UiSpec, flow: Flow): NodeMeasure[] {
   let actionNumber = 0;
   return flow.steps.map((node, order) => {
@@ -118,9 +137,12 @@ function measureNodes(spec: UiSpec, flow: Flow): NodeMeasure[] {
           : 0);
       height = Math.max(60, textHeight + CARD_PADDING * 2);
     } else if (node.kind === "branch") {
-      titleLines = wrapText(node.title, CONTROL_TEXT_LIMIT);
-      width = CONTROL_WIDTH;
-      height = Math.max(78, titleLines.length * TITLE_LINE_HEIGHT + 28);
+      titleLines = wrapText(node.title, BRANCH_TEXT_LIMIT);
+      width = Math.max(
+        BRANCH_MIN_SIZE,
+        titleLines.length * TITLE_LINE_HEIGHT + 96,
+      );
+      height = width;
     } else {
       titleLines = [node.kind === "start" ? "開始" : "終了"];
       width = TERMINAL_WIDTH;
@@ -129,7 +151,7 @@ function measureNodes(spec: UiSpec, flow: Flow): NodeMeasure[] {
     return {
       node,
       order,
-      x: NODE_START_X + order * NODE_PITCH,
+      x: 0,
       width,
       height,
       titleLines,
@@ -147,6 +169,7 @@ function buildLanes(
   lanes: Lane[];
   nodes: PositionedNode[];
   chartHeight: number;
+  chartWidth: number;
   routeBaseY: number;
 } {
   const rowDefinitions: Omit<Lane, "top" | "height" | "labelLines">[] = [];
@@ -185,16 +208,27 @@ function buildLanes(
   lanes.forEach((lane) =>
     lane.indexes.forEach((index) => laneByNodeIndex.set(index, lane)),
   );
+  const maxNodeWidth = Math.max(
+    NODE_WIDTH,
+    ...measures.map((measure) => measure.width),
+  );
+  const nodePitch = Math.max(NODE_PITCH, maxNodeWidth + NODE_GAP);
   const nodes = measures.map((measure) => {
     const lane = laneByNodeIndex.get(measure.order)!;
+    const x = NODE_START_X + measure.order * nodePitch;
     const y = lane.top + (lane.height - measure.height) / 2;
     return {
       ...measure,
+      x,
       y,
-      centerX: measure.x + measure.width / 2,
+      centerX: x + measure.width / 2,
       centerY: y + measure.height / 2,
     };
   });
+  const lastNode = nodes[nodes.length - 1];
+  const chartWidth = lastNode
+    ? lastNode.x + lastNode.width + 24
+    : NODE_START_X + NODE_WIDTH + 24;
   const lastLane = lanes[lanes.length - 1];
   const baseHeight = lastLane
     ? lastLane.top + lastLane.height + BOTTOM_PADDING
@@ -203,16 +237,13 @@ function buildLanes(
     flow.edges?.filter((edge) => {
       const source = nodes.find((node) => node.node.id === edge.from);
       const target = nodes.find((node) => node.node.id === edge.to);
-      return (
-        source &&
-        target &&
-        (target.order <= source.order || target.order > source.order + 1)
-      );
+      return source && target && requiresOuterRoute(edge, source, target);
     }).length ?? 0;
   return {
     lanes,
     nodes,
     chartHeight: baseHeight + routedEdgeCount * LOOP_GAP,
+    chartWidth,
     routeBaseY: baseHeight - BOTTOM_PADDING + 8,
   };
 }
@@ -227,8 +258,7 @@ function edgePath(
   routeBaseY: number,
 ): { path: string; label?: { x: number; y: number } } {
   const isBackward = target.order <= source.order;
-  const isForwardJump = target.order > source.order + 1;
-  if (isBackward || isForwardJump) {
+  if (routeIndex >= 0) {
     const startX = isBackward ? source.centerX : source.x + source.width;
     const startY = isBackward ? source.y + source.height : source.centerY;
     const targetApproachX = target.x - 18;
@@ -238,7 +268,7 @@ function edgePath(
       label: edge.label
         ? {
             x: (startX + targetApproachX) / 2,
-            y: routeY - 5,
+            y: routeY,
           }
         : undefined,
     };
@@ -259,7 +289,7 @@ function edgePath(
       : `M ${sourceX} ${source.centerY} H ${middleX} V ${trackY} H ${approachX} V ${target.centerY} H ${targetX}`;
   return {
     path,
-    label: edge.label ? { x: middleX, y: trackY - 7 } : undefined,
+    label: edge.label ? { x: middleX, y: trackY } : undefined,
   };
 }
 
@@ -276,16 +306,11 @@ export function BusinessFlowGraphPreview({
   const arrowId = `business-flow-graph-arrow-${instance}`;
   const descriptionId = `${arrowId}-connections`;
   const measures = measureNodes(spec, flow);
-  const { lanes, nodes, chartHeight, routeBaseY } = buildLanes(
+  const { lanes, nodes, chartHeight, chartWidth, routeBaseY } = buildLanes(
     spec,
     flow,
     measures,
   );
-  const chartWidth =
-    NODE_START_X +
-    Math.max(0, flow.steps.length - 1) * NODE_PITCH +
-    Math.max(NODE_WIDTH, CONTROL_WIDTH) +
-    24;
   const nodesById = new Map(nodes.map((node) => [node.node.id, node]));
   const edges = flow.edges ?? [];
   const outgoingByNode = new Map<string, FlowEdge[]>();
@@ -360,8 +385,7 @@ export function BusinessFlowGraphPreview({
               const source = nodesById.get(edge.from);
               const target = nodesById.get(edge.to);
               if (!source || !target) return null;
-              const needsOuterRoute =
-                target.order <= source.order || target.order > source.order + 1;
+              const needsOuterRoute = requiresOuterRoute(edge, source, target);
               const path = edgePath(
                 edge,
                 source,
@@ -371,6 +395,7 @@ export function BusinessFlowGraphPreview({
                 needsOuterRoute ? routeIndex++ : -1,
                 routeBaseY,
               );
+              const labelPosition = path.label;
               return (
                 <g key={edge.id ?? `${edge.from}-${edge.to}-${index}`}>
                   <path
@@ -378,14 +403,27 @@ export function BusinessFlowGraphPreview({
                     d={path.path}
                     markerEnd={`url(#${arrowId})`}
                   />
-                  {edge.label && path.label && (
+                  {edge.label && labelPosition && (
                     <text
                       className="spec-business-flow-edge-label"
+                      dominantBaseline="middle"
                       textAnchor="middle"
-                      x={path.label.x}
-                      y={path.label.y}
                     >
-                      {edge.label}
+                      {wrapText(edge.label, EDGE_LABEL_TEXT_LIMIT).map(
+                        (line, lineIndex, lines) => (
+                          <tspan
+                            key={lineIndex}
+                            x={labelPosition.x}
+                            y={
+                              labelPosition.y +
+                              (lineIndex - (lines.length - 1) / 2) *
+                                USE_CASE_LINE_HEIGHT
+                            }
+                          >
+                            {line}
+                          </tspan>
+                        ),
+                      )}
                     </text>
                   )}
                 </g>
@@ -404,7 +442,6 @@ export function BusinessFlowGraphPreview({
               } = positioned;
               if (!isFlowStep(node)) {
                 if (node.kind === "branch") {
-                  const left = x + width / 2;
                   const centerTextHeight =
                     titleLines.length * TITLE_LINE_HEIGHT;
                   const baseline = centerY - centerTextHeight / 2 + 11;
@@ -417,7 +454,7 @@ export function BusinessFlowGraphPreview({
                     >
                       <title>{node.title}</title>
                       <path
-                        d={`M ${centerX} ${y} L ${x + width} ${centerY} L ${centerX} ${y + height} L ${left} ${centerY} Z`}
+                        d={`M ${centerX} ${y} L ${x + width} ${centerY} L ${centerX} ${y + height} L ${x} ${centerY} Z`}
                       />
                       <text
                         className="spec-business-flow-branch-title"
