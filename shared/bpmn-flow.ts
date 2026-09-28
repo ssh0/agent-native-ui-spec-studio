@@ -12,6 +12,7 @@ import {
 import {
   flowNodePerformer,
   isFlowStep,
+  resolveFlowEndPerformer,
   type FlowEdge,
   type FlowNode,
   type UiSpec,
@@ -189,7 +190,10 @@ export function flowToBpmnDefinitions(
   const byPerformer = new Map<string, BpmnLane>();
   const controls: string[] = [];
   for (const node of flow.steps) {
-    const performer = flowNodePerformer(node);
+    const performer =
+      node.kind === "end"
+        ? resolveFlowEndPerformer(flow, node.id)
+        : flowNodePerformer(node);
     const id = nodeId(flow.id, node.id);
     if (!performer) {
       controls.push(id);
@@ -217,8 +221,8 @@ export function flowToBpmnDefinitions(
     if (lane) lane.flowNodeRefs.unshift(entryId);
     else controls.push(entryId);
   }
-  // Explicitly keep events/unassigned decisions in a control lane rather than
-  // letting layout attribute them to an actor or place them outside the pool.
+  // Keep starts and unresolved decisions/endings in a control lane instead
+  // of attributing them to an actor without evidence.
   if (controls.length && lanes.length)
     lanes.unshift({
       id: `Lane_${scope}_control`,

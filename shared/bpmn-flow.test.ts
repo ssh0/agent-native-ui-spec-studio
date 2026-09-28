@@ -159,6 +159,121 @@ describe("BPMN projection of canonical YAML", () => {
     expect(flow).toEqual(original);
   });
 
+  it("places the end event in the last reachable human actor lane, not the control lane", () => {
+    const draft = structuredClone(spec);
+    const flow = draft.flows[0];
+    flow.steps = [
+      {
+        id: "submit",
+        title: "依頼",
+        performer: {
+          kind: "actors",
+          refs: [{ kind: "actor", id: "requester" }],
+        },
+      },
+      {
+        id: "review",
+        title: "審査",
+        performer: { kind: "actors", refs: [{ kind: "actor", id: "member" }] },
+      },
+      {
+        id: "notify",
+        title: "通知",
+        performer: { kind: "externalSystem", id: "notification" },
+      },
+      { id: "finish", kind: "end" },
+    ];
+    flow.edges = [
+      { from: "submit", to: "review" },
+      { from: "review", to: "notify" },
+      { from: "notify", to: "finish" },
+    ];
+    const original = structuredClone(flow);
+    const process = flowToBpmnDefinitions(draft, flow).processes[0];
+    const endId = flowNodeBpmnId(flow.id, "finish");
+    expect(
+      process.laneSet?.lanes.find((lane) =>
+        lane.name?.includes("チームメンバー"),
+      )?.flowNodeRefs,
+    ).toContain(endId);
+    expect(
+      process.laneSet?.lanes.find((lane) => lane.name?.includes("通知サービス"))
+        ?.flowNodeRefs,
+    ).not.toContain(endId);
+    expect(flow).toEqual(original);
+
+    flow.steps[3] = {
+      id: "finish",
+      kind: "end",
+      performer: { kind: "actors", refs: [{ kind: "actor", id: "requester" }] },
+    };
+    const overridden = flowToBpmnDefinitions(draft, flow).processes[0];
+    expect(
+      overridden.laneSet?.lanes.find((lane) => lane.name?.includes("依頼者"))
+        ?.flowNodeRefs,
+    ).toContain(endId);
+  });
+
+  it("uses the last reachable actor in step order when several paths merge", () => {
+    const draft = structuredClone(spec);
+    const flow = draft.flows[0];
+    flow.steps = [
+      { id: "choice", kind: "branch", title: "どちらか" },
+      {
+        id: "first",
+        title: "申請者の作業",
+        performer: {
+          kind: "actors",
+          refs: [{ kind: "actor", id: "requester" }],
+        },
+      },
+      {
+        id: "second",
+        title: "管理者の作業",
+        performer: { kind: "actors", refs: [{ kind: "actor", id: "member" }] },
+      },
+      { id: "finish", kind: "end" },
+    ];
+    flow.edges = [
+      { from: "choice", to: "first", label: "A" },
+      { from: "choice", to: "second", label: "B" },
+      { from: "first", to: "finish" },
+      { from: "second", to: "finish" },
+    ];
+    const endId = flowNodeBpmnId(flow.id, "finish");
+    const lane = flowToBpmnDefinitions(
+      draft,
+      flow,
+    ).processes[0].laneSet?.lanes.find((item) =>
+      item.flowNodeRefs.includes(endId),
+    );
+    expect(lane?.name).toContain("チームメンバー");
+  });
+
+  it("does not assign an end event to an unrelated actor or external system", () => {
+    const draft = structuredClone(spec);
+    const flow = draft.flows[0];
+    flow.steps = [
+      {
+        id: "unrelated",
+        title: "別件",
+        performer: { kind: "actors", refs: [{ kind: "actor", id: "member" }] },
+      },
+      {
+        id: "notify",
+        title: "通知",
+        performer: { kind: "externalSystem", id: "notification" },
+      },
+      { id: "finish", kind: "end" },
+    ];
+    flow.edges = [{ from: "notify", to: "finish" }];
+    const process = flowToBpmnDefinitions(draft, flow).processes[0];
+    expect(
+      process.laneSet?.lanes.find((lane) => lane.name === "フロー制御")
+        ?.flowNodeRefs,
+    ).toContain(flowNodeBpmnId(flow.id, "finish"));
+  });
+
   it("represents unfinished empty flows without inventing tasks", () => {
     const draft = structuredClone(spec);
     draft.flows[0].steps = [];

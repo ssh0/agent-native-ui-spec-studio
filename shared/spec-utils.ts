@@ -279,6 +279,8 @@ export function renderFlow(
               );
             } else if (node.kind === "branch") {
               lines.push(`  ${id}{"${label(node.title)}"}`);
+            } else if (node.kind === "end") {
+              lines.push(`  ${id}(("${label("終了")}"))`);
             }
           });
           lines.push("  end");

@@ -742,6 +742,34 @@ describe("business flow participants and lanes", () => {
       },
     });
   });
+  it("accepts an optional end actor and validates and renames its references", () => {
+    const spec = graphSpec();
+    spec.flows[0].steps[7] = {
+      id: "end",
+      kind: "end",
+      performer: { kind: "actors", refs: [{ kind: "actor", id: "member" }] },
+    };
+    expect(validateSpecRelations(spec)).toEqual([]);
+    expect(SpecSchema.safeParse(spec).success).toBe(true);
+    expect(renderFlow(spec, "flows")).toContain("lane");
+    const renamed = renameParticipant(spec, "actor", "member", "staff");
+    expect(renamed.flows[0].steps[7]).toMatchObject({
+      performer: { refs: [{ kind: "actor", id: "staff" }] },
+    });
+    expect(validateSpecRelations(renamed)).toEqual([]);
+    const invalid = structuredClone(spec);
+    invalid.flows[0].steps[7] = {
+      id: "end",
+      kind: "end",
+      performer: { kind: "actors", refs: [{ kind: "actor", id: "missing" }] },
+    };
+    expect(validateSpecRelations(invalid)).toContainEqual(
+      expect.objectContaining({
+        path: "flows[0].steps[7].performer.refs[0].id",
+      }),
+    );
+  });
+
   it("allows unfinished graph connectivity while validating defined edges", () => {
     const unfinished = graphSpec();
     unfinished.flows[0].edges = [];

@@ -140,7 +140,12 @@ export const FlowControlNodeSchema = z.discriminatedUnion("kind", [
     performer: ActorPerformerSchema.optional(),
     notes,
   }),
-  z.strictObject({ id, kind: z.literal("end"), notes }),
+  z.strictObject({
+    id,
+    kind: z.literal("end"),
+    performer: ActorPerformerSchema.optional(),
+    notes,
+  }),
 ]);
 export const FlowNodeSchema = z.union([FlowStepSchema, FlowControlNodeSchema]);
 export const FlowEdgeSchema = z.strictObject({
@@ -280,9 +285,41 @@ export function isFlowStep(node: FlowNode): node is FlowStep {
 export function flowNodePerformer(node: FlowNode): FlowPerformer | undefined {
   return isFlowStep(node)
     ? node.performer
-    : node.kind === "branch"
+    : node.kind === "branch" || node.kind === "end"
       ? node.performer
       : undefined;
+}
+
+/** The end event inherits the last reachable human decision/task in step order.
+ * An explicit actor reference takes precedence when several paths converge. */
+export function resolveFlowEndPerformer(
+  flow: UiSpec["flows"][number],
+  endId: string,
+): z.infer<typeof ActorPerformerSchema> | undefined {
+  const end = flow.steps.find((node) => node.id === endId);
+  if (!end || end.kind !== "end") return;
+  if (end.performer) return end.performer;
+  const edges =
+    flow.edges ??
+    flow.steps.slice(1).map((node, index) => ({
+      from: flow.steps[index].id,
+      to: node.id,
+    }));
+  const reachable = new Set<string>();
+  const pending = [endId];
+  while (pending.length) {
+    const target = pending.pop()!;
+    for (const edge of edges) {
+      if (edge.to !== target || reachable.has(edge.from)) continue;
+      reachable.add(edge.from);
+      pending.push(edge.from);
+    }
+  }
+  for (const node of [...flow.steps].reverse()) {
+    if (!reachable.has(node.id)) continue;
+    const performer = flowNodePerformer(node);
+    if (performer?.kind === "actors") return performer;
+  }
 }
 export type UiComponent = z.infer<typeof ComponentSchema>;
 export type ValidationIssue = { path: string; message: string };
