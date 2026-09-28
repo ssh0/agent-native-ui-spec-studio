@@ -3,6 +3,7 @@ import {
   Bpmn,
   createFlowElement,
   type BpmnDefinitions,
+  type BpmnDiPlane,
   type BpmnFlowElement,
   type BpmnLane,
   type BpmnSequenceFlow,
@@ -49,6 +50,42 @@ function documentation(...parts: (string | undefined)[]): string | undefined {
   return (
     parts.filter((part): part is string => Boolean(part)).join("\n") ||
     undefined
+  );
+}
+
+// BPMN Kit 1.0's auto-layout may place the control lane above y=0 while
+// leaving the participant at y=0. The pool then clips that lane (and its
+// entry/exit events). Expand the pool around all lanes and align their rails.
+function alignLaneDiagram(
+  plane: BpmnDiPlane,
+  participantId: string,
+  laneIds: string[],
+): void {
+  const pool = plane.shapes.find(
+    (shape) => shape.bpmnElement === participantId,
+  );
+  const lanes = plane.shapes.filter((shape) =>
+    laneIds.includes(shape.bpmnElement),
+  );
+  if (!pool || !lanes.length) return;
+  const left = Math.min(...lanes.map((lane) => lane.bounds.x));
+  const right = Math.max(
+    ...lanes.map((lane) => lane.bounds.x + lane.bounds.width),
+  );
+  const top = Math.min(...lanes.map((lane) => lane.bounds.y));
+  const bottom = Math.max(
+    ...lanes.map((lane) => lane.bounds.y + lane.bounds.height),
+  );
+  for (const lane of lanes) {
+    lane.bounds.x = left;
+    lane.bounds.width = right - left;
+  }
+  pool.bounds.x = Math.min(pool.bounds.x, left - 30);
+  pool.bounds.y = Math.min(pool.bounds.y, top);
+  pool.bounds.width = Math.max(pool.bounds.width, right - pool.bounds.x);
+  pool.bounds.height = Math.max(
+    pool.bounds.height + Math.max(0, -top),
+    bottom - pool.bounds.y,
   );
 }
 
@@ -99,6 +136,21 @@ export function flowToBpmnDefinitions(
       from: flow.steps[index].id,
       to: node.id,
     }));
+  const starts = flow.steps.some((node) => node.kind === "start")
+    ? []
+    : flow.steps.filter((node) => !edges.some((edge) => edge.to === node.id));
+  // An unfinished cyclic graph can have no root; show where its written sequence begins.
+  if (
+    !starts.length &&
+    flow.steps.length &&
+    !flow.steps.some((node) => node.kind === "start")
+  )
+    starts.push(flow.steps[0]);
+  const entryByTarget = new Map(
+    starts.map((node) => [node.id, `Entry_${scope}_${token(node.id)}`]),
+  );
+  for (const entryId of entryByTarget.values())
+    elements.push(createFlowElement(entryId, "startEvent", { name: "開始" }));
   const sequenceFlows: BpmnSequenceFlow[] = edges.map((edge) => {
     const id = sequenceId(flow.id, edge);
     const source = elements.find(
@@ -119,6 +171,22 @@ export function flowToBpmnDefinitions(
       unknownAttributes: {},
     };
   });
+
+  for (const [targetId, entryId] of entryByTarget) {
+    const target = elements.find(
+      (node) => node.id === nodeId(flow.id, targetId),
+    )!;
+    const edgeId = `EntryFlow_${scope}_${token(targetId)}`;
+    elements.find((node) => node.id === entryId)!.outgoing.push(edgeId);
+    target.incoming.push(edgeId);
+    sequenceFlows.push({
+      id: edgeId,
+      sourceRef: entryId,
+      targetRef: target.id,
+      extensionElements: [],
+      unknownAttributes: {},
+    });
+  }
 
   const lanes: BpmnLane[] = [];
   const byPerformer = new Map<string, BpmnLane>();
@@ -144,6 +212,13 @@ export function flowToBpmnDefinitions(
       lanes.push(lane);
     }
     lane.flowNodeRefs.push(id);
+  }
+  for (const [targetId, entryId] of entryByTarget) {
+    const target = flow.steps.find((node) => node.id === targetId)!;
+    const performer = flowNodePerformer(target);
+    const lane = performer && byPerformer.get(flowPerformerKey(performer));
+    if (lane) lane.flowNodeRefs.unshift(entryId);
+    else controls.push(entryId);
   }
   // Explicitly keep events/unassigned decisions in a control lane rather than
   // letting layout attribute them to an actor or place them outside the pool.
@@ -218,7 +293,13 @@ export function flowToBpmnDefinitions(
       },
     ],
   };
-  return applyAutoLayout(definitions);
+  const laidOut = applyAutoLayout(definitions);
+  alignLaneDiagram(
+    laidOut.diagrams[0].plane,
+    participantId,
+    lanes.map((lane) => lane.id),
+  );
+  return laidOut;
 }
 
 /** BPMN XML for viewing/export only; UiSpec YAML remains the canonical document. */
