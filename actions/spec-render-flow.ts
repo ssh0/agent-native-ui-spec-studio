@@ -9,7 +9,7 @@ import { resolveSpecProject } from "../server/lib/spec-project.js";
 
 export default defineAction({
   description:
-    "Render business flows with participant lanes, screens (default), useCases with branches/exceptions, or states as Mermaid.",
+    "Render linear or start/branch/end business flows with labeled, cyclic connections, screens (default), useCases with branches/exceptions, or states as Mermaid.",
   mcpTool: true,
   schema: z.object({
     projectId: z

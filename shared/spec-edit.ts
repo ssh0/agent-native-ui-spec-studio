@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   type ActorRef,
+  isFlowStep,
   SpecSchema,
   validateSpecRelations,
   type UiSpec,
@@ -40,7 +41,10 @@ export const EditOperationSchema = z.object({
     .describe("Screen patch including entities, useCases, stateFlow or notes"),
   componentId: z.string().optional(),
   component: z.record(z.string(), z.unknown()).optional(),
-  transitionId: z.string().optional().describe("Stable transition ID in specification 2.1"),
+  transitionId: z
+    .string()
+    .optional()
+    .describe("Stable transition ID in specification 2.1"),
   transition: z.record(z.string(), z.unknown()).optional(),
 });
 export function renameScreen(spec: UiSpec, from: string, to: string): UiSpec {
@@ -95,8 +99,11 @@ export function editSpec(
       components: [],
     });
   } else if (input.kind.includes("transition")) {
-    if (spec.version !== "2.1") throw new Error("遷移を編集する前に仕様を 2.1 に移行してください。");
-    const i = spec.transitions.findIndex((transition) => transition.id === input.transitionId);
+    if (spec.version !== "2.1")
+      throw new Error("遷移を編集する前に仕様を 2.1 に移行してください。");
+    const i = spec.transitions.findIndex(
+      (transition) => transition.id === input.transitionId,
+    );
     if (input.kind === "add_transition") {
       if (!input.transition) throw new Error("transition が必要です。");
       if (typeof input.transition.id !== "string" || !input.transition.id)
@@ -176,15 +183,22 @@ export function renameParticipant(
     },
     flows: spec.flows.map((flow) => ({
       ...flow,
-      steps: flow.steps.map((step) => ({
-        ...step,
-        performer:
-          step.performer.kind === "actors"
-            ? { ...step.performer, refs: step.performer.refs.map(renameRef) }
-            : kind === "externalSystem" && step.performer.id === from
-              ? { ...step.performer, id: to }
-              : step.performer,
-      })),
+      steps: flow.steps.map((step) =>
+        isFlowStep(step)
+          ? {
+              ...step,
+              performer:
+                step.performer.kind === "actors"
+                  ? {
+                      ...step.performer,
+                      refs: step.performer.refs.map(renameRef),
+                    }
+                  : kind === "externalSystem" && step.performer.id === from
+                    ? { ...step.performer, id: to }
+                    : step.performer,
+            }
+          : step,
+      ),
     })),
     useCases: spec.useCases.map((useCase) => ({
       ...useCase,
@@ -223,13 +237,17 @@ export function renameTerm(spec: UiSpec, from: string, to: string): UiSpec {
     },
     flows: spec.flows.map((f) => ({
       ...f,
-      steps: f.steps.map((s) => ({
-        ...s,
-        performer:
-          s.performer.kind === "actors"
-            ? { ...s.performer, refs: s.performer.refs.map(renameRef) }
-            : s.performer,
-      })),
+      steps: f.steps.map((s) =>
+        isFlowStep(s)
+          ? {
+              ...s,
+              performer:
+                s.performer.kind === "actors"
+                  ? { ...s.performer, refs: s.performer.refs.map(renameRef) }
+                  : s.performer,
+            }
+          : s,
+      ),
     })),
     useCases: spec.useCases.map((u) => ({
       ...u,

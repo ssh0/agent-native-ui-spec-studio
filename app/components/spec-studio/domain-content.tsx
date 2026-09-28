@@ -1,11 +1,8 @@
-import {
-  renameEntity,
-  renameParticipant,
-  renameTerm,
-} from "@shared/spec-edit";
+import { renameEntity, renameParticipant, renameTerm } from "@shared/spec-edit";
 import {
   ActorSetSchema,
   EntitySetSchema,
+  isFlowStep,
   domainSectionLabels,
   domainSections,
   type DomainSection,
@@ -386,6 +383,7 @@ function TermDetail({
     spec.flows.some((f) =>
       f.steps.some(
         (s) =>
+          isFlowStep(s) &&
           s.performer.kind === "actors" &&
           s.performer.refs.some((r) => r.kind === "term" && r.id === term.id),
       ),
@@ -780,14 +778,17 @@ function ParticipantEditor({
       {spec.domain[section].map((participant, index) => {
         const referenced =
           spec.flows.some((flow) =>
-            flow.steps.some((step) =>
-              kind === "actor"
-                ? step.performer.kind === "actors" &&
-                  step.performer.refs.some(
-                    (ref) => ref.kind === "actor" && ref.id === participant.id,
-                  )
-                : step.performer.kind === "externalSystem" &&
-                  step.performer.id === participant.id,
+            flow.steps.some(
+              (step) =>
+                isFlowStep(step) &&
+                (kind === "actor"
+                  ? step.performer.kind === "actors" &&
+                    step.performer.refs.some(
+                      (ref) =>
+                        ref.kind === "actor" && ref.id === participant.id,
+                    )
+                  : step.performer.kind === "externalSystem" &&
+                    step.performer.id === participant.id),
             ),
           ) ||
           (kind === "actor" &&
