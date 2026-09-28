@@ -1,6 +1,7 @@
 import YAML from "yaml";
 
 import {
+  flowNodePerformer,
   formatZodIssues,
   isFlowStep,
   SpecSchema,
@@ -258,23 +259,27 @@ export function renderFlow(
         let actionIndex = 0;
         let laneIndex = 0;
         let lanePerformer: FlowPerformer | undefined;
-        let laneNodes: { node: FlowStep; id: string }[] = [];
+        let laneNodes: { node: FlowNode; id: string }[] = [];
         const flushLane = () => {
           if (!lanePerformer || !laneNodes.length) return;
           lines.push(
             `  subgraph f${i}lane${laneIndex}["${label(performerTitle(spec, lanePerformer))}"]`,
           );
           laneNodes.forEach(({ node, id }) => {
-            actionIndex += 1;
-            const useCaseLabel = node.useCase
-              ? ` / UC: ${formatReferenceLabel(
-                  resolveNamedReference(spec.useCases, node.useCase),
-                  spec.useCases.map((item) => item.id),
-                )}`
-              : "";
-            lines.push(
-              `  ${id}["${label(`${actionIndex}. ${node.title}${useCaseLabel}`)}"]`,
-            );
+            if (isFlowStep(node)) {
+              actionIndex += 1;
+              const useCaseLabel = node.useCase
+                ? ` / UC: ${formatReferenceLabel(
+                    resolveNamedReference(spec.useCases, node.useCase),
+                    spec.useCases.map((item) => item.id),
+                  )}`
+                : "";
+              lines.push(
+                `  ${id}["${label(`${actionIndex}. ${node.title}${useCaseLabel}`)}"]`,
+              );
+            } else if (node.kind === "branch") {
+              lines.push(`  ${id}{"${label(node.title)}"}`);
+            }
           });
           lines.push("  end");
           laneIndex += 1;
@@ -283,14 +288,14 @@ export function renderFlow(
         };
         flow.steps.forEach((node) => {
           const nodeId = nodeIds.get(node.id)!;
-          if (isFlowStep(node)) {
+          const performer = flowNodePerformer(node);
+          if (performer) {
             if (
               lanePerformer &&
-              flowPerformerKey(lanePerformer) !==
-                flowPerformerKey(node.performer)
+              flowPerformerKey(lanePerformer) !== flowPerformerKey(performer)
             )
               flushLane();
-            lanePerformer ??= node.performer;
+            lanePerformer ??= performer;
             laneNodes.push({ node, id: nodeId });
             return;
           }

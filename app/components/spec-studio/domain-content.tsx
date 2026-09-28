@@ -2,7 +2,7 @@ import { renameEntity, renameParticipant, renameTerm } from "@shared/spec-edit";
 import {
   ActorSetSchema,
   EntitySetSchema,
-  isFlowStep,
+  flowNodePerformer,
   domainSectionLabels,
   domainSections,
   type DomainSection,
@@ -381,12 +381,13 @@ function TermDetail({
       u.actors.some((r) => r.kind === "term" && r.id === term.id),
     ) ||
     spec.flows.some((f) =>
-      f.steps.some(
-        (s) =>
-          isFlowStep(s) &&
-          s.performer.kind === "actors" &&
-          s.performer.refs.some((r) => r.kind === "term" && r.id === term.id),
-      ),
+      f.steps.some((s) => {
+        const performer = flowNodePerformer(s);
+        return (
+          performer?.kind === "actors" &&
+          performer.refs.some((r) => r.kind === "term" && r.id === term.id)
+        );
+      }),
     ) ||
     spec.domain.terms.some(
       (t) =>
@@ -778,18 +779,17 @@ function ParticipantEditor({
       {spec.domain[section].map((participant, index) => {
         const referenced =
           spec.flows.some((flow) =>
-            flow.steps.some(
-              (step) =>
-                isFlowStep(step) &&
-                (kind === "actor"
-                  ? step.performer.kind === "actors" &&
-                    step.performer.refs.some(
+            flow.steps.some((step) => {
+              const performer = flowNodePerformer(step);
+              return kind === "actor"
+                ? performer?.kind === "actors" &&
+                    performer.refs.some(
                       (ref) =>
                         ref.kind === "actor" && ref.id === participant.id,
                     )
-                  : step.performer.kind === "externalSystem" &&
-                    step.performer.id === participant.id),
-            ),
+                : performer?.kind === "externalSystem" &&
+                    performer.id === participant.id;
+            }),
           ) ||
           (kind === "actor" &&
             (spec.useCases.some((useCase) =>

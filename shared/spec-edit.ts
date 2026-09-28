@@ -183,22 +183,30 @@ export function renameParticipant(
     },
     flows: spec.flows.map((flow) => ({
       ...flow,
-      steps: flow.steps.map((step) =>
-        isFlowStep(step)
-          ? {
-              ...step,
-              performer:
-                step.performer.kind === "actors"
-                  ? {
-                      ...step.performer,
-                      refs: step.performer.refs.map(renameRef),
-                    }
-                  : kind === "externalSystem" && step.performer.id === from
-                    ? { ...step.performer, id: to }
-                    : step.performer,
-            }
-          : step,
-      ),
+      steps: flow.steps.map((step) => {
+        if (isFlowStep(step))
+          return {
+            ...step,
+            performer:
+              step.performer.kind === "actors"
+                ? {
+                    ...step.performer,
+                    refs: step.performer.refs.map(renameRef),
+                  }
+                : kind === "externalSystem" && step.performer.id === from
+                  ? { ...step.performer, id: to }
+                  : step.performer,
+          };
+        if (step.kind === "branch" && step.performer)
+          return {
+            ...step,
+            performer: {
+              ...step.performer,
+              refs: step.performer.refs.map(renameRef),
+            },
+          };
+        return step;
+      }),
     })),
     useCases: spec.useCases.map((useCase) => ({
       ...useCase,
@@ -237,17 +245,25 @@ export function renameTerm(spec: UiSpec, from: string, to: string): UiSpec {
     },
     flows: spec.flows.map((f) => ({
       ...f,
-      steps: f.steps.map((s) =>
-        isFlowStep(s)
-          ? {
-              ...s,
-              performer:
-                s.performer.kind === "actors"
-                  ? { ...s.performer, refs: s.performer.refs.map(renameRef) }
-                  : s.performer,
-            }
-          : s,
-      ),
+      steps: f.steps.map((s) => {
+        if (isFlowStep(s) && s.performer.kind === "actors")
+          return {
+            ...s,
+            performer: {
+              ...s.performer,
+              refs: s.performer.refs.map(renameRef),
+            },
+          };
+        if (s.kind === "branch" && s.performer)
+          return {
+            ...s,
+            performer: {
+              ...s.performer,
+              refs: s.performer.refs.map(renameRef),
+            },
+          };
+        return s;
+      }),
     })),
     useCases: spec.useCases.map((u) => ({
       ...u,

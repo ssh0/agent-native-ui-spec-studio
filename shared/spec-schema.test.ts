@@ -615,6 +615,133 @@ describe("business flow participants and lanes", () => {
     expect(diagram).toContain("f0n5 --> f0n6");
     expect(diagram).toContain(`f0n7(("${encode("終了")}"))`);
   });
+  it("keeps legacy branches in the control lane and accepts actor decisions in 2.0 and 2.1", () => {
+    const legacy = graphSpec();
+    const branch = legacy.flows[0].steps[2];
+    expect(isFlowStep(branch)).toBe(false);
+    expect(parseSpecYaml(stringify(legacy)).issues).toEqual([]);
+    expect(branch).not.toHaveProperty("performer");
+
+    const actorDecision = graphSpec();
+    actorDecision.flows[0].steps[2] = {
+      id: "decision",
+      kind: "branch",
+      title: "承認するか",
+      performer: {
+        kind: "actors",
+        refs: [{ kind: "actor", id: "member" }],
+      },
+    };
+    expect(isFlowStep(actorDecision.flows[0].steps[2])).toBe(false);
+    expect(parseSpecYaml(stringify(actorDecision)).issues).toEqual([]);
+    const diagram = renderFlow(
+      actorDecision,
+      "flows",
+      actorDecision.flows[0].id,
+    );
+    const decision = Array.from(
+      "承認するか",
+      (c) => `#${c.codePointAt(0)};`,
+    ).join("");
+    const memberLane = diagram
+      .split(/  subgraph f0lane\d+\[/)
+      .find((part) => part.includes(`f0n2{"${decision}"}`));
+    expect(memberLane).toContain("f0n1[");
+    expect(memberLane).toContain("f0n3[");
+    expect(diagram).toContain("f0n2 -->");
+    const migrated = migrateSpecTo21(actorDecision).spec!;
+    expect(parseSpecYaml(stringify(migrated)).issues).toEqual([]);
+    expect(migrated.flows[0].steps[2]).toEqual(actorDecision.flows[0].steps[2]);
+  });
+  it("validates decision actor references and rejects non-actor performers", () => {
+    const spec = graphSpec();
+    spec.flows[0].steps[2] = {
+      id: "decision",
+      kind: "branch",
+      title: "承認するか",
+      performer: { kind: "actors", refs: [{ kind: "actor", id: "missing" }] },
+    };
+    expect(validateSpecRelations(spec)).toContainEqual(
+      expect.objectContaining({
+        path: "flows[0].steps[2].performer.refs[0].id",
+      }),
+    );
+    expect(parseSpecYaml(stringify(spec)).issues).toContainEqual(
+      expect.objectContaining({
+        path: "flows[0].steps[2].performer.refs[0].id",
+      }),
+    );
+    (spec.flows[0].steps[2] as any).performer = {
+      kind: "externalSystem",
+      id: "notification",
+    };
+    expect(SpecSchema.safeParse(spec).success).toBe(false);
+    (spec.flows[0].steps[2] as any).performer = { kind: "actors", refs: [] };
+    expect(SpecSchema.safeParse(spec).success).toBe(false);
+    (spec.flows[0].steps[0] as any).performer = {
+      kind: "actors",
+      refs: [{ kind: "actor", id: "member" }],
+    };
+    expect(SpecSchema.safeParse(spec).success).toBe(false);
+  });
+  it("renames branch actor/term references and blocks deletion while referenced", () => {
+    const spec = graphSpec();
+    spec.domain.actors.push({
+      id: "decision-maker",
+      title: "判定者",
+      description: "判定する",
+    });
+    spec.domain.terms.push({
+      id: "decision-team",
+      title: "判定チーム",
+      definition: "判定担当",
+      actorSet: { kind: "actor", id: "decision-maker" },
+    });
+    spec.flows[0].steps[2] = {
+      id: "decision",
+      kind: "branch",
+      title: "承認するか",
+      performer: {
+        kind: "actors",
+        refs: [
+          { kind: "actor", id: "decision-maker" },
+          { kind: "term", id: "decision-team" },
+        ],
+      },
+    };
+    expect(() =>
+      editSpec(spec, {
+        kind: "set_section",
+        section: "domain",
+        value: {
+          ...spec.domain,
+          actors: spec.domain.actors.filter((a) => a.id !== "decision-maker"),
+        },
+      }),
+    ).toThrow();
+    const renamed = renameTerm(
+      renameParticipant(spec, "actor", "decision-maker", "approver"),
+      "decision-team",
+      "reviewers",
+    );
+    expect(validateSpecRelations(renamed)).toEqual([]);
+    expect(renamed.flows[0].steps[2]).toMatchObject({
+      performer: {
+        refs: [
+          { kind: "actor", id: "approver" },
+          { kind: "term", id: "reviewers" },
+        ],
+      },
+    });
+    expect(spec.flows[0].steps[2]).toMatchObject({
+      performer: {
+        refs: [
+          { kind: "actor", id: "decision-maker" },
+          { kind: "term", id: "decision-team" },
+        ],
+      },
+    });
+  });
   it("allows unfinished graph connectivity while validating defined edges", () => {
     const unfinished = graphSpec();
     unfinished.flows[0].edges = [];

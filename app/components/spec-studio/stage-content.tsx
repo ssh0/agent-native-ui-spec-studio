@@ -1,6 +1,7 @@
 import {
   isFlowStep,
   type DomainSection,
+  type FlowNode,
   type SpecStage,
   type UiSpec,
 } from "@shared/spec-schema";
@@ -100,6 +101,28 @@ export function StageContent({
                   if (isFlowStep(step))
                     stepNumbers.set(step.id, stepNumbers.size + 1);
                 });
+                const setBranchPerformer = (
+                  nodeId: string,
+                  performer: Extract<FlowNode, { kind: "branch" }>["performer"],
+                ) =>
+                  update({
+                    ...spec,
+                    flows: spec.flows.map((item) =>
+                      item.id === flow.id
+                        ? {
+                            ...item,
+                            steps: item.steps.map((node) => {
+                              if (node.id !== nodeId || node.kind !== "branch")
+                                return node;
+                              const next = { ...node };
+                              if (performer) next.performer = performer;
+                              else delete next.performer;
+                              return next;
+                            }),
+                          }
+                        : item,
+                    ),
+                  });
                 return (
                   <>
                     <dl className="spec-facts">
@@ -148,7 +171,8 @@ export function StageContent({
                                           ? {
                                               ...f,
                                               steps: f.steps.map((step) =>
-                                                step.id === s.id
+                                                step.id === s.id &&
+                                                isFlowStep(step)
                                                   ? { ...step, performer }
                                                   : step,
                                               ),
@@ -177,7 +201,8 @@ export function StageContent({
                                           ? {
                                               ...f,
                                               steps: f.steps.map((step) =>
-                                                step.id === s.id
+                                                step.id === s.id &&
+                                                isFlowStep(step)
                                                   ? {
                                                       ...step,
                                                       performer: {
@@ -205,7 +230,8 @@ export function StageContent({
                                             ? {
                                                 ...f,
                                                 steps: f.steps.map((step) =>
-                                                  step.id === s.id
+                                                  step.id === s.id &&
+                                                  isFlowStep(step)
                                                     ? {
                                                         ...step,
                                                         performer: {
@@ -258,6 +284,67 @@ export function StageContent({
                                     ? "開始"
                                     : "終了"}
                               </strong>
+                              {s.kind === "branch" && (
+                                <>
+                                  <Field label="判定者">
+                                    <select
+                                      value={s.performer ? "actors" : ""}
+                                      onChange={(event) => {
+                                        if (!event.target.value) {
+                                          setBranchPerformer(s.id, undefined);
+                                          return;
+                                        }
+                                        const actor = spec.domain.actors[0];
+                                        const term = spec.domain.terms.find(
+                                          (item) => item.actorSet,
+                                        );
+                                        if (!actor && !term) return;
+                                        const firstRef = actor
+                                          ? {
+                                              kind: "actor" as const,
+                                              id: actor.id,
+                                            }
+                                          : {
+                                              kind: "term" as const,
+                                              id: term!.id,
+                                            };
+                                        setBranchPerformer(s.id, {
+                                          kind: "actors",
+                                          refs: [firstRef],
+                                        });
+                                      }}
+                                    >
+                                      <option value="">
+                                        指定なし（制御レーン）
+                                      </option>
+                                      <option
+                                        value="actors"
+                                        disabled={
+                                          !spec.domain.actors.length &&
+                                          !spec.domain.terms.some(
+                                            (term) => term.actorSet,
+                                          )
+                                        }
+                                      >
+                                        アクター
+                                      </option>
+                                    </select>
+                                  </Field>
+                                  {s.performer && (
+                                    <ActorRefsEditor
+                                      spec={spec}
+                                      value={s.performer.refs}
+                                      onChange={(refs) => {
+                                        if (refs.length)
+                                          setBranchPerformer(s.id, {
+                                            kind: "actors",
+                                            refs,
+                                          });
+                                      }}
+                                    />
+                                  )}
+                                </>
+                              )}
                               <Note value={s.notes} />
                             </div>
                           </li>

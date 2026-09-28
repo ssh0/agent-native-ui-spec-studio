@@ -75,11 +75,12 @@ function setExpression<T extends z.ZodType>(reference: T) {
 }
 export const ActorSetSchema = setExpression(ActorRefSchema);
 export const EntitySetSchema = setExpression(EntityRefSchema);
+export const ActorPerformerSchema = z.strictObject({
+  kind: z.literal("actors"),
+  refs: z.array(ActorRefSchema).min(1),
+});
 export const PerformerSchema = z.discriminatedUnion("kind", [
-  z.strictObject({
-    kind: z.literal("actors"),
-    refs: z.array(ActorRefSchema).min(1),
-  }),
+  ActorPerformerSchema,
   z.strictObject({ kind: z.literal("externalSystem"), id }),
 ]);
 const RelationEndSchema = z.strictObject({
@@ -132,7 +133,13 @@ export const FlowStepSchema = z.strictObject({
 });
 export const FlowControlNodeSchema = z.discriminatedUnion("kind", [
   z.strictObject({ id, kind: z.literal("start"), notes }),
-  z.strictObject({ id, kind: z.literal("branch"), title: id, notes }),
+  z.strictObject({
+    id,
+    kind: z.literal("branch"),
+    title: id,
+    performer: ActorPerformerSchema.optional(),
+    notes,
+  }),
   z.strictObject({ id, kind: z.literal("end"), notes }),
 ]);
 export const FlowNodeSchema = z.union([FlowStepSchema, FlowControlNodeSchema]);
@@ -268,7 +275,14 @@ export type FlowStep = z.infer<typeof FlowStepSchema>;
 export type FlowPerformer = FlowStep["performer"];
 export type FlowEdge = z.infer<typeof FlowEdgeSchema>;
 export function isFlowStep(node: FlowNode): node is FlowStep {
-  return "performer" in node;
+  return node.kind === "step" || node.kind === undefined;
+}
+export function flowNodePerformer(node: FlowNode): FlowPerformer | undefined {
+  return isFlowStep(node)
+    ? node.performer
+    : node.kind === "branch"
+      ? node.performer
+      : undefined;
 }
 export type UiComponent = z.infer<typeof ComponentSchema>;
 export type ValidationIssue = { path: string; message: string };
@@ -488,16 +502,13 @@ export function validateSpecRelations(spec: UiSpec): ValidationIssue[] {
     const path = `flows[${i}]`;
     const nodeIds = unique(flow.steps, `${path}.steps`);
     flow.steps.forEach((node, j) => {
-      if (!isFlowStep(node)) return;
-      ref(node.useCase, cases, `${path}.steps[${j}].useCase`);
-      if (node.performer.kind === "actors")
-        actorRefs(node.performer.refs, `${path}.steps[${j}].performer.refs`);
-      else
-        ref(
-          node.performer.id,
-          externalSystems,
-          `${path}.steps[${j}].performer.id`,
-        );
+      if (isFlowStep(node))
+        ref(node.useCase, cases, `${path}.steps[${j}].useCase`);
+      const performer = flowNodePerformer(node);
+      if (performer?.kind === "actors")
+        actorRefs(performer.refs, `${path}.steps[${j}].performer.refs`);
+      else if (performer)
+        ref(performer.id, externalSystems, `${path}.steps[${j}].performer.id`);
     });
 
     const hasControlNodes = flow.steps.some((node) => !isFlowStep(node));
