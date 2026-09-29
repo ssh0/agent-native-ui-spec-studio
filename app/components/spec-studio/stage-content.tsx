@@ -1,5 +1,6 @@
 import {
   isFlowStep,
+  resolveFlowEndPerformer,
   type DomainSection,
   type FlowNode,
   type SpecStage,
@@ -101,7 +102,7 @@ export function StageContent({
                   if (isFlowStep(step))
                     stepNumbers.set(step.id, stepNumbers.size + 1);
                 });
-                const setBranchPerformer = (
+                const setControlPerformer = (
                   nodeId: string,
                   performer: Extract<FlowNode, { kind: "branch" }>["performer"],
                 ) =>
@@ -112,7 +113,10 @@ export function StageContent({
                         ? {
                             ...item,
                             steps: item.steps.map((node) => {
-                              if (node.id !== nodeId || node.kind !== "branch")
+                              if (
+                                node.id !== nodeId ||
+                                (node.kind !== "branch" && node.kind !== "end")
+                              )
                                 return node;
                               const next = { ...node };
                               if (performer) next.performer = performer;
@@ -284,14 +288,20 @@ export function StageContent({
                                     ? "開始"
                                     : "終了"}
                               </strong>
-                              {s.kind === "branch" && (
+                              {(s.kind === "branch" || s.kind === "end") && (
                                 <>
-                                  <Field label="判定者">
+                                  <Field
+                                    label={
+                                      s.kind === "branch"
+                                        ? "判定者"
+                                        : "終了担当"
+                                    }
+                                  >
                                     <select
                                       value={s.performer ? "actors" : ""}
                                       onChange={(event) => {
                                         if (!event.target.value) {
-                                          setBranchPerformer(s.id, undefined);
+                                          setControlPerformer(s.id, undefined);
                                           return;
                                         }
                                         const actor = spec.domain.actors[0];
@@ -308,14 +318,16 @@ export function StageContent({
                                               kind: "term" as const,
                                               id: term!.id,
                                             };
-                                        setBranchPerformer(s.id, {
+                                        setControlPerformer(s.id, {
                                           kind: "actors",
                                           refs: [firstRef],
                                         });
                                       }}
                                     >
                                       <option value="">
-                                        指定なし（制御レーン）
+                                        {s.kind === "end"
+                                          ? "自動（最後の担当レーン）"
+                                          : "指定なし（制御レーン）"}
                                       </option>
                                       <option
                                         value="actors"
@@ -330,13 +342,27 @@ export function StageContent({
                                       </option>
                                     </select>
                                   </Field>
+                                  {s.kind === "end" && !s.performer && (
+                                    <p className="spec-muted">
+                                      自動:{" "}
+                                      {resolveFlowEndPerformer(flow, s.id)
+                                        ? performerTitle(
+                                            spec,
+                                            resolveFlowEndPerformer(
+                                              flow,
+                                              s.id,
+                                            )!,
+                                          )
+                                        : "担当アクターなし（制御レーン）"}
+                                    </p>
+                                  )}
                                   {s.performer && (
                                     <ActorRefsEditor
                                       spec={spec}
                                       value={s.performer.refs}
                                       onChange={(refs) => {
                                         if (refs.length)
-                                          setBranchPerformer(s.id, {
+                                          setControlPerformer(s.id, {
                                             kind: "actors",
                                             refs,
                                           });

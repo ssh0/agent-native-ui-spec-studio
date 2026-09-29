@@ -27,6 +27,28 @@ describe("specification stage composition", () => {
     expect(html).not.toContain("Mermaidを試作");
   });
 
+  it("shows the inferred end actor and an explicit override control", () => {
+    const graph = structuredClone(spec);
+    const flow = graph.flows[0];
+    flow.steps.push({ id: "finish", kind: "end" });
+    flow.edges = [{ from: flow.steps[flow.steps.length - 2].id, to: "finish" }];
+    const html = renderToStaticMarkup(
+      <StageContent
+        stage="flows"
+        spec={graph}
+        update={() => {}}
+        selectedId={flow.id}
+        select={() => {}}
+        domainSection="entities"
+        selectDomainSection={() => {}}
+        valid
+      />,
+    );
+    expect(html).toContain("終了担当");
+    expect(html).toContain("自動（最後の担当レーン）");
+    expect(html).toContain("自動: アクター: 依頼者");
+  });
+
   it.each([
     ["domain", "タスク"],
     ["flows", "作業の受付と登録"],

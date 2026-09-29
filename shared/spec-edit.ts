@@ -197,7 +197,7 @@ export function renameParticipant(
                   ? { ...step.performer, id: to }
                   : step.performer,
           };
-        if (step.kind === "branch" && step.performer)
+        if ((step.kind === "branch" || step.kind === "end") && step.performer)
           return {
             ...step,
             performer: {
@@ -254,7 +254,7 @@ export function renameTerm(spec: UiSpec, from: string, to: string): UiSpec {
               refs: s.performer.refs.map(renameRef),
             },
           };
-        if (s.kind === "branch" && s.performer)
+        if ((s.kind === "branch" || s.kind === "end") && s.performer)
           return {
             ...s,
             performer: {
