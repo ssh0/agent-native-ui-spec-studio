@@ -268,9 +268,6 @@
   width: min(420px, 40vw);
   flex: none;
 }
-.agent-kit-persistent-chat [data-agent-chat-compact="true"] .agent-kit-workspace-panel {
-  display: none;
-}
 @media (max-width: 900px) {
   .agent-kit-persistent-pane {
     position: fixed;
