@@ -5,6 +5,6 @@ export function chatPresentation(
   paneOpen: boolean,
 ): ChatPresentation {
   if (pathname.startsWith("/chat/")) return "full";
-  if (pathname === "/spec" && paneOpen) return "pane";
+  if (paneOpen) return "pane";
   return "hidden";
 }

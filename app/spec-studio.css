@@ -16,8 +16,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--background);
-  color: var(--foreground);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
   font-family:
     "Inter Variable", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic",
     sans-serif;
@@ -49,7 +49,7 @@
 .spec-studio code {
   font-family: ui-monospace, monospace;
   font-size: 11px;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   overflow-wrap: anywhere;
 }
 .spec-studio button {
@@ -74,7 +74,7 @@
   white-space: nowrap;
 }
 .spec-document-name {
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   border-left: 1px solid var(--spec-border-strong);
   padding-left: 24px;
   overflow: hidden;
@@ -92,10 +92,10 @@
 .spec-header-actions a,
 .spec-save-state {
   font-size: 12px;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
 }
 .spec-header-actions a:hover {
-  color: var(--foreground);
+  color: hsl(var(--foreground));
   text-decoration: underline;
 }
 .spec-workspace {
@@ -109,13 +109,13 @@
   flex-direction: column;
   gap: 5px;
   padding: 24px 12px 16px;
-  background: var(--sidebar);
+  background: hsl(var(--sidebar-background));
   border-right: 1px solid var(--spec-border-strong);
   overflow: auto;
 }
 .spec-nav-label {
   padding: 0 14px 14px;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   font-size: 11px;
   font-weight: 600;
 }
@@ -129,11 +129,11 @@
   text-align: left;
 }
 .spec-stage-link.is-active {
-  background: var(--sidebar-accent);
-  color: var(--sidebar-accent-foreground);
+  background: hsl(var(--sidebar-accent));
+  color: hsl(var(--sidebar-accent-foreground));
 }
 .spec-stage-index {
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
@@ -142,7 +142,7 @@
   margin-top: 3px;
   font-size: 10px;
   font-weight: 400;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
 }
 .spec-nav-footer {
   display: flex;
@@ -153,7 +153,7 @@
 }
 .spec-nav-footer > span {
   font-size: 11px;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
 }
 .spec-center {
   min-height: 0;
@@ -217,11 +217,11 @@
   padding: 5px 12px;
 }
 .spec-domain-section.is-active {
-  background: var(--accent);
-  color: var(--accent-foreground);
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
 }
 .spec-domain-section small {
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   font-size: 10px;
   line-height: 1.2;
 }
@@ -261,8 +261,8 @@
   overflow-wrap: anywhere;
 }
 .spec-item.is-selected {
-  background: var(--accent);
-  color: var(--accent-foreground);
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
 }
 .spec-item-list > button:last-child {
   flex-shrink: 0;
@@ -283,7 +283,7 @@
   font-size: 19px;
 }
 .spec-stage-detail > p {
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   margin-bottom: 20px;
 }
 .spec-table {
@@ -294,8 +294,8 @@
   text-align: left;
 }
 .spec-table th {
-  color: var(--muted-foreground);
-  background: var(--muted);
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted));
   font-size: 11px;
   font-weight: 500;
   padding: 10px 12px;
@@ -318,7 +318,7 @@
 }
 .spec-table td p {
   margin-top: 6px;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
 }
 .spec-facts {
   display: grid;
@@ -327,7 +327,7 @@
   margin: 0 0 24px;
 }
 .spec-facts dt {
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   font-size: 11px;
   margin-bottom: 4px;
 }
@@ -341,12 +341,12 @@
   gap: 4px 6px;
 }
 .spec-reference-label code {
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   font-size: 10px;
   overflow-wrap: anywhere;
 }
 .spec-reference-unresolved {
-  color: var(--destructive);
+  color: hsl(var(--destructive));
 }
 .spec-reference-list {
   display: inline-flex;
@@ -355,19 +355,19 @@
   gap: 4px 12px;
 }
 .spec-reference-list small {
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   font-size: 10px;
 }
 .spec-note {
   padding: 14px 16px;
   border-left: 2px solid var(--spec-border-strong);
   margin-top: 20px;
-  background: var(--muted);
+  background: hsl(var(--muted));
   font-size: 12px;
 }
 .spec-note strong {
   font-size: 10px;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   font-weight: 500;
 }
 .spec-note p {
@@ -412,13 +412,13 @@
   width: 30px;
   height: 30px;
   flex-shrink: 0;
-  background: var(--muted);
+  background: hsl(var(--muted));
   border: 1px solid var(--spec-border);
   font-size: 12px;
   border-radius: 4px;
 }
 .spec-step-list p {
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   font-size: 12px;
   margin-top: 6px;
 }
@@ -426,17 +426,17 @@
   display: block;
   width: fit-content;
   font-size: 10px;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   margin-bottom: 4px;
 }
 .spec-branch-kind.exception {
-  color: var(--destructive);
+  color: hsl(var(--destructive));
 }
 .spec-inspector {
   min-height: 0;
   overflow-y: auto;
   border-left: 1px solid var(--spec-border-strong);
-  background: var(--card);
+  background: hsl(var(--card));
 }
 .spec-inspector-section {
   padding: 22px 20px;
@@ -456,7 +456,7 @@
   margin: 0;
 }
 .spec-valid {
-  color: var(--foreground);
+  color: hsl(var(--foreground));
   font-size: 12px;
 }
 .spec-valid::before {
@@ -469,7 +469,7 @@
 }
 .spec-disclosure summary {
   cursor: pointer;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
 }
 .spec-disclosure[open] summary {
   margin-bottom: 16px;
@@ -488,17 +488,17 @@
   border-radius: 4px;
   padding: 2px 7px;
   font-size: 10px;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
 }
 .spec-status--approved {
-  color: var(--foreground);
-  background: var(--accent);
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent));
 }
 .spec-status--changes_requested {
-  color: var(--destructive);
+  color: hsl(var(--destructive));
 }
 .spec-review-focus {
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   font-size: 11px;
   margin-bottom: 14px !important;
 }
@@ -510,14 +510,14 @@
 }
 .spec-field > span {
   font-size: 11px;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
 }
 .spec-studio textarea:not(.spec-editor),
 .spec-studio select {
-  border: 1px solid var(--input);
+  border: 1px solid hsl(var(--input));
   border-radius: 5px;
-  background: var(--background);
-  color: var(--foreground);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
   font: inherit;
   padding: 8px 10px;
   width: 100%;
@@ -529,7 +529,7 @@
 }
 .spec-studio textarea:focus-visible,
 .spec-studio select:focus-visible {
-  outline: 2px solid var(--ring);
+  outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
 }
 .spec-studio .spec-comment {
@@ -543,7 +543,7 @@
   margin: 12px 0;
 }
 .spec-muted {
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   font-size: 11px;
   margin-top: 10px !important;
 }
@@ -566,7 +566,7 @@
 .spec-history time,
 .spec-history li > span {
   font-size: 10px;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
 }
 .spec-history p {
   margin-top: 8px;
@@ -574,7 +574,7 @@
   overflow-wrap: anywhere;
 }
 .spec-history details {
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   margin-top: 8px;
   font-size: 10px;
 }
@@ -589,9 +589,9 @@
   min-height: 180px;
   resize: none;
   padding: 24px;
-  border: 0;
-  background: var(--background);
-  color: var(--foreground);
+  border: 1px solid var(--spec-border-subtle);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
   font:
     12px/1.85 ui-monospace,
     monospace;
@@ -612,17 +612,17 @@
 }
 .spec-section-edit-actions > span {
   margin-right: auto;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
 }
 .spec-message {
   padding: 10px 24px;
-  background: var(--muted);
+  background: hsl(var(--muted));
   border-bottom: 1px solid var(--spec-border);
   font-size: 12px;
 }
 .spec-errors,
 .spec-validation-issues {
-  color: var(--destructive);
+  color: hsl(var(--destructive));
   white-space: pre-wrap;
   font-size: 11px;
   overflow-wrap: anywhere;
@@ -643,7 +643,7 @@
   flex-direction: column;
   gap: 14px;
   align-items: flex-start;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   padding: 28px 20px;
   font-size: 12px;
 }
@@ -655,7 +655,7 @@
 .spec-reference-line {
   display: flex;
   gap: 24px;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   font-size: 11px;
   margin: 16px 0 28px;
 }
@@ -706,7 +706,7 @@
 }
 .spec-diagram-zoom output {
   min-width: 42px;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   text-align: center;
@@ -800,7 +800,7 @@
 .spec-flow-loading,
 .spec-flow-fallback {
   padding: 28px 0;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   font-size: 12px;
 }
 .spec-flow-code {
@@ -809,7 +809,7 @@
 }
 .wireframe {
   border: 1px solid var(--spec-border);
-  background: var(--background);
+  background: hsl(var(--background));
 }
 .wireframe__title {
   padding: 12px 18px;
@@ -817,7 +817,7 @@
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
 }
 .wireframe-screen {
   padding: 24px;
@@ -827,7 +827,7 @@
   padding-bottom: 18px;
 }
 .wireframe-screen__header p {
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
   font-size: 12px;
   margin-top: 8px;
 }
@@ -837,7 +837,7 @@
   font:
     11px ui-monospace,
     monospace;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
 }
 .wireframe-screen__body {
   display: grid;
@@ -847,7 +847,7 @@
 .wireframe-control {
   width: fit-content;
   padding: 8px 20px;
-  border: 1px solid var(--foreground);
+  border: 1px solid hsl(var(--foreground));
   border-radius: 4px;
 }
 .wireframe-input,
@@ -856,7 +856,7 @@
 .wireframe-image {
   padding: 14px;
   border: 1px dashed var(--spec-border);
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
 }
 .wireframe-input {
   margin-top: 8px;
@@ -870,7 +870,7 @@
   width: 28px;
   height: 16px;
   border-radius: 12px;
-  background: var(--muted);
+  background: hsl(var(--muted));
   border: 1px solid var(--spec-border);
 }
 .spec-skeleton {
@@ -879,7 +879,7 @@
   gap: 24px;
 }
 .spec-skeleton div {
-  background: var(--muted);
+  background: hsl(var(--muted));
   height: 70px;
   border-radius: 4px;
 }
@@ -1018,14 +1018,14 @@
 .spec-version-page {
   min-height: 100vh;
   padding: 1.5rem;
-  background: #f7f8f6;
-  color: #26332e;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
 .spec-version-header {
   display: flex;
   align-items: baseline;
   gap: 1.5rem;
-  border-bottom: 1px solid #dce3dd;
+  border-bottom: 1px solid hsl(var(--border));
   padding-bottom: 1rem;
 }
 .spec-version-header h1 {
@@ -1048,8 +1048,8 @@
 .spec-version-controls select,
 .spec-version-feedback select,
 .spec-version-feedback textarea {
-  background: white;
-  border: 1px solid #bac8bf;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--input));
   border-radius: 0.35rem;
   padding: 0.45rem 0.6rem;
 }
@@ -1066,8 +1066,8 @@
 .spec-version-content,
 .spec-version-feedback {
   min-width: 0;
-  background: white;
-  border: 1px solid #dce3dd;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 0.5rem;
   padding: 1rem;
 }
@@ -1091,12 +1091,12 @@
 }
 .spec-version-nav button:hover,
 .spec-version-nav button.is-active {
-  background: #e9f3ed;
+  background: hsl(var(--accent));
 }
 .spec-version-nav small,
 .spec-version-feedback small {
   display: block;
-  color: #64756b;
+  color: hsl(var(--muted-foreground));
   font-size: 0.75rem;
 }
 .spec-version-content h2 {
@@ -1108,13 +1108,13 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.65rem;
-  color: #64756b;
+  color: hsl(var(--muted-foreground));
   font-size: 0.8rem;
 }
 .spec-version-yaml {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  background: #f3f6f3;
+  background: hsl(var(--muted));
   padding: 1rem;
   margin: 1rem 0;
   max-height: 60vh;
@@ -1133,13 +1133,13 @@
   gap: 0.75rem;
 }
 .spec-version-feedback li {
-  border-top: 1px solid #e1e7e2;
+  border-top: 1px solid hsl(var(--border));
   padding-top: 0.75rem;
   font-size: 0.85rem;
 }
 .spec-version-feedback em {
   display: block;
-  color: #925b32;
+  color: hsl(var(--destructive));
 }
 @media (max-width: 900px) {
   .spec-version-grid {
@@ -1160,9 +1160,9 @@
 }
 .spec-proposal-select select {
   padding: 0.55rem;
-  border: 1px solid #bac8bf;
+  border: 1px solid hsl(var(--input));
   border-radius: 0.35rem;
-  background: white;
+  background: hsl(var(--card));
 }
 .spec-proposal-body {
   display: grid;
@@ -1175,18 +1175,18 @@
   margin-top: 1.25rem;
 }
 .spec-proposal-change {
-  border-top: 1px solid #e1e7e2;
+  border-top: 1px solid hsl(var(--border));
   padding: 0.7rem 0;
 }
 .spec-proposal-change summary {
   cursor: pointer;
 }
 .spec-proposal-change small {
-  color: #64756b;
+  color: hsl(var(--muted-foreground));
   margin-left: 0.5rem;
 }
 .spec-proposal-body blockquote {
-  border-left: 3px solid #bac8bf;
+  border-left: 3px solid hsl(var(--input));
   padding-left: 0.7rem;
   white-space: pre-wrap;
 }

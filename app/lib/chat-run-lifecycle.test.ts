@@ -64,6 +64,9 @@ describe("route presentation and durable run ownership", () => {
     expect(chatPresentation("/spec", true)).toBe("pane");
     expect(chatPresentation("/spec", false)).toBe("hidden");
     expect(chatPresentation("/spec-proposals", false)).toBe("hidden");
+    expect(chatPresentation("/spec-proposals", true)).toBe("pane");
+    expect(chatPresentation("/spec-review", true)).toBe("pane");
+    expect(chatPresentation("/chat/thread-a", true)).toBe("full");
     expect(chatPresentation("/chat/thread-a", false)).toBe("full");
   });
   it("keeps stationary and navigated runs alive, then resumes their output by thread", async () => {

@@ -1,3 +1,4 @@
+import { ChatPaneToggle } from "@/components/chat/ChatPaneControl";
 import {
   useActionMutation,
   useActionQuery,
@@ -113,7 +114,7 @@ export default function SpecPage() {
         );
         return next;
       },
-      { replace: true },
+      { replace: true, viewTransition: true },
     );
   };
   useEffect(() => {
@@ -286,14 +287,14 @@ export default function SpecPage() {
     return (
       <main className="p-8" lang="ja">
         <p>プロジェクトを一覧から選んでください。</p>
-        <Link to="/projects">既存のプロジェクトを開く</Link>
+        <Link viewTransition to="/projects">既存のプロジェクトを開く</Link>
       </main>
     );
 
   return (
     <div className="spec-studio" lang="ja">
       <header className="spec-studio-header">
-        <Link className="spec-brand" to="/projects">
+        <Link viewTransition className="spec-brand" to="/projects">
           UI仕様スタジオ
         </Link>
         <span className="spec-document-name">
@@ -307,10 +308,8 @@ export default function SpecPage() {
                 ? "保存済み"
                 : "読込中"}
           </span>
-          <Link to={`/spec-review?project=${encodeURIComponent(projectId)}`}>版別レビュー</Link>
-          <Button type="button" variant="outline" size="sm" aria-label="エージェントチャットを開く" onClick={() => window.dispatchEvent(new Event("spec-chat:open"))}>
-            エージェントチャット
-          </Button>
+          <Link viewTransition to={`/spec-review?project=${encodeURIComponent(projectId)}`}>版別レビュー</Link>
+          <ChatPaneToggle />
           <Button
             size="sm"
             onClick={() => void saveSpec()}
@@ -402,7 +401,7 @@ export default function SpecPage() {
               <p>仕様はまだありません。YAMLを読み込むか、直接入力して始められます。</p>
               {yamlFileInput}
               <Button variant="outline" onClick={() => navigate({ mode: "yaml" })}>YAMLを直接入力</Button>
-              <Link to={`/projects/${encodeURIComponent(projectId)}`}>チャットで相談</Link>
+              <Link viewTransition to={`/projects/${encodeURIComponent(projectId)}`}>チャットで相談</Link>
             </div>
           ) : !base.updatedAt && !loaded.isError ? (
             <div
@@ -588,7 +587,7 @@ export default function SpecPage() {
                     </div>
                     <span>{stageLabels[entry.stage]}</span>
                     {entry.comment && <p>{entry.comment}</p>}
-                    {entry.versionId && <Link to={`/spec-review?project=${encodeURIComponent(projectId)}&version=${encodeURIComponent(entry.versionId)}`}>対象の保存版を見る</Link>}
+                    {entry.versionId && <Link viewTransition to={`/spec-review?project=${encodeURIComponent(projectId)}&version=${encodeURIComponent(entry.versionId)}`}>対象の保存版を見る</Link>}
                     <details>
                       <summary>対象の仕様</summary>
                       <code>{entry.documentHash}</code>

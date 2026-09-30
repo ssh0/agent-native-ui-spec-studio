@@ -369,6 +369,7 @@ function ChatMessageSupplement(props: AgentKitRenderProps<AgentMessage>) {
           </div>
           <Button asChild variant="outline" size="sm" className="mt-2">
             <Link
+              viewTransition
               to={`/spec-proposals?project=${encodeURIComponent(projectId)}&proposal=${encodeURIComponent(proposalId)}`}
             >
               仕様案を確認
@@ -414,11 +415,19 @@ function ChatCanvas({
     <div className="flex h-full flex-col">
       {projectId && !compact && (
         <div className="flex items-center justify-between border-b px-4 py-2 text-sm">
-          <Link to="/projects">プロジェクト一覧</Link>
-          <Link to={`/spec?project=${encodeURIComponent(projectId)}`}>
+          <Link viewTransition to="/projects">
+            プロジェクト一覧
+          </Link>
+          <Link
+            viewTransition
+            to={`/spec?project=${encodeURIComponent(projectId)}`}
+          >
             仕様を開く
           </Link>
-          <Link to={`/spec-proposals?project=${encodeURIComponent(projectId)}`}>
+          <Link
+            viewTransition
+            to={`/spec-proposals?project=${encodeURIComponent(projectId)}`}
+          >
             AI 仕様案
           </Link>
         </div>

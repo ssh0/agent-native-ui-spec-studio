@@ -19,7 +19,12 @@ export default function ProjectsPage() {
     setError("");
     try {
       const project = await create.mutateAsync({ name: name.trim() });
-      navigate(destination === "yaml" ? `/spec?project=${encodeURIComponent(project.id)}&mode=yaml` : `/projects/${encodeURIComponent(project.id)}`);
+      navigate(
+        destination === "yaml"
+          ? `/spec?project=${encodeURIComponent(project.id)}&mode=yaml`
+          : `/projects/${encodeURIComponent(project.id)}`,
+        { viewTransition: true },
+      );
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -71,7 +76,12 @@ export default function ProjectsPage() {
           <Button disabled={create.isPending || !name.trim()} type="submit">
             {create.isPending ? "作成中…" : "チャットで始める"}
           </Button>
-          <Button disabled={create.isPending || !name.trim()} type="button" variant="outline" onClick={() => void start("yaml")}>
+          <Button
+            disabled={create.isPending || !name.trim()}
+            type="button"
+            variant="outline"
+            onClick={() => void start("yaml")}
+          >
             YAMLから始める
           </Button>
         </form>
@@ -108,6 +118,7 @@ export default function ProjectsPage() {
           {projects.data?.map((project) => (
             <li key={project.id}>
               <Link
+                viewTransition
                 to={`/projects/${encodeURIComponent(project.id)}`}
                 className="block rounded-lg border bg-card p-4 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >

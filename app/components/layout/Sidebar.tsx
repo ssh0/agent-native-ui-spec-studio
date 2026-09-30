@@ -70,11 +70,10 @@ function PrimaryNavigation({ collapsed }: { collapsed: boolean }) {
     const label = t(labelKey);
     const link = (
       <NavLink
+        viewTransition
         key={href}
         to={
-          href === "/spec" && projectId
-            ? `${href}?project=${encodeURIComponent(projectId)}`
-            : href
+          projectId ? `${href}?project=${encodeURIComponent(projectId)}` : href
         }
         end={href === "/settings"}
         className={({ isActive }) =>
@@ -599,6 +598,7 @@ export function Sidebar({
         ) : (
           <>
             <Link
+              viewTransition
               to="/"
               className="flex min-w-0 flex-1 items-center gap-3 rounded outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
             >
@@ -624,13 +624,19 @@ export function Sidebar({
         )}
       >
         <Link
+          viewTransition
           to="/projects"
+          aria-label="プロジェクト一覧"
           className={cn(
             "mb-2 rounded-lg px-3 py-2 text-sm font-medium hover:bg-sidebar-accent",
-            collapsed ? "text-xs" : "mx-2",
+            collapsed ? "flex size-10 items-center justify-center p-0" : "mx-2",
           )}
         >
-          {collapsed ? "P" : "プロジェクト一覧"}
+          {collapsed ? (
+            <IconApps className="size-4 shrink-0" />
+          ) : (
+            "プロジェクト一覧"
+          )}
         </Link>
         {!collapsed && (
           <div className="mx-4 mb-2 truncate text-xs text-muted-foreground">

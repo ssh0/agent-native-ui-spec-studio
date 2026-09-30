@@ -1,6 +1,8 @@
+import { navigateWithAgentChatViewTransition } from "@agent-native/core/client/agentkit-chat/rail";
 import { useChatThreads } from "@agent-native/core/client/agentkit-chat/rail";
 import { useActionQuery } from "@agent-native/core/client/hooks";
-import { IconMenu2, IconMessage, IconX } from "@tabler/icons-react";
+import { IconArrowsMaximize, IconArrowsMinimize } from "@tabler/icons-react";
+import { IconMenu2 } from "@tabler/icons-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 
@@ -10,6 +12,7 @@ import { chatPresentation } from "@/lib/chat-presentation";
 import { createProjectThread, projectThreadExists } from "@/lib/project-chat";
 import { selectProjectThread } from "@/lib/project-chat-selection";
 
+import { ChatPaneToggle } from "./ChatPaneControl";
 import { ChatThreadRouteContent } from "./ChatRouteContent";
 
 type Selection = { projectId: string; threadId: string };
@@ -34,8 +37,12 @@ function remembered(projectId: string): string | null {
 }
 
 export function PersistentProjectChat({
+  paneOpen,
+  onPaneOpenChange: setPaneOpen,
   onOpenMobileSidebar,
 }: {
+  paneOpen: boolean;
+  onPaneOpenChange: (open: boolean) => void;
   onOpenMobileSidebar: () => void;
 }) {
   const location = useLocation();
@@ -45,7 +52,7 @@ export function PersistentProjectChat({
     ? decodeURIComponent(location.pathname.slice(6).split("/")[0] ?? "")
     : "";
   const fullPage = Boolean(routeThreadId);
-  const specPage = location.pathname === "/spec";
+  const contextualPage = !fullPage;
   const projects = useActionQuery("project-list", {});
   const project = projects.data?.find((item) => item.id === projectId);
   const scope = useMemo(
@@ -61,10 +68,11 @@ export function PersistentProjectChat({
     isolateHistoryByScope: Boolean(scope),
   });
   const [selection, setSelection] = useState<Selection | null>(null);
-  const [paneOpen, setPaneOpen] = useState(false);
+
   const [error, setError] = useState("");
   const [opening, setOpening] = useState(false);
-  const closeButton = useRef<HTMLButtonElement>(null);
+  const pane = useRef<HTMLElement>(null);
+  const returnPath = useRef<string | null>(null);
 
   useEffect(() => {
     setPaneOpen(false);
@@ -93,7 +101,7 @@ export function PersistentProjectChat({
 
   useEffect(() => {
     if (
-      !specPage ||
+      !contextualPage ||
       !paneOpen ||
       !project ||
       history.isLoading ||
@@ -143,7 +151,7 @@ export function PersistentProjectChat({
       active = false;
     };
   }, [
-    specPage,
+    contextualPage,
     paneOpen,
     project?.id,
     history.isLoading,
@@ -160,8 +168,9 @@ export function PersistentProjectChat({
   });
 
   useEffect(() => {
-    if (specPage && paneOpen) closeButton.current?.focus();
-  }, [specPage, paneOpen]);
+    if (contextualPage && paneOpen)
+      pane.current?.querySelector<HTMLButtonElement>("button")?.focus();
+  }, [contextualPage, paneOpen]);
 
   const presentation = chatPresentation(location.pathname, paneOpen);
   const visible = presentation !== "hidden";
@@ -173,6 +182,8 @@ export function PersistentProjectChat({
     (!projects.isLoading && !project ? "プロジェクトを開けませんでした。" : "");
   return (
     <aside
+      ref={pane}
+      id="project-chat-pane"
       className={
         presentation === "full"
           ? "agent-kit-persistent-chat flex min-w-0 flex-1 flex-col overflow-hidden"
@@ -197,28 +208,35 @@ export function PersistentProjectChat({
           <span className="truncate text-sm font-semibold">{APP_TITLE}</span>
         </div>
       )}
-      {specPage && paneOpen && (
-        <div className="flex h-11 shrink-0 items-center justify-between border-b border-border px-3">
-          <span className="flex items-center gap-2 text-sm font-semibold">
-            <IconMessage size={16} /> エージェントチャット
-          </span>
-          <Button
-            ref={closeButton}
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label="チャットを閉じる"
-            onClick={() => {
-              setPaneOpen(false);
-              document
-                .querySelector<HTMLElement>(
-                  '[aria-label="エージェントチャットを開く"]',
-                )
-                ?.focus();
-            }}
-          >
-            <IconX size={16} />
-          </Button>
+      {visible && (
+        <div className="flex h-11 shrink-0 items-center justify-between border-b border-border bg-card px-3">
+          <span className="text-sm font-semibold">エージェントチャット</span>
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              disabled={!selection}
+              aria-label={
+                fullPage ? "チャットを右ペインに戻す" : "チャットを拡大"
+              }
+              onClick={() => {
+                if (!fullPage)
+                  returnPath.current = location.pathname + location.search;
+                setPaneOpen(true);
+                navigateWithAgentChatViewTransition(
+                  navigate,
+                  fullPage
+                    ? (returnPath.current ??
+                        `/spec?project=${encodeURIComponent(projectId)}`)
+                    : `/chat/${encodeURIComponent(selection!.threadId)}?project=${encodeURIComponent(projectId)}`,
+                );
+              }}
+            >
+              {fullPage ? <IconArrowsMinimize /> : <IconArrowsMaximize />}
+            </Button>
+            {!fullPage && <ChatPaneToggle />}
+          </div>
         </div>
       )}
       {visibleError && visible && (
