@@ -35,12 +35,18 @@ export function Field({
     </label>
   );
 }
-export function Note({ value }: { value?: string }) {
-  return value ? (
-    <div className="spec-note">
-      <strong>検討メモ</strong>
+export function Note({
+  value,
+  label = "検討メモ",
+}: {
+  value?: string;
+  label?: string;
+}) {
+  return value?.trim() ? (
+    <details className="spec-note">
+      <summary>{label}</summary>
       <p>{value}</p>
-    </div>
+    </details>
   ) : null;
 }
 export function ReferenceLabel({
