@@ -607,6 +607,7 @@ export function StageContent({
                       {valid ? (
                         <Diagram
                           key={u.id}
+                          fitContent
                           source={renderFlow(spec, "useCases", u.id)}
                         />
                       ) : (
