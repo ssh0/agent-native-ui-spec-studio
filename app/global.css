@@ -44,6 +44,7 @@
 }
 
 .chat-layout-shell {
+  --agent-layout-left-drawer-collapsed-width: 3rem;
   --agent-layout-left-drawer-expanded-width: var(--chat-sidebar-width);
   --agent-native-lower-surface: var(--agent-kit-nav-surface);
 }
@@ -273,7 +274,29 @@
     position: fixed;
     inset: 0 0 0 auto;
     z-index: 50;
-    width: min(100vw, 440px);
+    width: min(calc(100vw - 3rem), 440px);
     box-shadow: -12px 0 32px hsl(var(--foreground) / 0.16);
   }
+}
+
+/* Keep a usable navigation rail even on narrow project/chat views. */
+@media (max-width: 767px) {
+  .chat-layout-shell .agent-layout-left-drawer {
+    width: 3rem;
+    flex: none;
+  }
+  .chat-layout-shell .agent-layout-left-drawer > aside {
+    width: 3rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}
+
+.agent-kit-persistent-chat {
+  --agent-kit-composer-border-color: hsl(var(--input));
+  --agent-kit-composer-focus-border-color: hsl(var(--ring));
 }

@@ -1,14 +1,10 @@
-import {
-  isAgentChatHomeHandoffActive,
-  useAgentChatHomeHandoff,
-  useAgentChatHomeHandoffLinks,
-} from "@agent-native/core/client/agentkit-chat/rail";
 import { useT } from "@agent-native/core/client/i18n";
 import { HeaderActionsProvider } from "@agent-native/toolkit/app-shell/header-actions";
 import { IconMenu2 } from "@tabler/icons-react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useLocation } from "react-router";
 
+import { ChatPaneContext } from "@/components/chat/ChatPaneControl";
 import { PersistentProjectChat } from "@/components/chat/PersistentProjectChat";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,11 +19,6 @@ import { Sidebar } from "./Sidebar";
 
 const Header = lazy(() =>
   import("./Header").then((module) => ({ default: module.Header })),
-);
-const AgentInspector = lazy(() =>
-  import("./AgentInspector").then((module) => ({
-    default: module.AgentInspector,
-  })),
 );
 
 interface LayoutProps {
@@ -55,22 +46,21 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const t = useT();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+    const sync = () => setNarrow(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [paneOpen, setPaneOpen] = useState(false);
+  const projectId = new URLSearchParams(location.search).get("project") ?? "";
+  useEffect(() => setPaneOpen(false), [projectId]);
   const isSpecRoute = location.pathname === "/spec";
   const isChatRoute =
     location.pathname === "/home" || location.pathname.startsWith("/chat/");
-  const chatHomeHandoffActive = useAgentChatHomeHandoff({
-    storageKey: "chat",
-    activePath: location.pathname,
-    enabled: !isChatRoute,
-  });
-  const chatHomeHandoffPending = isAgentChatHomeHandoffActive("chat");
-  useAgentChatHomeHandoffLinks({
-    storageKey: "chat",
-    isChatPath: (pathname) =>
-      pathname === "/home" || pathname.startsWith("/chat/"),
-    requireActiveHandoff: true,
-  });
 
   useEffect(() => {
     setMobileSidebarOpen(false);
@@ -143,38 +133,55 @@ export function Layout({ children }: LayoutProps) {
   );
 
   return (
-    <HeaderActionsProvider>
-      <div className="agent-layout-shell chat-layout-shell flex h-screen w-full overflow-hidden bg-background text-foreground">
-        {!isSpecRoute && (
+    <ChatPaneContext.Provider
+      value={{
+        open: paneOpen,
+        enabled: Boolean(projectId),
+        toggle: () => {
+          if (paneOpen) {
+            document
+              .querySelector<HTMLElement>(
+                "[data-chat-pane-toggle]:not(#project-chat-pane *)",
+              )
+              ?.focus();
+          }
+          setPaneOpen((open) => !open);
+        },
+      }}
+    >
+      <HeaderActionsProvider>
+        <div className="agent-layout-shell chat-layout-shell flex h-screen w-full overflow-hidden bg-background text-foreground">
           <div
-            data-collapsed={sidebarCollapsed ? "true" : "false"}
-            className="agent-layout-left-drawer hidden md:block"
+            data-collapsed={narrow || sidebarCollapsed ? "true" : "false"}
+            className="agent-layout-left-drawer block"
           >
             <Sidebar
-              collapsed={sidebarCollapsed}
-              onCollapsedChange={setSidebarCollapsed}
+              collapsed={narrow || sidebarCollapsed}
+              onCollapsedChange={(collapsed) =>
+                narrow
+                  ? setMobileSidebarOpen(true)
+                  : setSidebarCollapsed(collapsed)
+              }
             />
           </div>
-        )}
-        <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
-          <SheetContent
-            side="left"
-            className="w-[var(--chat-sidebar-width)] p-0"
+          <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+            <SheetContent
+              side="left"
+              className="w-[var(--chat-sidebar-width)] p-0"
+            >
+              <SheetTitle className="sr-only">
+                {t("navigation.navigation")}
+              </SheetTitle>
+              <SheetDescription className="sr-only">
+                {t("navigation.navigationDescription")}
+              </SheetDescription>
+              <Sidebar collapsed={false} collapsible={false} />
+            </SheetContent>
+          </Sheet>
+          <div
+            data-agent-chat-canvas={isChatRoute ? "true" : undefined}
+            className="agent-layout-main-surface flex min-w-0 flex-1 overflow-hidden"
           >
-            <SheetTitle className="sr-only">
-              {t("navigation.navigation")}
-            </SheetTitle>
-            <SheetDescription className="sr-only">
-              {t("navigation.navigationDescription")}
-            </SheetDescription>
-            <Sidebar collapsed={false} collapsible={false} />
-          </SheetContent>
-        </Sheet>
-        <div
-          data-agent-chat-canvas={isChatRoute ? "true" : undefined}
-          className="agent-layout-main-surface flex min-w-0 flex-1 overflow-hidden"
-        >
-          {isChatRoute || isSpecRoute ? (
             <div
               className={
                 isChatRoute
@@ -184,21 +191,14 @@ export function Layout({ children }: LayoutProps) {
             >
               {contentFrame}
             </div>
-          ) : (
-            <Suspense fallback={contentFrame}>
-              <AgentInspector
-                chatHomeHandoffActive={chatHomeHandoffActive}
-                chatHomeHandoffPending={chatHomeHandoffPending}
-              >
-                {contentFrame}
-              </AgentInspector>
-            </Suspense>
-          )}
-          <PersistentProjectChat
-            onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
-          />
+            <PersistentProjectChat
+              paneOpen={paneOpen}
+              onPaneOpenChange={setPaneOpen}
+              onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
+            />
+          </div>
         </div>
-      </div>
-    </HeaderActionsProvider>
+      </HeaderActionsProvider>
+    </ChatPaneContext.Provider>
   );
 }

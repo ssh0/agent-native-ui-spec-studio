@@ -1,4 +1,3 @@
-import { AgentToggleButton } from "@agent-native/core/client/agent-chat";
 import { useT } from "@agent-native/core/client/i18n";
 import {
   useHeaderTitle,
@@ -7,6 +6,7 @@ import {
 import { IconMenu2 } from "@tabler/icons-react";
 import { useLocation } from "react-router";
 
+import { ChatPaneToggle } from "@/components/chat/ChatPaneControl";
 import { APP_TITLE } from "@/lib/app-config";
 
 const pageTitleKeys: Record<string, string> = {
@@ -54,7 +54,7 @@ export function Header({ onOpenMobileSidebar }: HeaderProps) {
       </div>
       <div className="flex items-center gap-2 shrink-0">
         {actions}
-        <AgentToggleButton />
+        <ChatPaneToggle />
       </div>
     </header>
   );
