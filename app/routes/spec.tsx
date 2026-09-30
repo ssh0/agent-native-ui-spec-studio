@@ -19,7 +19,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { parse, stringify } from "yaml";
 
-import { Field, SourceEditor } from "@/components/spec-studio/spec-editor-ui";
+import { Field, Note, SourceEditor } from "@/components/spec-studio/spec-editor-ui";
 import { GeneratedLists } from "@/components/spec-studio/generated-lists";
 import {
   StageContent,
@@ -477,6 +477,7 @@ export default function SpecPage() {
           )}
         </section>
         <aside className="spec-inspector" aria-label="検証・レビュー・履歴">
+          <Note value={spec?.notes} label="全体方針" />
           <section className="spec-inspector-section">
             <div className="spec-section-heading">
               <h2>検証</h2>

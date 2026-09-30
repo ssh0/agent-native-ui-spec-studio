@@ -500,7 +500,7 @@ export function StageContent({
                             <td>
                               {i + 1}. {s.title}
                               <code>{s.id}</code>
-                              {s.notes && <p>{s.notes}</p>}
+                              <Note value={s.notes} />
                             </td>
                             <td>
                               {[
@@ -592,7 +592,7 @@ export function StageContent({
                                     ? `→ ${b.resumeAt}`
                                     : "この分岐で終了"}
                                 </code>
-                                {b.notes && <p>{b.notes}</p>}
+                                <Note value={b.notes} />
                               </td>
                             </tr>
                           ))}

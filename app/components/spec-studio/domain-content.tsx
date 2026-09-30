@@ -62,6 +62,7 @@ export function DomainContent({
 
   return (
     <div className="spec-domain-content">
+      <Note value={spec.domain.notes} label="データ・用語全体の検討メモ" />
       <nav
         className="spec-domain-sections"
         aria-label="データ・用語のセクション"
@@ -172,7 +173,6 @@ export function DomainContent({
             {!selected ? (
               <>
                 <Empty>「この段階を編集」から検討内容を追加できます。</Empty>
-                <Note value={spec.domain.notes} />
               </>
             ) : domainSection === "entities" ? (
               <EntityDetail
@@ -184,7 +184,6 @@ export function DomainContent({
                     (entity) => entity.id === selected.id,
                   )!
                 }
-                domainNotes={spec.domain.notes}
               />
             ) : domainSection === "relations" ? (
               <RelationDetail
@@ -205,7 +204,6 @@ export function DomainContent({
                 term={
                   spec.domain.terms.find((term) => term.id === selected.id)!
                 }
-                domainNotes={spec.domain.notes}
               />
             )}
           </div>
@@ -220,13 +218,11 @@ function EntityDetail({
   update,
   select,
   entity,
-  domainNotes,
 }: {
   spec: UiSpec;
   update: (spec: UiSpec) => void;
   select: (id: string) => void;
   entity: UiSpec["domain"]["entities"][number];
-  domainNotes?: string;
 }) {
   const patch = (value: Partial<typeof entity>) =>
     update({
@@ -348,7 +344,6 @@ function EntityDetail({
         </tbody>
       </table>
       <Note value={entity.notes} />
-      <Note value={domainNotes} />
     </>
   );
 }
@@ -358,13 +353,11 @@ function TermDetail({
   update,
   select,
   term,
-  domainNotes,
 }: {
   spec: UiSpec;
   update: (spec: UiSpec) => void;
   select: (id: string) => void;
   term: UiSpec["domain"]["terms"][number];
-  domainNotes?: string;
 }) {
   const patch = (value: Partial<typeof term>) =>
     update({
@@ -530,7 +523,6 @@ function TermDetail({
         </select>
       </Field>
       <Note value={term.notes} />
-      <Note value={domainNotes} />
     </>
   );
 }
@@ -702,6 +694,7 @@ function RelationDetail({
       </div>
       {endEditor("from")}
       {endEditor("to")}
+      <Note value={relation.notes} />
       <Button
         variant="ghost"
         size="sm"
@@ -835,6 +828,7 @@ function ParticipantEditor({
                 />
               </Field>
             </div>
+            <Note value={participant.notes} />
             <Button
               variant="ghost"
               size="sm"
@@ -859,7 +853,6 @@ function ParticipantEditor({
           </div>
         );
       })}
-      <Note value={spec.domain.notes} />
     </div>
   );
 }

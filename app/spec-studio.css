@@ -365,8 +365,9 @@
   background: hsl(var(--muted));
   font-size: 12px;
 }
-.spec-note strong {
-  font-size: 10px;
+.spec-note summary {
+  cursor: pointer;
+  font-size: 12px;
   color: hsl(var(--muted-foreground));
   font-weight: 500;
 }
