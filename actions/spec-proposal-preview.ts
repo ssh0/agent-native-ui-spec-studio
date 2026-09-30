@@ -8,10 +8,14 @@ import { ensureCurrentVersion } from "../server/lib/spec-version-store.js";
 import { parseSpecYaml } from "../shared/spec-utils.js";
 import { diffSpecVersions, specTargets } from "../shared/spec-versions.js";
 
+// Keep runtime UUID validation without emitting JSON Schema format: uuid for
+// OpenAI-compatible providers that warn on unsupported string formats.
+export const previewBaseVersionIdSchema = z.string().refine((id) => z.string().uuid().safeParse(id).success, "Invalid UUID").nullable();
+
 export default defineAction({
   description: "Preview a candidate YAML's stable-ID diff against the current saved version. Use the returned target keys to map proposal sources before creating the proposal. Does not save anything.",
   mcpTool: true, readOnly: true,
-  schema: z.object({ projectId: z.string(), baseVersionId: z.string().uuid().nullable(), yaml: z.string().min(1).max(500_000) }),
+  schema: z.object({ projectId: z.string(), baseVersionId: previewBaseVersionIdSchema, yaml: z.string().min(1).max(500_000) }),
   publicAgent: { expose: true, readOnly: true, requiresAuth: true },
   run: async ({ projectId, baseVersionId, yaml }) => {
     const project = await resolveSpecProject(projectId);
