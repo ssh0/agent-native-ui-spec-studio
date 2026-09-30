@@ -30,8 +30,6 @@ import {
 import { createAgentNativeAgentKitTransport } from "@agent-native/core/client/agentkit-chat/transport";
 import { trackEvent } from "@agent-native/core/client/analytics";
 import { useActionQuery } from "@agent-native/core/client/hooks";
-import { useT } from "@agent-native/core/client/i18n";
-import { IconLayoutSidebarRight } from "@tabler/icons-react";
 import {
   useCallback,
   useEffect,
@@ -42,11 +40,6 @@ import {
 import { Link, useLocation, useNavigate } from "react-router";
 
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { APP_TITLE } from "@/lib/app-config";
 import { consumeChatHomeThreadId } from "@/lib/chat-home-thread";
 import { proposalForMessage } from "@/lib/proposal-card";
@@ -73,9 +66,6 @@ export function ChatThreadRouteContent({
   projectId: string;
   compact?: boolean;
 }) {
-  const t = useT();
-  const [workspaceOpen, setWorkspaceOpen] = useState(false);
-
   const [transport] = useState(() =>
     createAgentNativeAgentKitTransport({
       browserTabId: TAB_ID,
@@ -87,14 +77,9 @@ export function ChatThreadRouteContent({
   return (
     <div
       className="relative flex h-full min-h-0 overflow-hidden bg-background"
-      data-agent-chat-workspace-state={workspaceOpen ? "open" : "closed"}
       data-agent-chat-compact={compact ? "true" : "false"}
     >
-      <div
-        className={`agent-kit-chat-canvas-body min-w-0 flex-none ${
-          workspaceOpen ? "agent-kit-chat-canvas-body--workspace-open" : ""
-        }`}
-      >
+      <div className="min-w-0 flex-1 overflow-hidden">
         <CoreComposerRuntimeProvider>
           <ScopedComposerModels>
             <AgentKitRoot
@@ -123,30 +108,11 @@ export function ChatThreadRouteContent({
             >
               <ChatLifecycleTracking threadId={resolvedThreadId} />
               <ChatMcpConnectionResume />
-              <ChatCanvas
-                workspaceOpen={workspaceOpen}
-                setWorkspaceOpen={setWorkspaceOpen}
-                projectId={projectId}
-                compact={compact}
-              />
+              <ChatCanvas projectId={projectId} compact={compact} />
             </AgentKitRoot>
           </ScopedComposerModels>
         </CoreComposerRuntimeProvider>
       </div>
-      <aside
-        data-agent-chat-workspace-panel=""
-        data-state={workspaceOpen ? "open" : "closed"}
-        aria-hidden={workspaceOpen ? undefined : true}
-        inert={workspaceOpen ? undefined : true}
-        className="agent-kit-workspace-panel absolute end-0 flex flex-col border-s border-border bg-background shadow-lg md:shadow-none"
-      >
-        <header className="agent-kit-workspace-panel__header flex shrink-0 items-center border-b border-border px-3">
-          <h2 className="min-w-0 truncate text-xs font-medium text-foreground">
-            {t("settings.workspaceTitle")}
-          </h2>
-        </header>
-        <div data-agent-chat-workspace-slot="" className="min-h-0 flex-1" />
-      </aside>
     </div>
   );
 }
@@ -436,43 +402,13 @@ function ChatEmptyState() {
 }
 
 function ChatCanvas({
-  workspaceOpen,
-  setWorkspaceOpen,
   projectId,
   compact,
 }: {
-  workspaceOpen: boolean;
-  setWorkspaceOpen: (value: boolean | ((current: boolean) => boolean)) => void;
   projectId: string;
   compact: boolean;
 }) {
-  const t = useT();
   const thread = useAgentThread();
-  const hasConversation = thread.messages.length > 0;
-
-  useEffect(() => {
-    if (!hasConversation) setWorkspaceOpen(false);
-  }, [hasConversation, setWorkspaceOpen]);
-
-  const toolbar = (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          data-agent-page-workspace-toggle=""
-          aria-label={t("settings.workspaceTitle")}
-          aria-expanded={workspaceOpen}
-          onClick={() => setWorkspaceOpen((open) => !open)}
-          className="size-8"
-        >
-          <IconLayoutSidebarRight className="size-4" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{t("settings.workspaceTitle")}</TooltipContent>
-    </Tooltip>
-  );
 
   return (
     <div className="flex h-full flex-col">
@@ -490,7 +426,6 @@ function ChatCanvas({
       <AgentKitChat
         className="min-h-0 flex-1"
         title={thread.thread?.title ?? APP_TITLE}
-        toolbar={compact ? undefined : toolbar}
         emptyComposerPlacement="center"
         composerProps={{
           queueWhileRunning: true,
