@@ -27,6 +27,24 @@ describe("specification stage composition", () => {
     expect(html).not.toContain("Mermaidを試作");
   });
 
+  it("sizes use-case diagrams to their content without changing business-flow sizing", () => {
+    const renderStage = (stage: "useCases" | "flows") =>
+      renderToStaticMarkup(
+        <StageContent
+          stage={stage}
+          spec={spec}
+          update={() => {}}
+          selectedId=""
+          select={() => {}}
+          domainSection="entities"
+          selectDomainSection={() => {}}
+          valid
+        />,
+      );
+    expect(renderStage("useCases")).toContain("spec-diagram-fit-content");
+    expect(renderStage("flows")).not.toContain("spec-diagram-fit-content");
+  });
+
   it("shows the inferred end actor and an explicit override control", () => {
     const graph = structuredClone(spec);
     const flow = graph.flows[0];

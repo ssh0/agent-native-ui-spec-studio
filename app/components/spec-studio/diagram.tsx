@@ -15,8 +15,10 @@ const ZOOM_STEP = 0.25;
 export function Diagram({
   source,
   businessFlow,
+  fitContent = false,
 }: {
   source: string;
+  fitContent?: boolean;
   businessFlow?: {
     spec: UiSpec;
     flow: UiSpec["flows"][number];
@@ -37,7 +39,11 @@ export function Diagram({
     );
   const hasDiagram = diagramSource.trim().length > 0;
   return (
-    <div className="spec-diagram">
+    <div
+      className={
+        fitContent ? "spec-diagram spec-diagram-fit-content" : "spec-diagram"
+      }
+    >
       <div className="spec-diagram-toolbar">
         <div className="spec-diagram-actions">
           <Button

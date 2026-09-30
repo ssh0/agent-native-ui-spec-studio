@@ -732,6 +732,10 @@
   border: 1px solid var(--spec-border);
   background: hsl(var(--background));
 }
+.spec-diagram-fit-content .spec-flow-render {
+  height: auto;
+  min-height: 0;
+}
 .spec-flow-render:focus-visible {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
