@@ -54,8 +54,10 @@ as 「以前のプロジェクト」, with its existing unscoped chat history. N
 Core's `ui-spec-project` scope. A project's URL carries `?project=<id>` and
 `navigation.projectId` exposes the selection to the agent. Pass that `projectId`
 to every spec action; all spec actions verify ownership. Use the chat composer
-`+` to attach reference files through Core's upload mechanism. Begin new
-projects by discussing the product in chat, then save a valid rough 2.0 YAML
+`+` to attach reference files through Core's upload mechanism. Human editors can
+start at `/spec?project=<id>&mode=yaml` and import/paste YAML without chat; the
+normal save, version history, and review rules apply. For AI-led projects, begin
+by discussing the product in chat, then save a valid rough 2.0 YAML
 with `spec-bootstrap` as an unapproved proposal, then send the user to
 `/spec-proposals` to inspect and apply it before opening the editor. For later AI-authored
 changes, use `spec-proposal-create` against the current saved version with

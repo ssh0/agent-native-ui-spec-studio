@@ -43,6 +43,13 @@ describe("spec version persistence", () => {
     expect(await holder.db.select().from(specVersions)).toHaveLength(1);
   });
 
+  it("allows initial YAML save and rejects a stale empty baseline", async () => {
+    const first = await saveSpecVersion("project-a", "owner@example.test", yaml, "");
+    expect(first.yaml).toBe(yaml);
+    await expect(saveSpecVersion("project-a", "owner@example.test", `${yaml}\n# stale`, "")).rejects.toThrow("別の編集");
+    expect((await holder.db.select().from(uiSpecs))[0]?.yaml).toBe(yaml);
+  });
+
   it("keeps prior versions and does not snapshot invalid drafts", async () => {
     const first = await saveSpecVersion("project-a", "owner@example.test", yaml);
     const second = await saveSpecVersion("project-a", "owner@example.test", `${yaml}\n# revision\n`, first.updatedAt);

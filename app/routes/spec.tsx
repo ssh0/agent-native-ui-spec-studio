@@ -151,13 +151,38 @@ export default function SpecPage() {
     setSectionDraft(null);
     setMessage("保存済みの仕様を読み込みました。");
   };
+  async function importYaml(file: File) {
+    if (file.size > 500_000) {
+      setMessage("YAMLファイルは500KB以下にしてください。");
+      return;
+    }
+    try {
+      const content = await file.text();
+      setBuilderDraft(null);
+      setYaml(content);
+      navigate({ mode: "yaml" });
+      setMessage("YAMLを読み込みました。内容を確認して保存してください。");
+    } catch {
+      setMessage("ファイルを読み込めませんでした。");
+    }
+  }
+  const yamlFileInput = (
+    <label>
+      YAMLファイルを選択（.yaml / .yml）
+      <input type="file" accept=".yaml,.yml,text/yaml,application/yaml" onChange={(event) => {
+        const file = event.currentTarget.files?.[0];
+        if (file) void importYaml(file);
+        event.currentTarget.value = "";
+      }} />
+    </label>
+  );
   async function saveSpec() {
     setMessage("保存中…");
     try {
       const result = await save.mutateAsync({
         projectId,
         yaml,
-        expectedUpdatedAt: base.updatedAt || undefined,
+        expectedUpdatedAt: base.updatedAt,
       });
       setBase({ yaml: result.yaml, updatedAt: result.updatedAt });
       setMessage(
@@ -289,7 +314,7 @@ export default function SpecPage() {
           <Button
             size="sm"
             onClick={() => void saveSpec()}
-            disabled={pending || !yaml.trim() || hasUnapplied}
+            disabled={pending || !yaml.trim() || hasUnapplied || !loaded.data || loaded.isError}
           >
             {save.isPending ? "保存中…" : "仕様を保存"}
           </Button>
@@ -372,12 +397,12 @@ export default function SpecPage() {
               </Button>
             </div>
           )}
-          {!base.updatedAt && loaded.data?.yaml === "" ? (
+          {!base.updatedAt && loaded.data?.yaml === "" && mode !== "yaml" ? (
             <div className="spec-empty">
-              仕様の骨格はまだありません。まずチャットでプロダクトの目的、利用者、主要な操作を説明してください。
-              <Link to={`/projects/${encodeURIComponent(projectId)}`}>
-                チャットを開く
-              </Link>
+              <p>仕様はまだありません。YAMLを読み込むか、直接入力して始められます。</p>
+              {yamlFileInput}
+              <Button variant="outline" onClick={() => navigate({ mode: "yaml" })}>YAMLを直接入力</Button>
+              <Link to={`/projects/${encodeURIComponent(projectId)}`}>チャットで相談</Link>
             </div>
           ) : !base.updatedAt && !loaded.isError ? (
             <div
@@ -392,6 +417,8 @@ export default function SpecPage() {
           ) : mode === "lists" ? (
             generated.isError ? <div className="spec-errors" role="alert">保存済みの仕様を検証できません。仕様を確認して保存してください。</div> : generated.data ? <><GeneratedLists lists={generated.data} />{dirty && <p className="spec-muted">未保存の変更は一覧に反映されません。</p>}</> : <div className="spec-skeleton" aria-busy="true"><div /><div /></div>
           ) : mode === "yaml" ? (
+            <div>
+              {!base.updatedAt && yamlFileInput}
             <SourceEditor
               value={yaml}
               onChange={(value) => {
@@ -399,6 +426,7 @@ export default function SpecPage() {
                 setYaml(value);
               }}
             />
+            </div>
           ) : hasUnapplied ? (
             <div className="spec-section-editor">
               <div className="spec-section-edit-actions">

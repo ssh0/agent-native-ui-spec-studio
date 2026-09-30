@@ -15,11 +15,11 @@ export default function ProjectsPage() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
 
-  async function start() {
+  async function start(destination: "chat" | "yaml") {
     setError("");
     try {
       const project = await create.mutateAsync({ name: name.trim() });
-      navigate(`/projects/${encodeURIComponent(project.id)}`);
+      navigate(destination === "yaml" ? `/spec?project=${encodeURIComponent(project.id)}&mode=yaml` : `/projects/${encodeURIComponent(project.id)}`);
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -37,7 +37,7 @@ export default function ProjectsPage() {
         </p>
         <h1 className="text-3xl font-semibold">プロジェクト</h1>
         <p className="text-muted-foreground">
-          新しい構想を会話から始めるか、保存済みのプロジェクトを開きます。
+          新しい構想を会話またはYAMLから始めるか、保存済みのプロジェクトを開きます。
         </p>
       </header>
       <section
@@ -49,18 +49,18 @@ export default function ProjectsPage() {
             新規プロジェクトを始める
           </h2>
           <p className="text-sm text-muted-foreground">
-            名前を決めたらチャットで作りたいプロダクトを説明してください。AI
-            が仕様の骨格を作ります。
+            チャットで仕様案を作るか、既存のYAMLを読み込んで直接編集できます。
           </p>
         </div>
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            void start();
+            void start("chat");
           }}
-          className="flex gap-2"
+          className="flex flex-wrap gap-2"
         >
           <Input
+            className="min-w-48 flex-1"
             aria-label="新規プロジェクト名"
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -70,6 +70,9 @@ export default function ProjectsPage() {
           />
           <Button disabled={create.isPending || !name.trim()} type="submit">
             {create.isPending ? "作成中…" : "チャットで始める"}
+          </Button>
+          <Button disabled={create.isPending || !name.trim()} type="button" variant="outline" onClick={() => void start("yaml")}>
+            YAMLから始める
           </Button>
         </form>
         {error && (
