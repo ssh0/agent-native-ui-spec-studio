@@ -29,7 +29,7 @@ export async function saveSpecVersion(projectId: string, ownerEmail: string, yam
   await ensureCurrentVersion(projectId);
   return db.transaction(async (tx) => {
     const [previous] = await tx.select().from(uiSpecs).where(eq(uiSpecs.id, projectId)).for("update");
-    if (expectedUpdatedAt && previous?.updatedAt !== expectedUpdatedAt)
+    if (expectedUpdatedAt !== undefined && (previous?.updatedAt ?? "") !== expectedUpdatedAt)
       fail("別の編集が保存されました。仕様を読み直してください。", { statusCode: 409 });
     if (previous?.yaml === yaml) return previous;
     const now = new Date().toISOString();
