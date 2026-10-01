@@ -25,5 +25,5 @@ export function resolveStudioTheme(value: string | null, mode?: string) {
 
 /** Runs after Core's mode bootstrap; only validated catalogue values reach DOM. */
 export function getStudioThemeInitScript() {
-  return `(function(){var themes=${JSON.stringify(studioThemes)};var selected;try{selected=themes.find(function(t){return t.id===localStorage.getItem(${JSON.stringify(STUDIO_THEME_KEY)})})}catch(e){}var mode=document.documentElement.getAttribute('data-theme');document.documentElement.setAttribute('data-studio-theme',selected&&selected.mode===mode?selected.id:mode==='dark'?'dark':'light')})();`;
+  return `(function(){var themes=[{id:'light',mode:'light'},{id:'dark',mode:'dark'},{id:'high-contrast',mode:'dark'},{id:'solarized-light',mode:'light'},{id:'solarized-dark',mode:'dark'},{id:'flexoki',mode:'light'},{id:'github-light',mode:'light'},{id:'github-dark',mode:'dark'}];var selected;try{selected=themes.find(function(t){return t.id===localStorage.getItem('ui-spec-studio.theme')})}catch(e){}var mode=document.documentElement.getAttribute('data-theme');document.documentElement.setAttribute('data-studio-theme',selected&&selected.mode===mode?selected.id:mode==='dark'?'dark':'light')})();`;
 }
