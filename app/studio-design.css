@@ -1,0 +1,207 @@
+/* Palette roles are the source of truth; adapters share semantic tokens. */
+:root[data-studio-theme="light"] {
+  --studio-bg: 0 0% 100%;
+  --studio-surface: 0 0% 96.08%;
+  --studio-text: 0 0% 9.8%;
+  --studio-muted: 0 0% 40%;
+  --studio-border: 0 0% 54.51%;
+  --studio-accent: 0 0% 14.9%;
+  --studio-on-accent: 0 0% 100%;
+  --studio-danger: 4.23 76.47% 40%;
+}
+
+:root[data-studio-theme="dark"] {
+  --studio-bg: 0 0% 9.41%;
+  --studio-surface: 0 0% 14.12%;
+  --studio-text: 0 0% 90.2%;
+  --studio-muted: 0 0% 66.67%;
+  --studio-border: 0 0% 46.27%;
+  --studio-accent: 0 0% 81.57%;
+  --studio-on-accent: 0 0% 9.41%;
+  --studio-danger: 4.25 100% 75.1%;
+}
+
+:root[data-studio-theme="high-contrast"] {
+  --studio-bg: 0 0% 0%;
+  --studio-surface: 0 0% 0%;
+  --studio-text: 0 0% 100%;
+  --studio-muted: 0 0% 100%;
+  --studio-border: 0 0% 100%;
+  --studio-accent: 60 100% 50%;
+  --studio-on-accent: 0 0% 0%;
+  --studio-danger: 0 100% 83.33%;
+}
+
+:root[data-studio-theme="solarized-light"] {
+  --studio-bg: 43.85 86.67% 94.12%;
+  --studio-surface: 45.6 42.37% 88.43%;
+  --studio-text: 192.2 80.82% 14.31%;
+  --studio-muted: 195 14.58% 37.65%;
+  --studio-border: 196 12.93% 45.49%;
+  --studio-accent: 200.36 100% 32.94%;
+  --studio-on-accent: 0 0% 100%;
+  --studio-danger: 2.57 65.42% 41.96%;
+}
+
+:root[data-studio-theme="solarized-dark"] {
+  --studio-bg: 192.22 100% 10.59%;
+  --studio-surface: 192.2 80.82% 14.31%;
+  --studio-text: 45.6 42.37% 88.43%;
+  --studio-muted: 180 6.93% 60.39%;
+  --studio-border: 186.32 8.3% 55.1%;
+  --studio-accent: 199.5 80% 70.59%;
+  --studio-on-accent: 192.22 100% 10.59%;
+  --studio-danger: 5.41 100% 78.24%;
+}
+
+:root[data-studio-theme="flexoki"] {
+  --studio-bg: 48 100% 97.06%;
+  --studio-surface: 50.77 33.33% 92.35%;
+  --studio-text: 0 3.23% 6.08%;
+  --studio-muted: 45 2.35% 33.33%;
+  --studio-border: 42.86 2.83% 51.57%;
+  --studio-accent: 212.24 67.68% 38.82%;
+  --studio-on-accent: 0 0% 100%;
+  --studio-danger: 3.13 62.04% 42.35%;
+}
+
+:root[data-studio-theme="github-light"] {
+  --studio-bg: 0 0% 100%;
+  --studio-surface: 210 28.57% 97.25%;
+  --studio-text: 213.33 12.68% 13.92%;
+  --studio-muted: 211.43 10.55% 39.02%;
+  --studio-border: 213.91 10.04% 55.1%;
+  --studio-accent: 212.44 92.07% 44.51%;
+  --studio-on-accent: 0 0% 100%;
+  --studio-danger: 355.84 71.78% 47.25%;
+}
+
+:root[data-studio-theme="github-dark"] {
+  --studio-bg: 216 27.78% 7.06%;
+  --studio-surface: 215 21.43% 10.98%;
+  --studio-text: 207.69 35.14% 92.75%;
+  --studio-muted: 210 10% 60.78%;
+  --studio-border: 212.31 11.02% 46.27%;
+  --studio-accent: 208.21 100% 73.73%;
+  --studio-on-accent: 216 27.78% 7.06%;
+  --studio-danger: 0 100% 80.39%;
+}
+
+:root[data-studio-theme] {
+  --background: var(--studio-bg);
+  --foreground: var(--studio-text);
+  --card: var(--studio-surface);
+  --card-foreground: var(--studio-text);
+  --popover: var(--studio-bg);
+  --popover-foreground: var(--studio-text);
+  --primary: var(--studio-accent);
+  --primary-foreground: var(--studio-on-accent);
+  --secondary: var(--studio-surface);
+  --secondary-foreground: var(--studio-text);
+  --muted: var(--studio-surface);
+  --muted-foreground: var(--studio-muted);
+  --accent: var(--studio-surface);
+  --accent-foreground: var(--studio-text);
+  --destructive: var(--studio-danger);
+  --destructive-foreground: var(--studio-bg);
+  --border: var(--studio-border);
+  --input: var(--studio-border);
+  --ring: var(--studio-accent);
+  --sidebar-background: var(--studio-surface);
+  --sidebar-foreground: var(--studio-muted);
+  --sidebar-primary: var(--studio-accent);
+  --sidebar-primary-foreground: var(--studio-on-accent);
+  --sidebar-accent: var(--studio-bg);
+  --sidebar-accent-foreground: var(--studio-text);
+  --sidebar-border: var(--studio-border);
+  --sidebar-ring: var(--studio-accent);
+}
+
+:root {
+  --studio-motion-press: 100ms;
+  --studio-motion-update: 160ms;
+  --studio-motion-pane: 220ms;
+  --studio-pane-edge: hsl(var(--border));
+  --studio-pane-shadow: 0 0 16px hsl(var(--foreground) / 0.1);
+}
+.studio-theme-picker {
+  width: 100%;
+  max-width: 16rem;
+  border: 1px solid hsl(var(--input));
+  border-radius: var(--radius);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  padding: 0.5rem 0.75rem;
+}
+.studio-theme-picker:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+.chat-layout-shell .agent-layout-left-drawer {
+  border-inline-end: 1px solid var(--studio-pane-edge);
+  box-shadow: var(--studio-pane-shadow);
+  view-transition-name: studio-navigation;
+}
+.chat-layout-shell .agent-layout-main-surface {
+  border-inline-start: 1px solid var(--studio-pane-edge);
+  box-shadow: var(--studio-pane-shadow);
+  transition: none;
+}
+.agent-kit-persistent-chat[data-chat-presentation="pane"] {
+  border-inline-start: 1px solid var(--studio-pane-edge);
+  box-shadow: var(--studio-pane-shadow);
+  background: hsl(var(--card));
+}
+.agent-kit-persistent-chat {
+  view-transition-name: studio-chat;
+}
+.agent-native-app-main {
+  view-transition-name: studio-content;
+}
+.spec-stage-detail {
+  view-transition-name: studio-detail;
+}
+.studio-pane-toggle {
+  transition:
+    transform var(--studio-motion-press) var(--ease-out-strong),
+    background-color var(--studio-motion-press) var(--ease-out-strong);
+}
+.studio-pane-toggle:active:not(:disabled) {
+  transform: scale(0.94);
+}
+.studio-pane-toggle[aria-expanded="true"] {
+  background: hsl(var(--accent));
+}
+
+/* The browser's snapshot cross-fade avoids animating layout dimensions. */
+::view-transition-group(root),
+::view-transition-old(root),
+::view-transition-new(root),
+::view-transition-group(studio-content),
+::view-transition-old(studio-content),
+::view-transition-new(studio-content),
+::view-transition-group(studio-detail),
+::view-transition-old(studio-detail),
+::view-transition-new(studio-detail) {
+  animation-duration: var(--studio-motion-update);
+  animation-timing-function: var(--ease-out-strong);
+}
+::view-transition-group(studio-navigation),
+::view-transition-old(studio-navigation),
+::view-transition-new(studio-navigation),
+::view-transition-group(studio-chat),
+::view-transition-old(studio-chat),
+::view-transition-new(studio-chat) {
+  animation-duration: var(--studio-motion-pane);
+  animation-timing-function: var(--ease-drawer);
+}
+@media (prefers-reduced-motion: reduce) {
+  .studio-pane-toggle {
+    transition: none;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

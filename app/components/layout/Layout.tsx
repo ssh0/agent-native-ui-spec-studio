@@ -14,6 +14,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { APP_TITLE } from "@/lib/app-config";
+import { transitionStudioView } from "@/lib/studio-motion";
 
 import { Sidebar } from "./Sidebar";
 
@@ -145,7 +146,7 @@ export function Layout({ children }: LayoutProps) {
               )
               ?.focus();
           }
-          setPaneOpen((open) => !open);
+          transitionStudioView(() => setPaneOpen((open) => !open));
         },
       }}
     >
@@ -160,7 +161,7 @@ export function Layout({ children }: LayoutProps) {
               onCollapsedChange={(collapsed) =>
                 narrow
                   ? setMobileSidebarOpen(true)
-                  : setSidebarCollapsed(collapsed)
+                  : transitionStudioView(() => setSidebarCollapsed(collapsed))
               }
             />
           </div>

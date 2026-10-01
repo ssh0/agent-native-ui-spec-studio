@@ -9,9 +9,8 @@ import {
   CommandMenu,
   useCommandMenuShortcut,
 } from "@agent-native/toolkit/app/shared";
-import { IconHierarchy2, IconSun, IconMoon } from "@tabler/icons-react";
+import { IconHierarchy2 } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useTheme } from "next-themes";
 import { useCallback, useState } from "react";
 import {
   Links,
@@ -25,9 +24,14 @@ import {
 import type { LinksFunction } from "react-router";
 
 import { Layout as AppLayout } from "@/components/layout/Layout";
+import {
+  StudioThemeSync,
+  useStudioTheme,
+} from "@/components/settings/StudioThemePicker";
 import { AppToolkitProvider } from "@/components/ui/toolkit-provider";
 import { useNavigationState } from "@/hooks/use-navigation-state";
 import { APP_TITLE } from "@/lib/app-config";
+import { getStudioThemeInitScript, studioThemes } from "@/lib/studio-themes";
 import { TAB_ID } from "@/lib/tab-id";
 
 import { i18nCatalog } from "./i18n";
@@ -46,7 +50,7 @@ export const links: LinksFunction = () => [
   { rel: "stylesheet", href: stylesheet },
 ];
 
-const THEME_INIT_SCRIPT = getThemeInitScript();
+const THEME_INIT_SCRIPT = getThemeInitScript() + getStudioThemeInitScript();
 const LOCALE_INIT_SCRIPT = getLocaleInitScript();
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -98,19 +102,18 @@ function DbSyncSetup() {
   return null;
 }
 
-function ThemeToggleItem() {
-  const { resolvedTheme, setTheme } = useTheme();
-  const t = useT();
-  const isDark = resolvedTheme === "dark";
-  return (
+function ThemeMenuItems() {
+  const { selected, select } = useStudioTheme();
+  return studioThemes.map((theme) => (
     <CommandMenu.Item
-      onSelect={() => setTheme(isDark ? "light" : "dark")}
-      keywords={["theme", "dark", "light", "mode"]}
+      key={theme.id}
+      onSelect={() => select(theme.id)}
+      keywords={["theme", theme.id]}
     >
-      {isDark ? <IconSun size={16} /> : <IconMoon size={16} />}
-      {t("root.toggleTheme")}
+      {theme.label}
+      {selected === theme.id ? " ✓" : ""}
     </CommandMenu.Item>
-  );
+  ));
 }
 
 function AppContent() {
@@ -161,7 +164,7 @@ function AppContent() {
           </CommandMenu.Item>
         </CommandMenu.Group>
         <CommandMenu.Group heading={t("root.commandAppearance")}>
-          <ThemeToggleItem />
+          <ThemeMenuItems />
         </CommandMenu.Group>
       </CommandMenu>
       <AppLayout>
@@ -182,6 +185,7 @@ export default function Root() {
         isPublicPath={isMarketingPath}
         i18n={{ catalog: i18nCatalog }}
       >
+        <StudioThemeSync />
         {isMarketingPath ? (
           <Outlet />
         ) : (
