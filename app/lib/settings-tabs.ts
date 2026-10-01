@@ -1,4 +1,4 @@
-import type { SettingsTabItem } from "@agent-native/core/client/settings";
+import type { SettingsTabItem } from "@agent-native/toolkit/app/settings";
 import { cloneElement, isValidElement, type ReactElement } from "react";
 
 /**

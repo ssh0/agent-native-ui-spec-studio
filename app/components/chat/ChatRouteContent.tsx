@@ -2,34 +2,34 @@ import type {
   AgentConnectionRequest,
   AgentMessage,
 } from "@agent-native/agentkit";
+import { createAgentKitIntegrityReporter } from "@agent-native/core/client/agentkit-chat/integrity";
+import { createAgentNativeAgentKitTransport } from "@agent-native/core/client/agentkit-chat/transport";
+import { trackEvent } from "@agent-native/core/client/analytics";
+import { useActionQuery } from "@agent-native/core/client/hooks";
 import {
   AgentConnectionRequestCard,
   AgentKitChat,
-} from "@agent-native/agentkit/react/components";
+} from "@agent-native/toolkit/app/agentkit";
 import {
   useAgentKit,
   useAgentKitControl,
   useAgentThread,
   type AgentKitRenderProps,
-} from "@agent-native/agentkit/react/context";
-import { AgentKitRoot } from "@agent-native/agentkit/react/root";
-import { CoreComposerRuntimeProvider } from "@agent-native/core/client/agentkit-chat/composer";
+} from "@agent-native/toolkit/app/agentkit";
+import { AgentKitRoot } from "@agent-native/toolkit/app/agentkit";
+import { CoreComposerRuntimeProvider } from "@agent-native/toolkit/app/chat/agentkit-chat/composer";
 import {
   McpAgentKitConnectionRequestCard,
   McpAgentKitConnectionResume,
-} from "@agent-native/core/client/agentkit-chat/connections";
-import { createAgentKitIntegrityReporter } from "@agent-native/core/client/agentkit-chat/integrity";
+} from "@agent-native/toolkit/app/chat/agentkit-chat/connections";
 import {
   GuidedQuestionFlow,
   useGuidedQuestionFlow,
-} from "@agent-native/core/client/agentkit-chat/questions";
+} from "@agent-native/toolkit/app/chat/agentkit-chat/questions";
 import {
   findMcpConnectionSuggestionIntegration,
   McpConnectionSuggestion,
-} from "@agent-native/core/client/agentkit-chat/suggestions";
-import { createAgentNativeAgentKitTransport } from "@agent-native/core/client/agentkit-chat/transport";
-import { trackEvent } from "@agent-native/core/client/analytics";
-import { useActionQuery } from "@agent-native/core/client/hooks";
+} from "@agent-native/toolkit/app/chat/agentkit-chat/suggestions";
 import {
   useCallback,
   useEffect,
