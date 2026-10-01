@@ -546,7 +546,8 @@ export function Sidebar({
         <button
           type="button"
           onClick={() => onCollapsedChange?.(!collapsed)}
-          className="flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+          className="studio-pane-toggle flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+          aria-expanded={!collapsed}
           aria-label={
             collapsed
               ? t("navigation.expandSidebar")

@@ -15,6 +15,7 @@ import { useMemo } from "react";
 import { Navigate, useLocation } from "react-router";
 
 import { ProviderModelSettings } from "@/components/settings/ProviderModelSettings";
+import { StudioThemePicker } from "@/components/settings/StudioThemePicker";
 import { getLegacyAgentResourcesDestination } from "@/lib/agent-route";
 import { APP_TITLE } from "@/lib/app-config";
 import { suppressWorkspaceConnectionPrompt } from "@/lib/settings-tabs";
@@ -73,6 +74,12 @@ function SettingsPage() {
   const generalSearchEntries = useMemo<SettingsSearchEntry[]>(
     () => [
       {
+        id: "studio-theme",
+        label: "テーマ",
+        keywords: "theme appearance solarized flexoki github contrast",
+        hash: "studio-theme",
+      },
+      {
         id: "chat-language",
         label: t("settings.languageTitle"),
         keywords: "language locale translation i18n",
@@ -95,6 +102,11 @@ function SettingsPage() {
           </p>
 
           <SettingsGroup>
+            <SettingsRow
+              id="appearance"
+              label="テーマ"
+              control={<StudioThemePicker />}
+            />
             <SettingsRow
               id="language"
               label={t("settings.languageTitle")}

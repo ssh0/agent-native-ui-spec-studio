@@ -191,6 +191,7 @@ export function PersistentProjectChat({
             ? "agent-kit-persistent-chat agent-kit-persistent-pane flex min-w-0 flex-col overflow-hidden border-l border-border bg-card"
             : "agent-kit-persistent-chat hidden"
       }
+      data-chat-presentation={presentation}
       data-chat-visible={showChat ? "true" : "false"}
       aria-label="エージェントチャット"
     >

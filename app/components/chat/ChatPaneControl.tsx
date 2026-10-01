@@ -19,6 +19,7 @@ export function ChatPaneToggle() {
       size="icon"
       disabled={!enabled}
       aria-label={open ? "チャットを閉じる" : "エージェントチャットを開く"}
+      className="studio-pane-toggle"
       data-chat-pane-toggle
       aria-expanded={open}
       aria-controls="project-chat-pane"
