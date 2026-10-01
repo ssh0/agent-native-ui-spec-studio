@@ -25,5 +25,5 @@ export function resolveStudioTheme(value: string | null, mode?: string) {
 
 /** Runs after Core's mode bootstrap; only validated catalogue values reach DOM. */
 export function getStudioThemeInitScript() {
-  return `(function(){try{var themes=${JSON.stringify(studioThemes)};var selected=themes.find(function(t){return t.id===localStorage.getItem(${JSON.stringify(STUDIO_THEME_KEY)})});if(selected&&selected.mode===document.documentElement.getAttribute('data-theme'))document.documentElement.setAttribute('data-studio-theme',selected.id)}catch(e){}})();`;
+  return `(function(){var themes=${JSON.stringify(studioThemes)};var selected;try{selected=themes.find(function(t){return t.id===localStorage.getItem(${JSON.stringify(STUDIO_THEME_KEY)})})}catch(e){}var mode=document.documentElement.getAttribute('data-theme');document.documentElement.setAttribute('data-studio-theme',selected&&selected.mode===mode?selected.id:mode==='dark'?'dark':'light')})();`;
 }

@@ -83,21 +83,26 @@ describe("studio themes", () => {
         ).toBeGreaterThanOrEqual(3);
     },
   );
-  it("does not apply invalid or mode-mismatched preferences", () => {
+  it("falls back to Core's mode for invalid or mode-mismatched preferences", () => {
     expect(resolveStudioTheme("unknown", "dark")).toBe("dark");
     expect(resolveStudioTheme("solarized-dark", "light")).toBe("light");
-    for (const value of ["<script>example</script>", "solarized-dark"]) {
+    for (const [value, mode, fallback] of [
+      ["<script>example</script>", "light", "light"],
+      ["solarized-dark", "light", "light"],
+      ["unknown", "dark", "dark"],
+    ]) {
       const setAttribute = vi.fn();
       runInNewContext(getStudioThemeInitScript(), {
         localStorage: { getItem: () => value },
         document: {
-          documentElement: { getAttribute: () => "light", setAttribute },
+          document: { getAttribute: () => mode, setAttribute },
         },
       });
-      expect(setAttribute).not.toHaveBeenCalled();
+      expect(setAttribute).toHaveBeenCalledWith("data-studio-theme", fallback);
     }
   });
   it("tolerates unavailable storage", () => {
+    const attrs: Record<string, string> = { "data-theme": "dark" };
     expect(() =>
       runInNewContext(getStudioThemeInitScript(), {
         localStorage: {
@@ -105,7 +110,16 @@ describe("studio themes", () => {
             throw new Error("blocked");
           },
         },
+        document: {
+          documentElement: {
+            getAttribute: (key: string) => attrs[key],
+            setAttribute: (key: string, value: string) => {
+              attrs[key] = value;
+            },
+          },
+        },
       }),
     ).not.toThrow();
+    expect(attrs["data-studio-theme"]).toBe("dark");
   });
 });
