@@ -6,7 +6,7 @@ import {
   AgentProviderPicker,
   providerIdForEngine,
   type AgentProviderId,
-} from "@agent-native/core/client/settings";
+} from "@agent-native/toolkit/app/settings";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation } from "react-router";
 

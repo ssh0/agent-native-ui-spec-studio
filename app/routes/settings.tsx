@@ -1,4 +1,6 @@
-import { LanguagePicker, useT } from "@agent-native/core/client/i18n";
+import { useT } from "@agent-native/core/client/i18n";
+import { useSetPageTitle } from "@agent-native/toolkit/app-shell";
+import { TeamPage } from "@agent-native/toolkit/app/org/TeamPage";
 import {
   AccountSettingsCard,
   AgentSettingsContent,
@@ -7,9 +9,8 @@ import {
   SettingsTabsPage,
   useAgentSettingsTabs,
   type SettingsSearchEntry,
-} from "@agent-native/core/client/settings";
-import { TeamPage } from "@agent-native/core/client/team-page";
-import { useSetPageTitle } from "@agent-native/toolkit/app-shell";
+} from "@agent-native/toolkit/app/settings";
+import { LanguagePicker } from "@agent-native/toolkit/app/shared";
 import { useMemo } from "react";
 import { Navigate, useLocation } from "react-router";
 

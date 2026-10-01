@@ -1,6 +1,6 @@
-import { navigateWithAgentChatViewTransition } from "@agent-native/core/client/agentkit-chat/rail";
-import { useChatThreads } from "@agent-native/core/client/agentkit-chat/rail";
 import { useActionQuery } from "@agent-native/core/client/hooks";
+import { navigateWithAgentChatViewTransition } from "@agent-native/toolkit/app/chat/agentkit-chat/rail";
+import { useChatThreads } from "@agent-native/toolkit/app/chat/agentkit-chat/rail";
 import { IconArrowsMaximize, IconArrowsMinimize } from "@tabler/icons-react";
 import { IconMenu2 } from "@tabler/icons-react";
 import { useEffect, useMemo, useRef, useState } from "react";

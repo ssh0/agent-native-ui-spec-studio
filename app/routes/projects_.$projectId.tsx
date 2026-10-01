@@ -1,5 +1,5 @@
-import { useChatThreads } from "@agent-native/core/client/agentkit-chat/rail";
 import { useActionQuery } from "@agent-native/core/client/hooks";
+import { useChatThreads } from "@agent-native/toolkit/app/chat/agentkit-chat/rail";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 
