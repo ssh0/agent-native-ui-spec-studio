@@ -95,7 +95,7 @@ describe("studio themes", () => {
       runInNewContext(getStudioThemeInitScript(), {
         localStorage: { getItem: () => value },
         document: {
-          document: { getAttribute: () => mode, setAttribute },
+          documentElement: { getAttribute: () => mode, setAttribute },
         },
       });
       expect(setAttribute).toHaveBeenCalledWith("data-studio-theme", fallback);
