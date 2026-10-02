@@ -1,12 +1,9 @@
 import { createAuthPlugin } from "@agent-native/core/server";
 
-const rawAppTitle = "Ui Spec Studio";
-const appTitle = rawAppTitle === "{" + "{APP_TITLE}}" ? "Chat" : rawAppTitle;
-
 export default createAuthPlugin({
   workspaceAppPublicPaths: ["/"],
   marketing: {
-    appName: appTitle,
+    appName: "Ui Spec Studio",
     learnMoreUrl: "https://agent-native.com/apps/chat",
     tagline:
       "Start from a chat-first agent-native app and add actions, screens, and workflows as you grow.",

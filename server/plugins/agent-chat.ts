@@ -11,7 +11,6 @@ import { installProviderSafeEngines } from "../agent/provider-safe-engine.js";
 const INITIAL_TOOL_NAMES = [
   "view-screen",
   "navigate",
-  "hello",
   "provider-api-request",
   "project-list",
   "project-create",
