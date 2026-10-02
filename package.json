@@ -24,7 +24,7 @@
     "@ai-sdk/cohere": "^3.0.39",
     "@ai-sdk/google": "^3.0.64",
     "@ai-sdk/groq": "^3.0.35",
-    "@ai-sdk/mistral": "^3.0.40",
+    "@ai-sdk/mistral": "^4.0.54",
     "@ai-sdk/openai": "^3.0.53",
     "@anthropic-ai/tokenizer": "^0.0.4",
     "@bpmnkit/canvas": "1.0.0",
