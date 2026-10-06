@@ -3,7 +3,6 @@ import { useSetPageTitle } from "@agent-native/toolkit/app-shell";
 import { TeamPage } from "@agent-native/toolkit/app/org/TeamPage";
 import {
   AccountSettingsCard,
-  AgentSettingsContent,
   SettingsGroup,
   SettingsRow,
   SettingsTabsPage,
@@ -14,11 +13,15 @@ import { LanguagePicker } from "@agent-native/toolkit/app/shared";
 import { useMemo } from "react";
 import { Navigate, useLocation } from "react-router";
 
-import { ProviderModelSettings } from "@/components/settings/ProviderModelSettings";
+import { StudioAiSettings } from "@/components/settings/studio-settings-pages";
+import { StudioIntegrationsSettings } from "@/components/settings/StudioIntegrationsSettings";
+import { StudioStorageSettings } from "@/components/settings/StudioStorageSettings";
 import { StudioThemePicker } from "@/components/settings/StudioThemePicker";
+import { StudioUsageSettings } from "@/components/settings/StudioUsageSettings";
 import { getLegacyAgentResourcesDestination } from "@/lib/agent-route";
 import { APP_TITLE } from "@/lib/app-config";
-import { suppressWorkspaceConnectionPrompt } from "@/lib/settings-tabs";
+import { studioSettingsDestination } from "@/lib/settings-route";
+import { buildStudioSettingsTabs } from "@/lib/settings-tabs";
 
 export function meta() {
   return [{ title: `Settings - ${APP_TITLE}` }];
@@ -26,6 +29,13 @@ export function meta() {
 
 export default function SettingsRoute() {
   const location = useLocation();
+  const integrationsDestination = studioSettingsDestination(
+    location.pathname,
+    location.hash,
+    location.search,
+  );
+  if (integrationsDestination)
+    return <Navigate to={integrationsDestination} replace />;
   const legacyResourcesDestination = getLegacyAgentResourcesDestination(
     location.pathname,
     location.hash,
@@ -40,35 +50,12 @@ export default function SettingsRoute() {
 function SettingsPage() {
   const t = useT();
   const agentSettingsTabs = useAgentSettingsTabs();
-  const settingsTabs = agentSettingsTabs
-    .map(suppressWorkspaceConnectionPrompt)
-    .map((tab) =>
-      tab.id === "agent"
-        ? {
-            ...tab,
-            label: "AI & models",
-            keywords:
-              "AI provider model Anthropic OpenAI OpenRouter Gemini Groq Mistral Cohere",
-            searchEntries: [
-              {
-                id: "ai-provider",
-                label: "AI provider",
-                keywords: "model provider",
-                hash: "ai-provider",
-              },
-            ],
-            content: (
-              <div
-                className="mx-auto w-full max-w-2xl space-y-8"
-                id="ai-provider"
-              >
-                <ProviderModelSettings />
-                <AgentSettingsContent sections={["limits"]} />
-              </div>
-            ),
-          }
-        : tab,
-    );
+  const settingsTabs = buildStudioSettingsTabs(agentSettingsTabs, {
+    agent: <StudioAiSettings />,
+    integrations: <StudioIntegrationsSettings />,
+    usage: <StudioUsageSettings />,
+    storage: <StudioStorageSettings />,
+  });
   useSetPageTitle(t("settings.title"));
 
   const generalSearchEntries = useMemo<SettingsSearchEntry[]>(
@@ -91,6 +78,7 @@ function SettingsPage() {
 
   return (
     <SettingsTabsPage
+      appName={APP_TITLE}
       account={<AccountSettingsCard />}
       teamLabel={t("navigation.team")}
       extraTabs={settingsTabs}

@@ -654,6 +654,7 @@ export function Sidebar({
 
       <div className="mt-auto shrink-0 p-2">
         <OrgSwitcher
+          hideBuilderCreditNotice
           reserveSpace
           compact={collapsed}
           currentAppId="chat"
