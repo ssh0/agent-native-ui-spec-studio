@@ -16,15 +16,15 @@ export default defineConfig({
   },
   test: {
     pool: "threads",
-    // Bound CPU/memory use; backend startup is resource-heavy and stays serial.
+    // Bound CPU/memory use; persistence/service-library startup stays serial.
     maxWorkers: 2,
     projects: [
-      { extends: true, test: { name: "unit", exclude: ["server/**"] } },
+      { extends: true, test: { name: "unit", exclude: ["server/lib/**"] } },
       {
         extends: true,
         test: {
-          name: "backend",
-          include: configDefaults.include.map((glob) => `server/${glob}`),
+          name: "persistence",
+          include: configDefaults.include.map((glob) => `server/lib/${glob}`),
           maxWorkers: 1,
         },
       },
