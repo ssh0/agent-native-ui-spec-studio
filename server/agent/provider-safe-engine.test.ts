@@ -10,7 +10,7 @@ import {
   createProviderNameMap,
   createProviderSafeEngine,
   providerNameIsSafe,
-} from "./provider-safe-engine";
+} from "./provider-safe-adapter";
 
 const staleName = "spec.load";
 

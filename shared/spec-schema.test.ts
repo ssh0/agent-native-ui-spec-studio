@@ -24,7 +24,8 @@ import {
   renderFlow,
   renderWireframe,
 } from "./spec-utils";
-const example = () => parseSpecYaml(DEFAULT_SPEC_YAML).spec!;
+const exampleTemplate = parseSpecYaml(DEFAULT_SPEC_YAML).spec!;
+const example = () => structuredClone(exampleTemplate);
 const flowStep = (spec: UiSpec, index = 0): FlowStep => {
   const node = spec.flows[0].steps[index];
   if (!node || !isFlowStep(node))

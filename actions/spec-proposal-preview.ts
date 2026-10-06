@@ -1,6 +1,7 @@
 import { defineAction, fail } from "@agent-native/core/action";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { previewBaseVersionIdSchema } from "../shared/proposal-preview-schema.js";
 import { getDb } from "../server/db/index.js";
 import { specVersions } from "../server/db/schema.js";
 import { resolveSpecProject } from "../server/lib/spec-project.js";
@@ -8,9 +9,8 @@ import { ensureCurrentVersion } from "../server/lib/spec-version-store.js";
 import { parseSpecYaml } from "../shared/spec-utils.js";
 import { diffSpecVersions, specTargets } from "../shared/spec-versions.js";
 
-// Keep runtime UUID validation without emitting JSON Schema format: uuid for
-// OpenAI-compatible providers that warn on unsupported string formats.
-export const previewBaseVersionIdSchema = z.string().refine((id) => z.string().uuid().safeParse(id).success, "Invalid UUID").nullable();
+// Keep the public field export while pure consumers avoid database/bootstrap imports.
+export { previewBaseVersionIdSchema } from "../shared/proposal-preview-schema.js";
 
 export default defineAction({
   description: "Preview a candidate YAML's stable-ID diff against the current saved version. Use the returned target keys to map proposal sources before creating the proposal. Does not save anything.",

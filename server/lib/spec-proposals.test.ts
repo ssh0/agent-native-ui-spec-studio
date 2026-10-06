@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { eq } from "drizzle-orm";
@@ -29,12 +29,22 @@ const nextYaml = stringify(candidate);
 const source = { kind: "chat" as const, threadId: "thread-a", messageId: "message-a", locator: "user request, sentence 1", evidence: "Add a revised title", targetKeys: ['["document"]'] };
 const attachmentSource = { kind: "attachment" as const, threadId: "thread-a", messageId: "message-a", attachmentId: "attachment-a", locator: "page 2, section 3", evidence: "Requested title wording", targetKeys: ['["document"]'] };
 
-beforeEach(async () => {
-  const client = new PGlite();
+// Boot one real PostgreSQL instance per file; each test still gets empty tables.
+let client: PGlite;
+beforeAll(async () => {
+  client = new PGlite();
   await client.exec(`CREATE TABLE ui_specs (id TEXT PRIMARY KEY, owner_email TEXT, yaml TEXT NOT NULL, current_version_id TEXT, review_status TEXT NOT NULL DEFAULT 'draft', review_history JSONB NOT NULL DEFAULT '[]'::jsonb, review_comment TEXT, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE spec_versions (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, owner_email TEXT NOT NULL, yaml TEXT NOT NULL, document_hash TEXT NOT NULL, created_at TEXT NOT NULL);
     CREATE TABLE spec_proposals (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, owner_email TEXT NOT NULL, base_version_id TEXT, yaml TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'proposed', summary TEXT NOT NULL, impact_summary TEXT NOT NULL, sources JSONB NOT NULL, assumptions JSONB NOT NULL, questions JSONB NOT NULL, created_at TEXT NOT NULL, decided_at TEXT, decided_by TEXT, applied_version_id TEXT);`);
   holder.db = drizzle(client);
+});
+
+afterAll(async () => {
+  await client?.close();
+});
+
+beforeEach(async () => {
+  await client.exec("TRUNCATE ui_specs, spec_versions, spec_proposals RESTART IDENTITY");
   holder.thread = { id: "thread-a", ownerEmail, scope: { type: "ui-spec-project", id: projectId }, threadData: JSON.stringify({ messages: [{ message: { id: "message-a", role: "user", content: [{ type: "text", text: "Add a revised title" }], attachments: [{ id: "attachment-a", name: "brief.pdf", metadata: { uploadUrl: "https://files.example.test/brief.pdf" }, content: [{ type: "file", url: "https://files.example.test/brief.pdf" }] }] } }] }) };
 });
 
