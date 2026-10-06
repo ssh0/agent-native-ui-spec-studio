@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { previewBaseVersionIdSchema } from "./spec-proposal-preview";
+import { previewBaseVersionIdSchema } from "../shared/proposal-preview-schema";
 
 describe("proposal preview base version tool schema", () => {
   it("preserves UUID and null runtime validation without unsupported provider formats", () => {

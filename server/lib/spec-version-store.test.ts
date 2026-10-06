@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { readFileSync } from "node:fs";
@@ -24,12 +24,22 @@ import { specTargets } from "../../shared/spec-versions.js";
 
 const yaml = readFileSync(new URL("../../specs/example.yaml", import.meta.url), "utf8");
 
-beforeEach(async () => {
-  const client = new PGlite();
+// Boot one real PostgreSQL instance per file; each test still gets empty tables.
+let client: PGlite;
+beforeAll(async () => {
+  client = new PGlite();
   await client.exec(`CREATE TABLE ui_specs (id TEXT PRIMARY KEY, owner_email TEXT, yaml TEXT NOT NULL, current_version_id TEXT, review_status TEXT NOT NULL DEFAULT 'draft', review_history JSONB NOT NULL DEFAULT '[]'::jsonb, review_comment TEXT, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE spec_versions (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, owner_email TEXT NOT NULL, yaml TEXT NOT NULL, document_hash TEXT NOT NULL, created_at TEXT NOT NULL);
     CREATE TABLE spec_element_reviews (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, owner_email TEXT NOT NULL, version_id TEXT NOT NULL, target_key TEXT NOT NULL, target_kind TEXT NOT NULL, target_title TEXT NOT NULL, reviewer_email TEXT NOT NULL, decision TEXT NOT NULL, comment TEXT NOT NULL, created_at TEXT NOT NULL);`);
   holder.db = drizzle(client);
+});
+
+afterAll(async () => {
+  await client?.close();
+});
+
+beforeEach(async () => {
+  await client.exec("TRUNCATE ui_specs, spec_versions, spec_element_reviews RESTART IDENTITY");
 });
 
 describe("spec version persistence", () => {
