@@ -1,5 +1,16 @@
 const messages = {
   settings: {
+    limitsTitle: "エージェントの上限",
+    limitsIterations: "最大ステップ数",
+    limitsDescription: "既定値 {{default}} · 適用範囲: {{scope}}",
+    limitsLoading: "エージェントの上限を読み込み中…",
+    limitsError:
+      "上限の読み込み、保存、または保存結果の確認に失敗しました。再試行してください。",
+    limitsSave: "保存",
+    limitsSaving: "保存中…",
+    limitsReset: "既定値に戻す",
+    limitsSaved: "保存結果を確認しました",
+
     storageLoadError: "ファイル保存の設定を読み込めませんでした。",
     storageLoading: "ファイル保存の設定を読み込み中…",
     storageManagedExternally:
@@ -34,7 +45,7 @@ const messages = {
     openResourceSettings: "リソース設定を開く",
     agentTitle: "エージェントを管理",
     agentDescription:
-      "エージェントのモデル、API キー、自動化、音声などを管理します。",
+      "エージェントのモデル、API キー、自動化などを管理します。",
     openAgentSettings: "エージェントを管理",
   },
   chat: {

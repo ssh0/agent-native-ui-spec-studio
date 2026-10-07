@@ -3,7 +3,8 @@ const messages = {
     title: "सेटिंग्स",
     description: "इस ऐप के लिए भाषा और कार्यस्थान प्राथमिकताएं।",
     languageTitle: "भाषा",
-    languageDescription: "इंटरफ़ेस भाषा चुनें। यह पसंद आपके खाते में सहेजी जाती है।",
+    languageDescription:
+      "इंटरफ़ेस भाषा चुनें। यह पसंद आपके खाते में सहेजी जाती है।",
     languageLabel: "इंटरफ़ेस भाषा",
     workspaceTitle: "कार्यस्थान",
     workspaceDescription:
@@ -12,7 +13,7 @@ const messages = {
     openResourceSettings: "संसाधन सेटिंग्स खोलें",
     agentTitle: "एजेंट प्रबंधित करें",
     agentDescription:
-      "एजेंट के मॉडल, API कुंजियों, ऑटोमेशन, आवाज़ और अन्य नियंत्रणों को प्रबंधित करें।",
+      "एजेंट के मॉडल, API कुंजियों, ऑटोमेशन और अन्य नियंत्रणों को प्रबंधित करें।",
     openAgentSettings: "एजेंट प्रबंधित करें",
   },
   chat: {

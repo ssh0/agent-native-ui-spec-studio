@@ -38,6 +38,7 @@ describe("studio settings policy", () => {
       CORE_SETTINGS_PAGES.find((page) => page.id === "infra")?.component,
     );
     for (const id of [
+      "preferences",
       "model",
       "api-keys",
       "studio-integrations",
@@ -56,6 +57,9 @@ describe("studio settings policy", () => {
     expect(pages.get("model")?.component).not.toBe(
       CORE_SETTINGS_PAGES.find((page) => page.id === "model")?.component,
     );
+    expect(pages.get("preferences")?.component).not.toBe(
+      CORE_SETTINGS_PAGES.find((page) => page.id === "preferences")?.component,
+    );
     expect(pages.get("app")?.component).not.toBe(
       CORE_SETTINGS_PAGES.find((page) => page.id === "app")?.component,
     );
@@ -73,6 +77,8 @@ describe("studio settings policy", () => {
     );
     for (const query of [
       "builder",
+      "voice",
+      "dictation",
       "hosting",
       "credits",
       "background agent",

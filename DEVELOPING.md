@@ -148,7 +148,13 @@ tabs) and `app/components/settings/studio-settings-pages.tsx` (the shared page
 registry). Keep both surfaces aligned when upgrading Toolkit. Builder-backed
 hosting, database provisioning, browser automation, background coding, and
 credit/purchase controls are not app settings. File uploads retain the generic
-S3 form; AI providers retain the app's scoped model controls. Connections use
+S3 form, with app action adapters and an S3-only routing policy; no credential
+or stored file is removed. Managed dictation is disabled in preferences and the
+composer. Agent limits use the public loop-settings helpers instead of mounting
+Core's mixed settings panel. `shared/studio-capabilities.ts` owns the app's
+capability exclusions; `server/plugins/00-studio-capabilities.ts` mounts them
+before Core dispatch in development and production. Keep agent request surfaces,
+external-agent deny rules, and HTTP guards aligned. AI providers retain the app's scoped model controls. Connections use
 Core's MCP controller and dialogs with the app's filtered catalog; channel
 configuration remains on the shared Channels page. Usage shows this app's
 personal 30-day metrics without credit or referral controls. Legacy connection

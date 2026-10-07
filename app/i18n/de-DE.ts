@@ -13,7 +13,7 @@ const messages = {
     openResourceSettings: "Ressourceneinstellungen öffnen",
     agentTitle: "Agent verwalten",
     agentDescription:
-      "Verwalte das Modell, die API-Schlüssel, Automatisierungen, Sprache und weitere Steuerungen des Agents.",
+      "Verwalte das Modell, die API-Schlüssel, Automatisierungen und weitere Steuerungen des Agents.",
     openAgentSettings: "Agent verwalten",
   },
   chat: {

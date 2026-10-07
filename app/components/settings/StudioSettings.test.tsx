@@ -99,20 +99,13 @@ describe("studio usage and storage rendered states", () => {
     );
   });
 
-  it("does not expose fallback-specific controls or silently mutate existing storage", () => {
+  it("keeps S3 settings available even with a historical managed connection", () => {
     state.query = { data: { builderUploadConfigured: true } };
-    const html = renderToStaticMarkup(<StudioStorageSettings />);
-    expect(html).toContain("settings.storageManagedExternally");
-    expect(html).not.toContain("<form");
+    expect(renderToStaticMarkup(<StudioStorageSettings />)).toContain(
+      "S3 storage controls",
+    );
     expect(state.requests).toEqual([
       { name: "get-file-storage", input: undefined },
     ]);
-  });
-
-  it("treats unknown storage fallback status as failure rather than success", () => {
-    state.query = { data: { builderUploadConfigured: null } };
-    const html = renderToStaticMarkup(<StudioStorageSettings />);
-    expect(html).toContain('role="alert"');
-    expect(html).not.toContain("<form");
   });
 });

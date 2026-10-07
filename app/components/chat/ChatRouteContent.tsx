@@ -45,6 +45,8 @@ import { consumeChatHomeThreadId } from "@/lib/chat-home-thread";
 import { proposalForMessage } from "@/lib/proposal-card";
 import { TAB_ID } from "@/lib/tab-id";
 
+import { STUDIO_VOICE_ENABLED } from "../../../shared/studio-capabilities";
+
 import { ScopedComposerModels } from "./ScopedComposerModels";
 
 function chatThreadPath(threadId: string | null) {
@@ -440,7 +442,7 @@ function ChatCanvas({
           queueWhileRunning: true,
           autoFocus: true,
           plusMenuMode: "full",
-          voiceEnabled: true,
+          voiceEnabled: STUDIO_VOICE_ENABLED,
           includeDefaultSlashCommands: false,
           includeDefaultSlashSkills: false,
         }}

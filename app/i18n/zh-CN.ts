@@ -10,7 +10,7 @@ const messages = {
     openTeamSettings: "打开团队设置",
     openResourceSettings: "打开资源设置",
     agentTitle: "管理代理",
-    agentDescription: "管理代理的模型、API 密钥、自动化、语音和其他控制项。",
+    agentDescription: "管理代理的模型、API 密钥、自动化和其他控制项。",
     openAgentSettings: "管理代理",
   },
   chat: {

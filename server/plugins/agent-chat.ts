@@ -4,9 +4,18 @@ import {
   loadActionsFromStaticRegistry,
 } from "@agent-native/core/server";
 
+import getFileStorage from "../../actions/get-file-storage.js";
+import manageFileStorage from "../../actions/manage-file-storage.js";
+
 import actionsRegistry from "../../.generated/actions-registry.js";
 import { installGoogleModelOptions } from "../agent/google-model-options.js";
 import { installProviderSafeEngines } from "../agent/provider-safe-engine.js";
+
+import {
+  DISABLED_STUDIO_ACTIONS,
+  isStudioActionEnabled,
+  studioActionNames,
+} from "../../shared/studio-capabilities.js";
 
 const INITIAL_TOOL_NAMES = [
   "view-screen",
@@ -30,9 +39,27 @@ const INITIAL_TOOL_NAMES = [
 
 const agentChatPlugin = createAgentChatPlugin({
   appId: "ui-spec-studio",
-  actions: loadActionsFromStaticRegistry(actionsRegistry),
+  actions: Object.fromEntries(
+    Object.entries(
+      // Generated registries prioritize packaged builtins on a name collision.
+      // Override their public action modules here, without editing generated code.
+      loadActionsFromStaticRegistry({
+        ...actionsRegistry,
+        "get-file-storage": getFileStorage,
+        "manage-file-storage": manageFileStorage,
+      }),
+    ).filter(([name]) => isStudioActionEnabled(name)),
+  ),
+  resolveActionSurface: ({ availableActionNames }) => ({
+    allowedActionNames: studioActionNames(availableActionNames),
+  }),
   initialToolNames: INITIAL_TOOL_NAMES,
-  mcp: { externalAgents: { writes: "allowlisted" } },
+  mcp: {
+    externalAgents: {
+      writes: "allowlisted",
+      denyActions: [...DISABLED_STUDIO_ACTIONS],
+    },
+  },
   resolveOrgId: async (event) => (await getOrgContext(event)).orgId,
   systemPrompt: `You are the Chat app agent.
 
@@ -41,6 +68,8 @@ This is a chat-first UI specification workspace with private projects. The chat 
 After the initial skeleton, draft AI-authored changes as proposals, not direct spec-update/spec-edit calls. Load the current specification and its version ID with spec-load and spec-version-list, validate the complete candidate YAML and use spec-proposal-preview to obtain changed target keys, then call spec-proposal-create with that current baseVersionId. Use spec-proposal-source-list with the current thread ID to obtain real user message and uploaded attachment IDs from the same project thread. Supply a precise locator and short evidence for every source, and map every changed stable target key to at least one source via targetKeys. Only claim facts actually visible in the conversation or material you read; never infer missing attachment content or business rules. Attachment quotes are not server-verified, so identify uncertainty and ask questions. List assumptions and unresolved questions explicitly, and explain the impact of the changed elements. Tell the user to inspect the proposal diff and sources at /spec-proposals?project=<projectId>. Only the user's explicit decision in that UI can approve and apply it; do not call a write action to bypass proposal review. If the base becomes stale, make a new proposal from the latest version. Proposal status is separate from whole-document spec-review and version-bound spec-element-review.
 
 Reference attachments in the current conversation as evidence; acknowledge when their contents cannot be read. Use spec-render-wireframe and spec-render-flow for human-readable previews. Actions are the contract shared by chat, UI, HTTP, MCP, A2A, and CLI.
+
+Managed dictation, Builder connections, cloud coding handoffs, and Builder storage are disabled in this app. File uploads require S3-compatible storage in Settings → File uploads; never suggest connecting Builder.
 
 Use actions as the source of truth. Start by inspecting the current screen when context matters. When the user asks to extend this app, keep the change small and agent-native: add or update actions, expose useful UI, and keep application state/navigation visible to the agent.`,
 });

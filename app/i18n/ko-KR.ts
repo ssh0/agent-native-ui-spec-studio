@@ -13,7 +13,7 @@ const messages = {
     openResourceSettings: "리소스 설정 열기",
     agentTitle: "에이전트 관리",
     agentDescription:
-      "에이전트의 모델, API 키, 자동화, 음성 및 기타 제어를 관리합니다.",
+      "에이전트의 모델, API 키, 자동화 및 기타 제어를 관리합니다.",
     openAgentSettings: "에이전트 관리",
   },
   chat: {

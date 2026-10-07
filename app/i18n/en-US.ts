@@ -1,5 +1,15 @@
 const messages = {
   settings: {
+    limitsTitle: "Agent Limits",
+    limitsIterations: "Max iterations",
+    limitsDescription: "Default {{default}} · scope: {{scope}}",
+    limitsLoading: "Loading agent limits…",
+    limitsError: "Could not load, save, or verify agent limits. Try again.",
+    limitsSave: "Save",
+    limitsSaving: "Saving…",
+    limitsReset: "Reset to default",
+    limitsSaved: "Saved and verified",
+
     storageLoadError: "Could not load file storage settings.",
     storageLoading: "Loading file storage settings…",
     storageManagedExternally:
@@ -34,7 +44,7 @@ const messages = {
     openResourceSettings: "Open resource settings",
     agentTitle: "Manage agent",
     agentDescription:
-      "Manage the agent's model, API keys, automations, voice, and other controls.",
+      "Manage the agent's model, API keys, automations, and other controls.",
     openAgentSettings: "Manage agent",
   },
   chat: {

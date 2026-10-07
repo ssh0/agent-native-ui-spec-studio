@@ -19,7 +19,13 @@ export default defineConfig({
     // browser-safe interop with its externalized dependencies. The Resources
     // route lazy-loads Core's editor through Toolkit; prebundle that entry so
     // its CommonJS highlight.js dependency is interop-safe before opening it.
-    include: ["mermaid", "@agent-native/toolkit/editor/SharedRichEditor"],
+    include: [
+      "mermaid",
+      "@agent-native/toolkit/editor/SharedRichEditor",
+      // This public leaf is composed without Core's mixed preferences page.
+      // Prebundle its shared UI graph rather than fetching each transitive file.
+      "@agent-native/toolkit/app/settings/SchedulingTimezoneField",
+    ],
     // React Router discovers route modules outside Vite's default HTML crawl.
     // Scan the shell and Chat route before accepting requests so a cold
     // standalone consumer does not leave the browser waiting on the full
