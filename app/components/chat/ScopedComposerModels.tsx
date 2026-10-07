@@ -394,7 +394,7 @@ export function useScopedChatModels({
   };
 }
 
-/** Override only the public model adapter; retain Core uploads, voice and chat. */
+/** App capability adapters: retain Core uploads/chat, disable Builder and voice. */
 export function ScopedComposerModels({ children }: { children: ReactNode }) {
   const core = useComposerRuntimeAdapters();
   const location = useLocation();
@@ -424,6 +424,13 @@ export function ScopedComposerModels({ children }: { children: ReactNode }) {
         useChatModels: useScopedChatModels,
         BuilderSetupCard: ProviderSettingsSetupAction,
         BuilderSetupContent: ProviderSettingsSetupAction,
+      },
+      voice: {
+        useProviderStatus: () => ({ status: null, refresh: () => {} }),
+        readAppState: () => null,
+        setAppState: () => {},
+        getBrowserTabId: () => "",
+        subscribeSidebarState: () => () => {},
       },
       builder: {
         useConnectFlow: useChatBuilderConnectFlow,

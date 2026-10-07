@@ -12,7 +12,7 @@ const messages = {
     openResourceSettings: "فتح إعدادات الموارد",
     agentTitle: "إدارة الوكيل",
     agentDescription:
-      "أدر نموذج الوكيل ومفاتيح API والأتمتة والصوت وعناصر التحكم الأخرى.",
+      "أدر نموذج الوكيل ومفاتيح API والأتمتة وعناصر التحكم الأخرى.",
     openAgentSettings: "إدارة الوكيل",
   },
   chat: {

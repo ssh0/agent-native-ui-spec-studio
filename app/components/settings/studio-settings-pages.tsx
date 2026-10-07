@@ -1,5 +1,4 @@
 import {
-  AgentSettingsContent,
   CORE_SETTINGS_PAGES,
   registerSettingsPages,
   type SettingsPageDefinition,
@@ -8,6 +7,8 @@ import {
 import { AI_SETTINGS_SEARCH_ENTRIES } from "@/lib/settings-tabs";
 
 import { ProviderModelSettings } from "./ProviderModelSettings";
+import { StudioAgentLimits } from "./StudioAgentLimits";
+import { StudioPreferencesSettings } from "./StudioPreferencesSettings";
 import { StudioIntegrationsSettings } from "./StudioIntegrationsSettings";
 import { StudioStorageSettings } from "./StudioStorageSettings";
 import { StudioUsageSettings } from "./StudioUsageSettings";
@@ -19,7 +20,7 @@ export function StudioAiSettings() {
       id="ai-provider"
     >
       <ProviderModelSettings />
-      <AgentSettingsContent sections={["limits"]} />
+      <StudioAgentLimits />
     </div>
   );
 }
@@ -31,6 +32,17 @@ export function StudioAiSettings() {
 export function studioSettingsPages(): SettingsPageDefinition[] {
   return CORE_SETTINGS_PAGES.flatMap<SettingsPageDefinition>((page) => {
     switch (page.id) {
+      case "preferences":
+        return [
+          {
+            ...page,
+            component: StudioPreferencesSettings,
+            keywords: "language locale timezone region",
+            searchEntries: page.searchEntries?.filter(
+              (entry) => !/voice|dictation|transcription/.test(entry.id),
+            ),
+          },
+        ];
       case "infra":
         return [
           {
