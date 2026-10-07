@@ -1,45 +1,88 @@
+import {
+  getAgentSettingsSearchTabs,
+  SettingsTabsPage,
+  type SettingsTabItem,
+} from "@agent-native/toolkit/app/settings";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { suppressWorkspaceConnectionPrompt } from "./settings-tabs";
+import { buildStudioSettingsTabs } from "./settings-tabs";
 
-describe("workspace settings tabs", () => {
-  it("keeps the workspace panel while suppressing its inline connection prompt", () => {
-    function WorkspacePanel({
-      builderConnectionOwnedExternally = false,
-    }: {
-      builderConnectionOwnedExternally?: boolean;
-    }) {
-      return createElement(
-        "section",
-        null,
-        createElement("h2", null, "Hosting"),
-        !builderConnectionOwnedExternally &&
-          createElement("button", null, "Connect"),
+describe("studio settings tabs", () => {
+  const content = {
+    agent: createElement("section", null, "Provider settings"),
+    integrations: createElement("section", null, "MCP connections"),
+    usage: createElement("section", null, "Provider usage"),
+    storage: createElement("section", null, "S3 configuration"),
+  };
+
+  it("removes deployment controls and replaces mixed shared panels including search", () => {
+    const tabs: SettingsTabItem[] = getAgentSettingsSearchTabs("en-US").map(
+      (tab) => ({
+        ...tab,
+        content: createElement("section", null, "Connect Builder"),
+      }),
+    );
+    const selected = buildStudioSettingsTabs(tabs, content);
+    expect(selected.find((tab) => tab.id === "workspace")?.content).toBe(
+      content.storage,
+    );
+    for (const id of ["agent", "integrations", "usage"] as const) {
+      const tab = selected.find(
+        (item) =>
+          item.id === (id === "integrations" ? "studio-integrations" : id),
+      )!;
+      expect(tab.content).toBe(content[id]);
+      expect(renderToStaticMarkup(tab.content)).not.toContain(
+        "Connect Builder",
+      );
+      expect(JSON.stringify(tab.searchEntries)).not.toMatch(
+        /builder|hosting|database/i,
       );
     }
-
-    const tab = {
-      id: "workspace",
-      label: "Workspace",
-      content: createElement(WorkspacePanel),
-    };
-    const updated = suppressWorkspaceConnectionPrompt(tab);
-    const markup = renderToStaticMarkup(updated.content);
-
-    expect(updated.label).toBe("Workspace");
-    expect(markup).toContain("Hosting");
-    expect(markup).not.toContain("Connect");
+    expect(selected.find((tab) => tab.id === "agent")?.searchEntries).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "agent-limits" })]),
+    );
   });
 
-  it("leaves unrelated tabs unchanged", () => {
-    const tab = {
-      id: "agent",
-      label: "Agent",
-      content: createElement("section", null, "AI settings"),
-    };
+  it("renders the retained legacy shell without deployment or connection prompts", () => {
+    const tabs: SettingsTabItem[] = getAgentSettingsSearchTabs("en-US").map(
+      (tab) => ({
+        ...tab,
+        content: createElement("section", null, "Retained shared settings"),
+      }),
+    );
+    const html = renderToStaticMarkup(
+      createElement(SettingsTabsPage, {
+        redesign: false,
+        general: createElement("section", null, "App preferences"),
+        extraTabs: buildStudioSettingsTabs(tabs, content),
+        value: "studio-integrations",
+      }),
+    );
+    expect(html).toContain("MCP connections");
+    expect(html).toContain("AI &amp; models");
+    expect(html).toContain("File uploads");
+    expect(html).not.toMatch(/Connect Builder|Hosting|Database/);
+  });
 
-    expect(suppressWorkspaceConnectionPrompt(tab)).toBe(tab);
+  it("preserves independent settings and does not mutate the source", () => {
+    const tabs = [
+      "keys",
+      "mcp",
+      "organization",
+      "agent:resources",
+      "agent:automations",
+      "extensions",
+    ].map((id) => ({
+      id,
+      label: id,
+      content: createElement("section", null, id),
+    }));
+    expect(buildStudioSettingsTabs(tabs, content)).toEqual(tabs);
+    for (const [i, tab] of buildStudioSettingsTabs(tabs, content).entries()) {
+      expect(tab).toBe(tabs[i]);
+    }
   });
 });

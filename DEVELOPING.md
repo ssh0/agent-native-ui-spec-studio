@@ -141,6 +141,19 @@ effects request host navigation or context changes. They do not bypass action
 validation, application-state helpers, request context, or ownable-data access
 checks.
 
+## Settings Composition
+
+The app adapts Toolkit Settings through `app/lib/settings-tabs.ts` (legacy
+tabs) and `app/components/settings/studio-settings-pages.tsx` (the shared page
+registry). Keep both surfaces aligned when upgrading Toolkit. Builder-backed
+hosting, database provisioning, browser automation, background coding, and
+credit/purchase controls are not app settings. File uploads retain the generic
+S3 form; AI providers retain the app's scoped model controls. Connections use
+Core's MCP controller and dialogs with the app's filtered catalog; channel
+configuration remains on the shared Channels page. Usage shows this app's
+personal 30-day metrics without credit or referral controls. Legacy connection
+and provider-setup URLs are adapted in `app/lib/settings-route.ts`.
+
 ## Adding a Page
 
 Create a file in `app/routes/`. The filename determines the URL path:
