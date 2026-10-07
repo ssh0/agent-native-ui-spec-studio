@@ -47,7 +47,7 @@
     "officeparser": "^7.8.0",
     "postgres": "^3.4.9",
     "prettier": "^3.9.8",
-    "react-router": "8.1.0",
+    "react-router": "8.3.0",
     "sharp": "^0.35.4",
     "use-sync-external-store": "^1.6.0",
     "vite": "8.1.0",
