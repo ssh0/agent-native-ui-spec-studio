@@ -219,10 +219,10 @@ importers:
         version: 0.198.8
       '@agent-native/core':
         specifier: 0.198.8
-        version: 0.198.8(9bd1e9d8b170c75abaa964d9d6d45ba6)
+        version: 0.198.8(a4a5ebb1d427b2d2880254657957ff12)
       '@agent-native/toolkit':
         specifier: ^0.198.8
-        version: 0.198.8(3e32eb8a4298bb4f9080f71c82cbb5be)
+        version: 0.198.8(b03e7588bf6f9f665450c709846c2fa9)
       '@ai-sdk/anthropic':
         specifier: ^3.0.71
         version: 3.0.118(zod@4.6.5)
@@ -261,10 +261,10 @@ importers:
         version: 2.10.0(ai@6.0.258(zod@4.6.5))(zod@4.6.5)
       '@react-router/dev':
         specifier: 8.1.0
-        version: 8.1.0(react-router@8.1.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(typescript@7.0.2)(vite@8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+        version: 8.1.0(react-router@8.1.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(typescript@7.0.2)(vite@8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
       '@react-router/fs-routes':
         specifier: 8.1.0
-        version: 8.1.0(@react-router/dev@8.1.0(react-router@8.1.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(typescript@7.0.2)(vite@8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)))(typescript@7.0.2)
+        version: 8.1.0(@react-router/dev@8.1.0(react-router@8.1.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(typescript@7.0.2)(vite@8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)))(typescript@7.0.2)
       '@tabler/icons-react':
         specifier: ^3.41.1
         version: 3.47.0(react@19.3.0)
@@ -314,8 +314,8 @@ importers:
         specifier: ^1.6.0
         version: 1.7.0(react@19.3.0)
       vite:
-        specifier: 8.1.0
-        version: 8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
+        specifier: 8.1.6
+        version: 8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
       xlsx:
         specifier: ^0.18.5
         version: 0.18.5
@@ -337,7 +337,7 @@ importers:
         version: 0.5.20(tailwindcss@4.3.3)
       '@tailwindcss/vite':
         specifier: ^4.2.4
-        version: 4.3.3(vite@8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+        version: 4.3.3(vite@8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
       '@tanstack/react-query':
         specifier: ^5.99.2
         version: 5.103.2(react@19.3.0)
@@ -385,7 +385,7 @@ importers:
         version: typescript@7.0.2
       vitest:
         specifier: ^4.1.5
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
 packages:
 
@@ -1675,6 +1675,7 @@ packages:
   '@opentelemetry/sdk-trace-base@2.11.0':
     resolution: {integrity: sha512-H19x/TX/LZdqiYOjM7fqtSxwlplC5pgelavqbQdHbhdq0q/AI/TGkM2dfGuuynTXmJPeF2HoZVoPDu+TGoW78A==}
     engines: {node: ^18.19.0 || >=20.6.0}
+    deprecated: Use @opentelemetry/sdk-trace package
     peerDependencies:
       '@opentelemetry/api': '>=1.3.0 <1.10.0'
 
@@ -6623,8 +6624,8 @@ packages:
   victory-vendor@37.3.6:
     resolution: {integrity: sha512-SbPDPdDBYp+5MJHhBCAyI7wKM3d5ivekigc2Dk2s7pgbZ9wIgIBYGVw4zGHBml/qTFbexrofXW6Gu4noGxrOwQ==}
 
-  vite@8.1.0:
-    resolution: {integrity: sha512-BuJcQK/56NQTWDGn4ABea3q4SSBdNPWwNZKTkkUpcMPnLoquSYH8llRtSUIgoL1KSCpHt5eghLShn50mH36y7Q==}
+  vite@8.1.6:
+    resolution: {integrity: sha512-aRAHIxx5SW5zc1sMqFwJU/t5qaFfXb5Hj0J7W0VXihu/X99+346tz6080tO1T1xVIJORX/b3zVTXGFqUXh35uw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -6863,7 +6864,7 @@ snapshots:
 
   '@agent-native/core-corpus@0.198.8': {}
 
-  '@agent-native/core@0.198.8(9bd1e9d8b170c75abaa964d9d6d45ba6)':
+  '@agent-native/core@0.198.8(a4a5ebb1d427b2d2880254657957ff12)':
     dependencies:
       '@agent-native/agentkit': 0.198.8
       '@agent-native/recap-cli': 0.5.58(playwright@1.63.0)
@@ -6879,7 +6880,7 @@ snapshots:
       '@noble/hashes': 2.4.0
       '@standard-schema/spec': 1.1.0
       ajv: 8.20.0
-      better-auth: 1.7.6(@opentelemetry/api@1.9.1)(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(kysely@0.29.6)(postgres@3.4.9))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)))
+      better-auth: 1.7.6(@opentelemetry/api@1.9.1)(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(kysely@0.29.6)(postgres@3.4.9))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)))
       cron-parser: 5.10.1
       diff-match-patch: 1.0.5
       dotenv: 17.4.2
@@ -6894,7 +6895,7 @@ snapshots:
       jose: 6.2.12
       linkedom: 0.18.13
       minimatch: 10.2.6
-      nitro: 3.0.260610-beta(@azure/identity@4.13.3)(@electric-sql/pglite@0.5.8)(chokidar@5.0.0)(dotenv@17.4.2)(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(kysely@0.29.6)(postgres@3.4.9))(idb-keyval@6.3.0)(jiti@2.7.0)(lru-cache@11.5.3)(vite@8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+      nitro: 3.0.260610-beta(@azure/identity@4.13.3)(@electric-sql/pglite@0.5.8)(chokidar@5.0.0)(dotenv@17.4.2)(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(kysely@0.29.6)(postgres@3.4.9))(idb-keyval@6.3.0)(jiti@2.7.0)(lru-cache@11.5.3)(vite@8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
       postgres: 3.4.9
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
@@ -6927,7 +6928,7 @@ snapshots:
       '@sentry/node': 10.60.0(@opentelemetry/core@2.11.0(@opentelemetry/api@1.9.1))
       '@sentry/vite-plugin': 5.4.0
       '@tailwindcss/typography': 0.5.20(tailwindcss@4.3.3)
-      '@tailwindcss/vite': 4.3.3(vite@8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+      '@tailwindcss/vite': 4.3.3(vite@8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
       '@tanstack/react-query': 5.103.2(react@19.3.0)
       ai: 6.0.258(zod@4.6.5)
       ai-sdk-ollama: 3.8.8(ai@6.0.258(zod@4.6.5))(zod@4.6.5)
@@ -6941,7 +6942,7 @@ snapshots:
       sharp: 0.35.4(@types/node@24.13.6)
       tailwindcss: 4.3.3
       ts-morph: 28.0.0
-      vite: 8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
+      vite: 8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
       ws: 8.22.0
       xlsx: 0.18.5
     transitivePeerDependencies:
@@ -7022,7 +7023,7 @@ snapshots:
     optionalDependencies:
       playwright: 1.63.0
 
-  '@agent-native/toolkit@0.198.8(3e32eb8a4298bb4f9080f71c82cbb5be)':
+  '@agent-native/toolkit@0.198.8(b03e7588bf6f9f665450c709846c2fa9)':
     dependencies:
       '@agent-native/agentkit': 0.198.8
       '@assistant-ui/react': 0.12.28(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
@@ -7115,7 +7116,7 @@ snapshots:
       yjs: 13.6.33
       zod: 4.6.5
     optionalDependencies:
-      '@agent-native/core': 0.198.8(9bd1e9d8b170c75abaa964d9d6d45ba6)
+      '@agent-native/core': 0.198.8(a4a5ebb1d427b2d2880254657957ff12)
       '@xterm/addon-fit': 0.11.0
       '@xterm/addon-web-links': 0.12.0
       '@xterm/xterm': 6.0.0
@@ -9115,7 +9116,7 @@ snapshots:
 
   '@radix-ui/rect@1.1.3': {}
 
-  '@react-router/dev@8.1.0(react-router@8.1.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(typescript@7.0.2)(vite@8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))':
+  '@react-router/dev@8.1.0(react-router@8.1.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(typescript@7.0.2)(vite@8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))':
     dependencies:
       '@babel/core': 7.29.7
       '@babel/generator': 7.29.8
@@ -9144,16 +9145,16 @@ snapshots:
       semver: 7.8.5
       tinyglobby: 0.2.17
       valibot: 1.5.0(typescript@7.0.2)
-      vite: 8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
+      vite: 8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
     optionalDependencies:
       typescript: 7.0.2
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
 
-  '@react-router/fs-routes@8.1.0(@react-router/dev@8.1.0(react-router@8.1.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(typescript@7.0.2)(vite@8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)))(typescript@7.0.2)':
+  '@react-router/fs-routes@8.1.0(@react-router/dev@8.1.0(react-router@8.1.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(typescript@7.0.2)(vite@8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)))(typescript@7.0.2)':
     dependencies:
-      '@react-router/dev': 8.1.0(react-router@8.1.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(typescript@7.0.2)(vite@8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+      '@react-router/dev': 8.1.0(react-router@8.1.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(typescript@7.0.2)(vite@8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
       minimatch: 10.2.6
     optionalDependencies:
       typescript: 7.0.2
@@ -9634,12 +9635,12 @@ snapshots:
       postcss-selector-parser: 6.0.10
       tailwindcss: 4.3.3
 
-  '@tailwindcss/vite@4.3.3(vite@8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))':
+  '@tailwindcss/vite@4.3.3(vite@8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))':
     dependencies:
       '@tailwindcss/node': 4.3.3
       '@tailwindcss/oxide': 4.3.3
       tailwindcss: 4.3.3
-      vite: 8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
+      vite: 8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
 
   '@tanstack/query-core@5.103.2': {}
 
@@ -10227,13 +10228,13 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.1
 
-  '@vitest/mocker@4.1.11(vite@8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))':
+  '@vitest/mocker@4.1.11(vite@8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))':
     dependencies:
       '@vitest/spy': 4.1.11
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
+      vite: 8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
 
   '@vitest/pretty-format@4.1.11':
     dependencies:
@@ -10392,7 +10393,7 @@ snapshots:
 
   baseline-browser-mapping@2.11.25: {}
 
-  better-auth@1.7.6(@opentelemetry/api@1.9.1)(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(kysely@0.29.6)(postgres@3.4.9))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))):
+  better-auth@1.7.6(@opentelemetry/api@1.9.1)(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(kysely@0.29.6)(postgres@3.4.9))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))):
     dependencies:
       '@better-auth/core': 1.7.6(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.0(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.3)
       '@better-auth/drizzle-adapter': 1.7.6(@better-auth/core@1.7.6(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.0(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.3))(@better-auth/utils@0.4.2)(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(kysely@0.29.6)(postgres@3.4.9))
@@ -10415,7 +10416,7 @@ snapshots:
       drizzle-orm: 0.45.3(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(kysely@0.29.6)(postgres@3.4.9)
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
-      vitest: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+      vitest: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
     transitivePeerDependencies:
       - '@opentelemetry/api'
 
@@ -12157,7 +12158,7 @@ snapshots:
 
   nf3@0.3.17: {}
 
-  nitro@3.0.260610-beta(@azure/identity@4.13.3)(@electric-sql/pglite@0.5.8)(chokidar@5.0.0)(dotenv@17.4.2)(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(kysely@0.29.6)(postgres@3.4.9))(idb-keyval@6.3.0)(jiti@2.7.0)(lru-cache@11.5.3)(vite@8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)):
+  nitro@3.0.260610-beta(@azure/identity@4.13.3)(@electric-sql/pglite@0.5.8)(chokidar@5.0.0)(dotenv@17.4.2)(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(kysely@0.29.6)(postgres@3.4.9))(idb-keyval@6.3.0)(jiti@2.7.0)(lru-cache@11.5.3)(vite@8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)):
     dependencies:
       consola: 3.4.2
       crossws: 0.4.12(srvx@0.11.22)
@@ -12176,7 +12177,7 @@ snapshots:
     optionalDependencies:
       dotenv: 17.4.2
       jiti: 2.7.0
-      vite: 8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
+      vite: 8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
     transitivePeerDependencies:
       - '@azure/app-configuration'
       - '@azure/cosmos'
@@ -13337,7 +13338,7 @@ snapshots:
       d3-time: 3.1.0
       d3-timer: 3.0.1
 
-  vite@8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1):
+  vite@8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
@@ -13352,10 +13353,10 @@ snapshots:
       tsx: 4.23.15
       yaml: 2.9.1
 
-  vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)):
+  vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)):
     dependencies:
       '@vitest/expect': 4.1.11
-      '@vitest/mocker': 4.1.11(vite@8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+      '@vitest/mocker': 4.1.11(vite@8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
       '@vitest/pretty-format': 4.1.11
       '@vitest/runner': 4.1.11
       '@vitest/snapshot': 4.1.11
@@ -13372,7 +13373,7 @@ snapshots:
       tinyexec: 1.3.1
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.1
-      vite: 8.1.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
+      vite: 8.1.6(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
